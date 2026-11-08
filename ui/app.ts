@@ -28,6 +28,7 @@ const WELCOME_BEAT_MS = 2500;   // After 「开始」 the welcome timer runs thi
 const state = {
   screen: null, started: 0, timer: 0, lastWholeSecond: -1, running: false, allDone: false, failed: false,
   scanned: false, model: '', editionWarn: '', status: null, busy: false, welcomeBeat: 0, afterTaskClose: null,
+  finalSeconds: null as number | null,   // Frozen when STEP:all:done arrives
 };
 
 // Preview only: ?size=1090x570 renders the app frame at another window size
@@ -142,7 +143,7 @@ function setMini(id, st, text) {
 async function startInstall() {
   if (state.running) return;
   const fromWelcome = state.screen === 'welcome';
-  Object.assign(state, { running: true, allDone: false, failed: false, scanned: false, model: '', editionWarn: '' });
+  Object.assign(state, { running: true, allDone: false, failed: false, scanned: false, model: '', editionWarn: '', finalSeconds: null });
   resetInstallRows();
   $('#scan-mini').innerHTML = '';
   $('#failure').hidden = true; $('#fixing').hidden = true; $('#login-wait').hidden = false;
@@ -186,7 +187,8 @@ function onInstallLine(line) {
     return;
   }
   if (id === 'edition') { if (st === 'fail') state.editionWarn = text; return; }
-  if (id === 'all') { if (st === 'done') { state.allDone = true; state.model = text; } return; }
+  // Stop the stopwatch right here, not when the done screen renders (a hidden window renders late)
+  if (id === 'all') { if (st === 'done') { state.allDone = true; state.model = text; state.finalSeconds = stopTimer(); } return; }
   if (!INSTALL_ROWS.some(r => r.id === id)) return;
   setRow(list, id, st, text);
   if (id === 'check' || id === 'install') setMini(id, st, st === 'done' && id === 'check' ? `检测电脑：${text}` : text);
@@ -221,7 +223,7 @@ function failInstall(text) {
 }
 
 function finishInstall() {
-  const seconds = Math.round(stopTimer());
+  const seconds = Math.round(state.finalSeconds ?? stopTimer());
   $('#done-model').textContent = state.model ? `用的是智谱免费模型 ${state.model}` : '';
   $('#done-warn').hidden = !state.editionWarn;
   $('#done-warn').textContent = state.editionWarn ? `${state.editionWarn}。可以在管理页里再切换一次。` : '';
@@ -326,6 +328,7 @@ function renderManage(s) {
   $$('#edition-seg button').forEach(b => b.classList.toggle('active', b.dataset.edition === s.edition));
   $$('#set-ask button').forEach(b => b.classList.toggle('active', b.dataset.value === String(!!s.askBeforeEdit)));
   $$('#set-effort button').forEach(b => b.classList.toggle('active', b.dataset.value === (s.effort || 'medium')));
+  $('#row-effort').hidden = s.effortSupported === false;   // GLM models ignore 思考深度
   $('#btn-restore').disabled = !s.hasOriginal;
   renderSponsors(RECOMMENDED_PROVIDERS);
 }
@@ -366,6 +369,8 @@ function showTaskResult(ok: boolean, title: string, text: string) {
   $('#task-result-text').textContent = text;
   box.hidden = false;
 }
+// Only when Codex is open does the user need to reopen it
+const reopenNote = (r: BuddyResult): string => (r.running ? 'Codex 开着的话，关掉重新打开一次就生效。' : '');
 // result: r => [title, text] for the success / failure banner
 async function runTask(title: string, action: string, args?: Record<string, unknown>,
   { stages = false, success }: { stages?: boolean; success?: (r: BuddyResult) => [string, string] } = {}): Promise<BuddyResult | null> {
@@ -407,7 +412,7 @@ async function switchTo(kind: string, button) {
   button.classList.add('loading');
   const r = await runTask(`切换到：${KIND_NAMES[kind]}`, 'switch', args, {
     stages: true,
-    success: () => [`切换好了，正在用：${KIND_NAMES[kind]}`, 'Codex 开着的话，关掉重新打开一次就生效。'],
+    success: r => [`切换好了，正在用：${KIND_NAMES[kind]}`, reopenNote(r)],
   });
   button.classList.remove('loading');
   if (!r) return;
@@ -461,7 +466,7 @@ $$('#edition-seg button').forEach(b => b.onclick = async () => {
   if (b.classList.contains('active')) return;
   const zh = b.dataset.edition === 'zh';
   const r = await runTask(zh ? '切换到汉化版' : '切换到英文原版', 'edition', { edition: b.dataset.edition },
-    { success: () => [`切换好了，现在是${zh ? '汉化版' : '英文原版'}`, 'Codex 开着的话，关掉重新打开一次就生效。'] });
+    { success: r => [`切换好了，现在是${zh ? '汉化版' : '英文原版'}`, reopenNote(r)] });
   if (r) await loadStatus();
 });
 $$('#set-ask button').forEach(b => b.onclick = () => !b.classList.contains('active') && saveSetting('#set-ask', { askBeforeEdit: b.dataset.value === 'true' }, `改文件前${b.textContent}`));
