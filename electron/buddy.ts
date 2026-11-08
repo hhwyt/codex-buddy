@@ -234,6 +234,9 @@ function effortSupported(model: string | null): boolean {
 
 // ---------------- Actions ----------------
 async function status(): Promise<Result> {
+  // The app's first look at this PC, whether or not Codex is already there: remember the state before anything of
+  // ours is written (including the saved key below), so 一键还原 always has something to go back to
+  await snapshot();
   const codex = await getCodex();
   const cur = current();
   zhipuKey();   // Saves the key on first sight
