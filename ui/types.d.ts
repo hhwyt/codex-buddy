@@ -14,7 +14,7 @@ interface BuddyBackend {
   openUrl(url: string): Promise<void>;
 }
 
-/** Exposed by the Electron preload (src/preload.ts); absent in a plain browser */
+/** Exposed by the Electron preload (electron/preload.ts); absent in a plain browser */
 interface BuddyNative {
   runInstall(): Promise<{ code: number }>;
   buddy(action: string, args?: Record<string, unknown>): Promise<BuddyResult>;

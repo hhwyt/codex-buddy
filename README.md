@@ -32,12 +32,12 @@
 
 - 外壳是 [Electron](https://www.electronjs.org/)，自带浏览器内核，Windows 10 老电脑不用另外装组件。整个项目只用 TypeScript。
 - 安装的核心逻辑直接用开源项目 [codex-install-made-easy](https://github.com/hhwyt/codex-install-made-easy) 的 `codex.ps1`，没有重写：下载官方 Codex 并校验、国内镜像和微软商店自动选源、断点续传、管理员授权、扫码建 Key、测出可用的免费模型、汉化版，以及几种已知故障的处理。搭子打开它的「机器可读进度」开关（`CODEX_SETUP_STEPS=1`），读 `STEP:<id>:<start|done|fail>:<说明>` 这样的行来驱动界面。
-- 装好以后的管理功能（读写 Codex 的配置、切换、测试、还原）在主进程 [`src/buddy.ts`](src/buddy.ts)。
+- 装好以后的管理功能（读写 Codex 的配置、切换、测试、还原）在主进程 [`electron/buddy.ts`](electron/buddy.ts)。
 
 ```
-src/main.ts            主进程：运行 codex.ps1、按行读 STEP 输出、内嵌智谱登录页
-src/buddy.ts           主进程：读写配置，切换模型、版本、设置、还原
-src/preload.ts         界面和主进程之间的桥
+electron/main.ts            主进程：运行 codex.ps1、按行读 STEP 输出、内嵌智谱登录页
+electron/buddy.ts           主进程：读写配置，切换模型、版本、设置、还原
+electron/preload.ts         界面和主进程之间的桥
 ui/                    界面（HTML/CSS + TypeScript，编译到 ui/build/）
   backend.ts           在 App 里调主进程；在普通浏览器里是模拟后端（预览模式）
 scripts/vendor/codex.ps1  从 codex-install-made-easy 同步过来的安装脚本

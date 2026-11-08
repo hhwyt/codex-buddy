@@ -1,5 +1,5 @@
 // Codex 搭子 UI: four install screens (welcome, scan, progress, done) and the manage page.
-// The install is codex.ps1; its STEP lines drive the screens. Management actions run in the main process (src/buddy.ts).
+// The install is codex.ps1; its STEP lines drive the screens. Management actions run in the main process (electron/buddy.ts).
 const B = window.Backend;
 const $ = (sel: string): any => document.querySelector(sel);
 const $$ = (sel: string): any[] => [...document.querySelectorAll(sel)];
