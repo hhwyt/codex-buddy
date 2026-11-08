@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex 搭子</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <header class="top">
+    <div class="brand"><span class="logo">搭</span><b>Codex 搭子</b><small>HumansLive</small></div>
+    <div class="chip-timer" id="chip-timer" hidden><span class="dot"></span><span id="chip-timer-text">0.0 秒</span></div>
+  </header>
+
+  <!-- 1. Welcome -->
+  <section class="screen" id="screen-welcome" data-screen="welcome" hidden>
+    <div class="welcome">
+      <div class="welcome-text">
+        <p class="eyebrow">免费 · 不用科学上网 · 不花一分钱</p>
+        <h1>一键装好 Codex<br><em>免费用 AI</em></h1>
+        <p class="lead">你只要做一件事：<b>用微信扫一下码</b>。<br>其余的，交给搭子。</p>
+        <button class="btn-start" id="btn-start" type="button"><span>开始</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="timer-card" aria-label="计时器">
+        <svg class="ring" viewBox="0 0 220 220" aria-hidden="true">
+          <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset=".55" stop-color="#6366f1"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs>
+          <circle class="ring-track" cx="110" cy="110" r="96"/>
+          <circle class="ring-fill" id="ring-fill" cx="110" cy="110" r="96"/>
+        </svg>
+        <div class="timer-face">
+          <span class="timer-label">从零到能用</span>
+          <span class="timer-num" id="timer-num">0.0</span>
+          <span class="timer-unit">秒</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Scan -->
+  <section class="screen" id="screen-scan" data-screen="scan" hidden>
+    <div class="scan">
+      <div class="scan-text">
+        <p class="eyebrow">第 1 步，也是唯一一步</p>
+        <h2>用微信扫码，<br><em>免费用 AI</em></h2>
+        <ol class="scan-tips">
+          <li>打开手机微信，扫右边的二维码</li>
+          <li>第一次用智谱：扫码后填手机号、收一次验证码</li>
+          <li>登录好就不用管了，搭子会自己往下走</li>
+        </ol>
+        <div class="mini-progress" id="scan-mini"></div>
+        <p class="safe-note">🔒 Key 用你自己的智谱账号创建，只保存在这台电脑上。</p>
+      </div>
+      <div class="login-frame">
+        <div class="login-slot" id="login-slot">
+          <div class="login-wait" id="login-wait"><span class="spinner"></span><span id="login-wait-text">正在打开智谱登录…</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Auto progress -->
+  <section class="screen" id="screen-progress" data-screen="progress" hidden>
+    <div class="progress">
+      <h2 id="progress-title">搭子正在帮你装，不用管它</h2>
+      <ul class="checklist" id="checklist"></ul>
+      <div class="fixing" id="fixing" hidden><span class="spinner"></span><span id="fixing-text">正在帮你修…</span></div>
+      <div class="failure" id="failure" hidden>
+        <p class="failure-title">这一步没走通</p>
+        <p class="failure-text" id="failure-text"></p>
+        <div class="row">
+          <button class="btn" id="btn-copy-log" type="button">一键复制日志</button>
+          <button class="btn ghost" id="btn-retry" type="button">再试一次</button>
+        </div>
+        <p class="hint">把日志发给我们，我们来修。日志里没有你的 Key。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Done -->
+  <section class="screen" id="screen-done" data-screen="done" hidden>
+    <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+    <div class="done-wrap">
+      <div class="done-badge"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
+      <p class="done-label">从零到能用</p>
+      <p class="done-time"><span id="done-seconds">0</span><small>秒</small></p>
+      <p class="done-model" id="done-model"></p>
+      <p class="done-warn" id="done-warn" hidden></p>
+      <button class="btn-start" id="btn-open-codex" type="button"><span>打开 Codex</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+      <button class="link" id="btn-to-manage" type="button">以后想换模型、换语言，点这里</button>
+      <p class="follow">关注<b>黄金金不AI</b>，看入门教程</p>
+    </div>
+  </section>
+
+  <!-- Manage -->
+  <section class="screen" id="screen-manage" data-screen="manage" hidden>
+    <div class="manage">
+      <div class="manage-head">
+        <div>
+          <p class="eyebrow">Codex 已装好</p>
+          <h2>正在用：<span id="current-name">—</span></h2>
+          <p class="sub" id="current-sub"></p>
+        </div>
+        <button class="btn" id="btn-open-codex-2" type="button">打开 Codex</button>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-tab="model" type="button">切换模型</button>
+        <button role="tab" class="tab" data-tab="edition" type="button">中文 / 英文</button>
+        <button role="tab" class="tab" data-tab="settings" type="button">常用设置</button>
+        <button role="tab" class="tab" data-tab="restore" type="button">还原</button>
+      </nav>
+
+      <div class="panel" data-panel="model">
+        <p class="panel-note">每次切换前自动备份；切换后自动测试，测通了才保存。</p>
+        <div class="cards" id="model-cards">
+          <article class="card" data-kind="zhipu-free">
+            <span class="badge free">免费</span>
+            <h3>智谱免费</h3>
+            <p>智谱 GLM 免费模型。不扣费，用得太频繁会被限速，等一会儿就恢复。</p>
+            <button class="btn" data-switch="zhipu-free" type="button">用这个</button>
+          </article>
+          <article class="card" data-kind="zhipu-paid">
+            <h3>智谱付费</h3>
+            <p>更强、不限速。要先在智谱<a href="#" data-url="https://bigmodel.cn/finance/pay">充值</a>，按用量扣你自己的钱。</p>
+            <label class="field"><span>模型</span>
+              <select id="paid-model"><option value="glm-5">GLM-5</option><option value="glm-4.6">GLM-4.6</option></select>
+            </label>
+            <button class="btn" data-switch="zhipu-paid" type="button">用这个</button>
+          </article>
+          <article class="card" data-kind="openai">
+            <h3>OpenAI 官方账号</h3>
+            <p>用你自己的 ChatGPT 账号登录。会弹出浏览器，要能打开 OpenAI 的网站。</p>
+            <button class="btn" data-switch="openai" type="button">登录并使用</button>
+          </article>
+        </div>
+
+        <!-- Recommended providers (sponsored). Empty in v1, so the whole block stays hidden -->
+        <div class="sponsor-block" id="sponsor-block" hidden>
+          <h4>推荐厂商</h4>
+          <div class="cards" id="sponsor-cards"></div>
+        </div>
+
+        <article class="card wide" data-kind="custom">
+          <h3>其他厂商</h3>
+          <p>任何兼容 OpenAI 接口的厂商都行：把它给你的地址、Key、模型名填进来。</p>
+          <div class="form">
+            <label class="field"><span>地址</span><input id="custom-url" type="url" placeholder="https://…/v1" autocomplete="off" spellcheck="false"></label>
+            <label class="field"><span>Key</span><input id="custom-key" type="password" placeholder="只保存在这台电脑上" autocomplete="off" spellcheck="false"></label>
+            <label class="field"><span>模型名</span><input id="custom-model" type="text" placeholder="厂商文档里写的模型名" autocomplete="off" spellcheck="false"></label>
+          </div>
+          <button class="btn" data-switch="custom" type="button">测试并保存</button>
+        </article>
+      </div>
+
+      <div class="panel" data-panel="edition" hidden>
+        <p class="panel-note">一键切换，不用重装。Codex 重新打开后生效。</p>
+        <div class="segmented" id="edition-seg">
+          <button type="button" data-edition="zh"><b>汉化版</b><small>界面中文 · 从「ChatGPT 汉化版」打开</small></button>
+          <button type="button" data-edition="en"><b>英文原版</b><small>界面英文 · 和官方一模一样</small></button>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="settings" hidden>
+        <div class="setting">
+          <div><h3>AI 改文件前要不要问我</h3><p>选「要问」，AI 每改一个文件都先等你点同意。</p></div>
+          <div class="pills" id="set-ask">
+            <button type="button" data-value="true">要问</button>
+            <button type="button" data-value="false">不用问</button>
+          </div>
+        </div>
+        <div class="setting">
+          <div><h3>思考深度</h3><p>想得越深，回答越慢，也越仔细。</p></div>
+          <div class="pills" id="set-effort">
+            <button type="button" data-value="low">快</button>
+            <button type="button" data-value="medium">平衡</button>
+            <button type="button" data-value="high">深</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="restore" hidden>
+        <div class="restore">
+          <h3>还原到安装前的样子</h3>
+          <p>把 Codex 的配置放回安装前的样子，去掉汉化版的快捷方式；如果 Codex 是这次才装的，也一起卸载。</p>
+          <button class="btn danger" id="btn-restore" type="button">一键还原</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Task dialog: backup → write → test → save -->
+  <div class="modal" id="task-modal" hidden>
+    <div class="modal-card">
+      <h3 id="task-title">切换中</h3>
+      <ul class="checklist small" id="task-list"></ul>
+      <p class="task-result" id="task-result"></p>
+      <div class="row" id="task-actions" hidden>
+        <button class="btn ghost" id="task-copy-log" type="button" hidden>复制日志</button>
+        <button class="btn" id="task-close" type="button">好的</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm dialog -->
+  <div class="modal" id="confirm-modal" hidden>
+    <div class="modal-card">
+      <h3 id="confirm-title"></h3>
+      <p id="confirm-text"></p>
+      <div class="row">
+        <button class="btn ghost" id="confirm-no" type="button">先不了</button>
+        <button class="btn danger" id="confirm-yes" type="button">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <div class="preview-bar" id="preview-bar" hidden></div>
+
+  <script src="backend.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
