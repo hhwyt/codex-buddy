@@ -5,7 +5,7 @@
 // While the install waits for the WeChat scan, Zhipu's login page is shown inside the window; codex.ps1 reaches it
 // through the DevTools port below (CODEX_SETUP_LOGIN_PORT) and creates the key exactly as it does with its own Edge
 // window.
-import { app, BrowserWindow, ipcMain, shell, WebContentsView } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, shell, WebContentsView } from 'electron';
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -76,8 +76,11 @@ ipcMain.handle('hide-login', () => {
 ipcMain.handle('open-url', (_e, url: string) => { if (/^https:\/\/[^\s"]+$/.test(url)) shell.openExternal(url); });
 
 function createWindow() {
+  // 980×680, but never larger than the screen's usable area (a 1366×768 laptop at 125% has about 1093×574); the
+  // page adapts to smaller windows
+  const area = screen.getPrimaryDisplay().workAreaSize;
   win = new BrowserWindow({
-    width: 980, height: 680, useContentSize: true, resizable: false, maximizable: false, title: 'Codex 搭子',
+    width: Math.min(980, area.width), height: Math.min(680, area.height - 40), useContentSize: true, resizable: false, maximizable: false, title: 'Codex 搭子',
     backgroundColor: '#f5f7ff', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
   });
