@@ -1277,6 +1277,10 @@ try {
       if (-not $inTable -and $line -match '^\s*(model|model_provider|model_catalog_json)\s*=') { continue }
       if (-not $skipTable) { $keptLines += $line }
     }
+    # Blank lines at the start and end are dropped (the parts this script adds bring their own), so a rerun writes the
+    # same bytes instead of two more blank lines each time
+    while ($keptLines.Count -and -not $keptLines[0].Trim()) { $keptLines = @($keptLines | Select-Object -Skip 1) }
+    while ($keptLines.Count -and -not $keptLines[-1].Trim()) { $keptLines = @($keptLines | Select-Object -First ($keptLines.Count - 1)) }
   }
   $configLines = @("model_provider = `"zhipu`"", "model = `"$Model`"") + @($catalogLine | Where-Object { $_ }) + @('') + $keptLines + @(
     '', '[model_providers.zhipu]', 'name = "智谱 GLM"', "base_url = `"$ZhipuBaseUrl`"", 'wire_api = "responses"', 'requires_openai_auth = true')
@@ -1351,22 +1355,25 @@ try {
   Step test start '让 Codex 回一句话'
   $codexCli = $codex.Cli
   if (Test-Path $codexCli) {
-    # codex waits forever unless stdin is closed; run it as a job with a 120 s limit. If Codex rejects the model
-    # catalog (it then ignores the whole config), drop the catalog and ask again
+    # codex waits forever unless stdin is closed: give it an empty file, and give up after 120 s. Its output goes to files,
+    # not a pipe: Codex starts a background git fetch of OpenAI's plugin list that inherits its handles and can run for
+    # minutes (GitHub is slow or blocked in China), and waiting for a pipe to close would wait for that git too. If
+    # Codex rejects the model catalog (it then ignores the whole config), drop the catalog and ask again
     $errFile = Join-Path $WorkDir 'verify-stderr.txt'
+    $outFile = Join-Path $WorkDir 'verify.txt'
+    $inFile = Join-Path $WorkDir 'verify-stdin.txt'
+    [IO.File]::WriteAllText($inFile, '')
     for ($attempt = 1; $attempt -le 2; $attempt++) {
-      $job = Start-Job -ArgumentList $codexCli, $CodexHome, $WorkDir, $errFile -ScriptBlock {
-        param($cli, $codexHomeDir, $dir, $err)
-        $env:CODEX_HOME = $codexHomeDir
-        [Console]::OutputEncoding = [Text.UTF8Encoding]::new()   # codex prints UTF-8; without this, Chinese replies are garbled
-        Set-Location $dir
-        cmd /c "`"$cli`" exec --ephemeral --skip-git-repo-check `"只回复两个字：好了`" < NUL 2>`"$err`""
-      }
+      $oldCodexHome = $env:CODEX_HOME; $env:CODEX_HOME = $CodexHome
+      try {
+        $verify = Start-Process -FilePath $codexCli -ArgumentList 'exec', '--ephemeral', '--skip-git-repo-check', '"只回复两个字：好了"' -WorkingDirectory $WorkDir `
+          -NoNewWindow -PassThru -RedirectStandardInput $inFile -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+      } finally { $env:CODEX_HOME = $oldCodexHome }
       $since = Get-Date
-      while ($job.State -eq 'Running' -and ((Get-Date) - $since).TotalSeconds -lt 120) { Wait-Tick 0.3 '让 Codex 回一句话' $since }
+      while (-not $verify.HasExited -and ((Get-Date) - $since).TotalSeconds -lt 120) { Wait-Tick 0.3 '让 Codex 回一句话' $since }
       Clear-Line
-      $reply = if ($job.State -ne 'Running') { Receive-Job $job | Select-Object -Last 1 } else { Stop-Job $job; $null }
-      Remove-Job $job -Force -ErrorAction SilentlyContinue
+      $reply = if ($verify.HasExited) { @([IO.File]::ReadAllLines($outFile, [Text.Encoding]::UTF8) | Where-Object { $_.Trim() }) | Select-Object -Last 1 }
+               else { taskkill.exe /F /T /PID $verify.Id 2>&1 | Out-Null; $null }
       Log "verify reply: $reply"
       if ($reply -or -not $catalogLine -or -not (Select-String -Quiet -Path $errFile -Pattern 'model_catalog_json' -ErrorAction SilentlyContinue)) { break }
       Log "model catalog rejected: $((Select-String -Path $errFile -Pattern 'model_catalog_json' | Select-Object -First 1).Line)"

@@ -189,8 +189,10 @@ function runCodex(cli: string, home: string, args: string[], timeoutMs: number):
     child.stdout.on('data', d => { out += d; });
     child.stderr.on('data', d => { err += d; });
     const timer = setTimeout(() => { timedOut = true; killTree(child.pid!); }, timeoutMs);
-    child.on('error', e => { err += String(e); });
-    child.on('close', () => { clearTimeout(timer); resolve({ out, err, timedOut }); });
+    child.on('error', e => { err += String(e); resolve({ out, err, timedOut }); });
+    // 'exit', not 'close': Codex starts a background git fetch that inherits its pipes and can run for minutes, so
+    // the pipes may stay open long after Codex itself is done
+    child.on('exit', () => { clearTimeout(timer); setTimeout(() => resolve({ out, err, timedOut }), 300); });
   });
 }
 async function testHome(cli: string, home: string): Promise<{ ok: boolean; reply?: string; reason?: string }> {
