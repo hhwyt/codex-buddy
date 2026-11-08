@@ -82,7 +82,8 @@ function createWindow() {
   win = new BrowserWindow({
     width: Math.min(980, area.width), height: Math.min(680, area.height - 40), useContentSize: true, resizable: false, maximizable: false, title: 'Codex 搭子',
     backgroundColor: '#f5f7ff', autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
+    // backgroundThrottling off: the stopwatch and the STEP updates keep their pace while the window is minimized
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, backgroundThrottling: false },
   });
   win.removeMenu();
   // The page never navigates or opens windows; links go to the default browser through open-url

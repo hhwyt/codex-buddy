@@ -182,12 +182,13 @@ function backup(reason: string): string {
 }
 
 // ---------------- Test: Codex itself answers once, with the new config in a scratch CODEX_HOME ----------------
-function runCodex(cli: string, home: string, args: string[], timeoutMs: number): Promise<{ out: string; err: string; timedOut: boolean }> {
+/** stopEarly: checked on every stderr chunk; true stops Codex at once (it retries a dead address until the timeout) */
+function runCodex(cli: string, home: string, args: string[], timeoutMs: number, stopEarly?: (err: string) => boolean): Promise<{ out: string; err: string; timedOut: boolean }> {
   return new Promise(resolve => {
     const child = spawn(cli, args, { cwd: home, env: { ...process.env, CODEX_HOME: home }, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    let out = '', err = '', timedOut = false;
+    let out = '', err = '', timedOut = false, stopped = false;
     child.stdout.on('data', d => { out += d; });
-    child.stderr.on('data', d => { err += d; });
+    child.stderr.on('data', d => { err += d; if (!stopped && stopEarly?.(err)) { stopped = true; killTree(child.pid!); } });
     const timer = setTimeout(() => { timedOut = true; killTree(child.pid!); }, timeoutMs);
     child.on('error', e => { err += String(e); resolve({ out, err, timedOut }); });
     // 'exit', not 'close': Codex starts a background git fetch that inherits its pipes and can run for minutes, so
@@ -196,12 +197,15 @@ function runCodex(cli: string, home: string, args: string[], timeoutMs: number):
   });
 }
 async function testHome(cli: string, home: string): Promise<{ ok: boolean; reply?: string; reason?: string }> {
-  const { out, err, timedOut } = await runCodex(cli, home, ['exec', '--ephemeral', '--skip-git-repo-check', '只回复两个字：好了'], 120_000);
+  // Codex says "Reconnecting... waiting for network" while it cannot reach the address; twice is enough to know
+  const unreachable = (e: string) => (e.match(/waiting for network/gi) ?? []).length >= 2;
+  const { out, err, timedOut } = await runCodex(cli, home, ['exec', '--ephemeral', '--skip-git-repo-check', '只回复两个字：好了'], 120_000, unreachable);
   const reply = out.split(/\r?\n/).map(l => l.trim()).filter(Boolean).pop();
   log(`test reply: ${reply ?? ''}`);
   if (reply && !timedOut) return { ok: true, reply };
   log(`test failed, stderr: ${err.split(/\r?\n/).filter(l => /error|status|40\d|429|余额|insufficient|refused|timed out|dns/i.test(l)).slice(-6).join(' | ')}`);
-  const reason = timedOut ? '两分钟内没有回复，可能是网络连不上这个地址'
+  const reason = unreachable(err) ? '连不上这个地址：检查一下地址有没有写错，或者网络能不能打开它'
+    : timedOut ? '两分钟内没有回复，可能是网络连不上这个地址'
     : /1113|余额|insufficient|balance|欠费/i.test(err) ? '账户余额不足：先去充值，再来切换'
       : /401|403|Unauthorized|invalid.{0,20}(key|token)|身份验证|令牌/i.test(err) ? 'Key 不对，或者没有权限用这个模型'
         : /stream (disconnected|closed) before/i.test(err) ? '对方没有正常回复：多半是 Key 不对，或者地址、模型名不对'
@@ -218,6 +222,16 @@ function scratchHome(configLines: string[], auth: string | null): string {
   return dir;
 }
 
+/** Whether the current model listens to 思考深度: the model menu file lists the levels each model supports (Zhipu's
+ *  GLM models list none). A model not in that file (custom, OpenAI) is assumed to support it */
+function effortSupported(model: string | null): boolean {
+  try {
+    const catalog = JSON.parse(readText(catalogPath) ?? '{}');
+    const entry = (catalog.models ?? []).find((m: { slug?: string }) => m.slug === model);
+    return !entry || (entry.supported_reasoning_levels ?? []).length > 0;
+  } catch { return true; }
+}
+
 // ---------------- Actions ----------------
 async function status(): Promise<Result> {
   const codex = await getCodex();
@@ -228,6 +242,7 @@ async function status(): Promise<Result> {
     kind: cur.kind, model: cur.model, customBaseUrl: getValue(cur.lines, 'model_providers.custom', 'base_url'),
     hasZhipuKey: hasSecret('zhipu'), hasOpenaiLogin: hasSecret('openai-auth') || cur.kind === 'openai',
     askBeforeEdit: getValue(cur.lines, '', 'sandbox_mode') === 'read-only', effort: getValue(cur.lines, '', 'model_reasoning_effort') ?? 'medium',
+    effortSupported: effortSupported(cur.model),
     hasOriginal: fs.existsSync(path.join(originalDir, 'state.json')), running: (codex?.running.length ?? 0) > 0,
   };
 }
@@ -321,7 +336,8 @@ async function switchModel(a: SwitchArgs, emit: Emit): Promise<Result> {
       step(emit, 'test', 'start', m ? `测试连通：让 ${m} 回一句话` : '测试连通：让 Codex 回一句话');
       test = await testHome(cli, home);
     } finally {
-      fs.rmSync(home, { recursive: true, force: true });
+      // Codex's background git fetch can still hold files in there (EBUSY on Windows); a leftover temp folder is harmless
+      try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) { log(`scratch home left behind: ${e}`); }
     }
     if (test.ok) { chosen = m; break; }
   }
@@ -381,7 +397,6 @@ async function restore(emit: Emit, runCodexPs1: RunCodexPs1): Promise<Result> {
   const statePath = path.join(originalDir, 'state.json');
   if (!fs.existsSync(statePath)) { step(emit, 'files', 'fail', '没有找到安装前的记录'); return { ok: false, reason: '没有找到安装前的记录' }; }
   const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-  backup('before-restore');
   let codex = await getCodex();
   if (codex?.running.length) {
     step(emit, 'close', 'start', '先关掉正在运行的 Codex');
@@ -393,7 +408,9 @@ async function restore(emit: Emit, runCodexPs1: RunCodexPs1): Promise<Result> {
   const savedAuth = path.join(originalDir, 'auth.json.bin');
   if (state.authExisted && fs.existsSync(savedAuth)) writeText(authPath, decrypt(fs.readFileSync(savedAuth))); else fs.rmSync(authPath, { force: true });
   if (!state.catalogExisted) fs.rmSync(catalogPath, { force: true });
+  // The saved keys and the backups (they hold encrypted copies of auth.json) go too: nothing of ours stays behind
   fs.rmSync(secretDir, { recursive: true, force: true });
+  fs.rmSync(backupDir, { recursive: true, force: true });
   step(emit, 'files', 'done', '配置已还原');
   if (!state.zhLauncher && launcherPath()) {
     step(emit, 'edition', 'start', '去掉汉化版的快捷方式');
@@ -417,9 +434,11 @@ async function open(): Promise<Result> {
   const codex = await getCodex();
   if (!codex) return { ok: false, reason: '还没装 Codex' };
   const launcher = launcherPath();
-  if (launcher) {
-    // The same way the "ChatGPT 汉化版" shortcut starts it: through a headless console, so no window flashes
-    spawn('conhost.exe', ['--headless', 'powershell.exe', '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', launcher], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  const shortcut = path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'ChatGPT 汉化版.lnk');
+  if (launcher && fs.existsSync(shortcut)) {
+    // Exactly what a double-click on the Start-menu shortcut does. Spawning its headless conhost directly fails (with
+    // no console it exits at once), and a non-detached child would die with this app, taking the Chinese patch along
+    spawn('explorer.exe', [shortcut], { detached: true, stdio: 'ignore' }).unref();
   } else {
     spawn('explorer.exe', [`shell:AppsFolder\\${codex.family}!App`], { detached: true, stdio: 'ignore' }).unref();
   }

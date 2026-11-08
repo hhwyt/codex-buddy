@@ -107,7 +107,7 @@
     const k = 'buddy';
     const done = (r: BuddyResult) => r;
     switch (action) {
-      case 'status': await sleep(250); return done({ ok: true, ...mock });
+      case 'status': await sleep(250); return done({ ok: true, ...mock, effortSupported: !String(mock.kind).startsWith('zhipu') });   // GLM models ignore 思考深度
       case 'snapshot': await sleep(150); return done({ ok: true });
       case 'open': await sleep(400); return done({ ok: true });
       case 'log': await sleep(300); return done({ ok: true, text: '（预览模式的示例日志）\n12:00:01  STEP:check:start:检测电脑\n12:00:02  ok Windows 11 · x64\n' });
