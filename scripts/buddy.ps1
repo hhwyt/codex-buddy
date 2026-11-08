@@ -160,6 +160,7 @@ function Test-CodexHome($testHome) {
   $reason = if (-not $finished) { '两分钟内没有回复，可能是网络连不上这个地址' }
     elseif ($stderr -match '1113|余额|insufficient|balance|欠费') { '账户余额不足：先去充值，再来切换' }
     elseif ($stderr -match '401|403|Unauthorized|invalid.{0,20}(key|token)|身份验证|令牌') { 'Key 不对，或者没有权限用这个模型' }
+    elseif ($stderr -match 'stream (disconnected|closed) before') { '对方没有正常回复：多半是 Key 不对，或者地址、模型名不对' }
     elseif ($stderr -match '404|not.found|model.{0,30}(exist|available|support)') { '地址或模型名不对' }
     elseif ($stderr -match '429|rate|overload|过载|频') { '对方说现在太忙（限速），过一会儿再试' }
     elseif ($stderr -match 'dns|resolve|connect|refused|timed out|tls|certificate') { '连不上这个地址，检查一下网络或地址' }
