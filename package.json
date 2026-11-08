@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json && tsc -p ui/tsconfig.json",
     "start": "npm run build && electron .",
     "preview": "scripts/preview.sh",
-    "dist": "npm run build && electron-builder --win nsis --x64"
+    "dist": "npm run build && electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
