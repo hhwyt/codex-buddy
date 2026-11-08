@@ -146,7 +146,13 @@ h1 em, h2 em { font-style: normal; background: var(--grad); -webkit-background-c
 .fake-login small { color: var(--ink-3); }
 
 /* ---------- Progress ---------- */
-.progress { max-width: 640px; margin: 0 auto; padding-top: 12px; }
+.progress { max-width: 640px; height: 100%; margin: 0 auto; padding: 12px 8px 0; overflow-y: auto; }
+/* Failed: the other rows shrink to one line, the reason is shown once, in the red box below */
+.progress.failed .checklist li { padding-top: 9px; padding-bottom: 9px; margin-bottom: 8px; }
+.progress.failed .checklist .txt small { display: none; }
+.progress.failed .checklist li:not(.done):not(.fail) { display: none; }
+.progress.failed .checklist .ico { width: 28px; height: 28px; }
+.progress.failed .checklist .ico svg { inset: 5px; width: 18px; height: 18px; }
 .progress-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
 .progress h2 { font-size: 30px; }
 .progress-count { flex: none; color: var(--indigo); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -189,7 +195,7 @@ h1 em, h2 em { font-style: normal; background: var(--grad); -webkit-background-c
 .checklist.small .ico { width: 26px; height: 26px; }
 .checklist.small .ico::before { font-size: 12px; border-width: 2px; }
 .checklist.small .ico svg { inset: 5px; width: 16px; height: 16px; }
-.checklist.small .txt b { font-size: 15px; }
+.checklist.small .txt b { font-size: 15px; white-space: normal; }
 .checklist.small li.running { transform: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pop { from { transform: scale(.3); } }
@@ -311,7 +317,7 @@ h1 em, h2 em { font-style: normal; background: var(--grad); -webkit-background-c
 .segmented button small { color: var(--ink-2); font-size: 13px; }
 .segmented button.active { color: #fff; background: var(--grad); box-shadow: 0 18px 34px -16px #6366f1; cursor: default; }
 .segmented button.active small { color: rgba(255, 255, 255, .88); }
-.segmented button.active::after { content: "✓ 正在用"; position: absolute; top: 14px; right: 14px; padding: 3px 10px; border-radius: 999px; color: #4338ca; font-size: 12px; font-weight: 700; background: #fff; }
+.segmented button.active b::after { content: "✓ 正在用"; margin-left: 10px; padding: 3px 10px; border-radius: 999px; color: #4338ca; font-size: 12px; font-weight: 700; vertical-align: 3px; background: #fff; }
 .win { display: flex; flex-direction: column; gap: 7px; padding: 0 0 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px #e2e8f0, 0 10px 20px -16px #0f172a; overflow: hidden; }
 .win-bar { display: flex; gap: 5px; padding: 8px 10px; background: #f1f5f9; }
 .win-bar i { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; }
@@ -426,6 +432,16 @@ html.preview .bg { position: absolute; }
   .follow { margin-top: 12px; padding: 7px 18px; font-size: 14px; }
   .tabs { margin: 10px 0 8px; }
   .manage-head h2 { font-size: 24px; }
+  .modal-card { padding: 18px 22px; }
+  .modal-card h3 { margin-bottom: 10px; }
+  .stages { margin-bottom: 10px; }
+  .checklist.small li { padding: 7px 12px; margin-bottom: 6px; }
+  .checklist.small .txt small { display: none; }
+  .manage-head .eyebrow { display: none; }
+  .panel-note { margin-bottom: 8px; }
+  .card { padding: 12px 14px; gap: 6px; }
+  .task-result { margin-top: 8px; padding: 10px 14px; }
+  .segmented .win-line.short { display: none; }
 }
 @container app (max-width: 920px) {
   .screen { padding-left: 32px; padding-right: 32px; }

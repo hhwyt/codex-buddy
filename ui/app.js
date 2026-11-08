@@ -147,6 +147,7 @@ async function startInstall() {
   $('#failure').hidden = true; $('#fixing').hidden = true; $('#login-wait').hidden = false;
   $('#login-wait-text').textContent = '正在检测电脑，马上打开智谱登录…';
   $('#progress-title').textContent = '搭子正在帮你装，不用管它';
+  $('.progress').classList.remove('failed');
   $('#btn-start').disabled = true; $('#btn-start-text').textContent = '已开始';
   startTimer();
   if (fromWelcome) {
@@ -179,6 +180,7 @@ function onInstallLine(line) {
   if (id === 'fix') {
     $('#fixing').hidden = st !== 'start';
     $('#fixing-text').textContent = text;
+    if (st === 'start') requestAnimationFrame(() => $('#fixing').scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
     if (st === 'done') toast('✓ ' + text);
     return;
   }
@@ -211,8 +213,10 @@ function failInstall(text) {
   show('progress');
   $('#fixing').hidden = true;
   $('#progress-title').textContent = '遇到了一点问题';
+  $('.progress').classList.add('failed');
   $('#failure-text').textContent = text;
   $('#failure').hidden = false;
+  requestAnimationFrame(() => $('#failure').scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
 }
 
 function finishInstall() {
