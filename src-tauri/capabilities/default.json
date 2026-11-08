@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The app's own page only. Zhipu's login page is a remote origin and gets no IPC.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

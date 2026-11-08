@@ -391,8 +391,8 @@ function Invoke-Open {
 
 # Keep a copy of the app next to its data and put it in the Start menu, so the user finds it again after deleting the
 # download. WScript.Shell cannot save a shortcut whose name is outside the system code page, so save under ASCII, then rename
-function Invoke-SelfInstall($a) {
-  $exe = "$($a.exe)"
+function Invoke-SelfInstall {
+  $exe = "$env:BUDDY_EXE"
   if (-not $exe -or -not (Test-Path -LiteralPath $exe)) { Result @{ ok = $false }; return }
   $target = Join-Path $BuddyDir 'codex-buddy.exe'
   try {
@@ -434,7 +434,7 @@ try {
     'settings' { Invoke-Settings $arguments }
     'restore' { Invoke-Restore }
     'open' { Invoke-Open }
-    'selfinstall' { Invoke-SelfInstall $arguments }
+    'selfinstall' { Invoke-SelfInstall }
     'log' { Invoke-Log }
     default { Result @{ ok = $false; reason = "unknown action $action" } }
   }
