@@ -234,23 +234,21 @@ function effortSupported(model: string | null): boolean {
 
 // ---------------- Actions ----------------
 async function status(): Promise<Result> {
-  // The app's first look at this PC, whether or not Codex is already there: remember the state before anything of
-  // ours is written (including the saved key below), so 一键还原 always has something to go back to
-  await snapshot();
+  // Read-only: writes nothing, so it never changes what 一键还原 goes back to
   const codex = await getCodex();
   const cur = current();
-  zhipuKey();   // Saves the key on first sight
   return {
     ok: true, installed: !!codex, version: codex?.version ?? null, edition: launcherPath() ? 'zh' : 'en',
     kind: cur.kind, model: cur.model, customBaseUrl: getValue(cur.lines, 'model_providers.custom', 'base_url'),
-    hasZhipuKey: hasSecret('zhipu'), hasOpenaiLogin: hasSecret('openai-auth') || cur.kind === 'openai',
+    hasZhipuKey: hasSecret('zhipu') || (cur.provider === 'zhipu' && !!authKey(cur.auth)), hasOpenaiLogin: hasSecret('openai-auth') || cur.kind === 'openai',
     askBeforeEdit: getValue(cur.lines, '', 'sandbox_mode') === 'read-only', effort: getValue(cur.lines, '', 'model_reasoning_effort') ?? 'medium',
     effortSupported: effortSupported(cur.model),
     hasOriginal: fs.existsSync(path.join(originalDir, 'state.json')), running: (codex?.running.length ?? 0) > 0,
   };
 }
 
-/** Before the first install: remember what was there, once, so "restore" can put it back */
+/** Before the first change of any kind (install, switch, edition, settings): remember what was there, once, so
+ *  一键还原 can put it back, also on a PC that had Codex before the app */
 async function snapshot(): Promise<Result> {
   const statePath = path.join(originalDir, 'state.json');
   if (fs.existsSync(statePath)) return { ok: true, existed: true };
@@ -269,6 +267,7 @@ async function snapshot(): Promise<Result> {
 
 type SwitchArgs = { kind?: string; model?: string; baseUrl?: string; apiKey?: string };
 async function switchModel(a: SwitchArgs, emit: Emit): Promise<Result> {
+  await snapshot();
   const kind = String(a.kind);
   const cur = current();
   // Remember what the config holds now, so switching back later needs no key and no login
@@ -365,6 +364,7 @@ async function switchModel(a: SwitchArgs, emit: Emit): Promise<Result> {
  *  language setting */
 export type RunCodexPs1 = (env: Record<string, string>, emit: Emit) => Promise<number>;
 async function edition(a: { edition?: string }, emit: Emit, runCodexPs1: RunCodexPs1): Promise<Result> {
+  await snapshot();
   const target = a.edition === 'en' ? 'en' : 'zh';
   step(emit, 'edition', 'start', target === 'zh' ? '切换到汉化版' : '切换到英文原版');
   const code = await runCodexPs1({ CODEX_SETUP_ACTION: 'edition', CODEX_SETUP_EDITION: target }, line => log(`codex.ps1: ${line}`));
@@ -380,6 +380,7 @@ async function edition(a: { edition?: string }, emit: Emit, runCodexPs1: RunCode
 }
 
 async function settings(a: { askBeforeEdit?: boolean; effort?: string }): Promise<Result> {
+  await snapshot();
   backup('settings');
   const top: Record<string, string | null> = {};
   if (typeof a.askBeforeEdit === 'boolean') {
@@ -415,10 +416,12 @@ async function restore(emit: Emit, runCodexPs1: RunCodexPs1): Promise<Result> {
   fs.rmSync(secretDir, { recursive: true, force: true });
   fs.rmSync(backupDir, { recursive: true, force: true });
   step(emit, 'files', 'done', '配置已还原');
-  if (!state.zhLauncher && launcherPath()) {
-    step(emit, 'edition', 'start', '去掉汉化版的快捷方式');
-    const code = await runCodexPs1({ CODEX_SETUP_ACTION: 'edition', CODEX_SETUP_EDITION: 'en' }, line => log(`codex.ps1: ${line}`));
-    step(emit, 'edition', code === 0 ? 'done' : 'fail', code === 0 ? '已去掉' : '没去掉，可以手动删掉桌面上的「ChatGPT 汉化版」');
+  // The edition goes back too, in either direction
+  if (state.zhLauncher !== !!launcherPath()) {
+    const zh = !!state.zhLauncher;
+    step(emit, 'edition', 'start', zh ? '换回汉化版' : '去掉汉化版的快捷方式');
+    const code = await runCodexPs1({ CODEX_SETUP_ACTION: 'edition', CODEX_SETUP_EDITION: zh ? 'zh' : 'en' }, line => log(`codex.ps1: ${line}`));
+    step(emit, 'edition', code === 0 ? 'done' : 'fail', code === 0 ? (zh ? '已换回汉化版' : '已去掉') : (zh ? '没换回汉化版，可以在管理页再切一次' : '没去掉，可以手动删掉桌面上的「ChatGPT 汉化版」'));
   }
   let uninstalled = true;
   codex = await getCodex();
