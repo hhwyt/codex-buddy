@@ -12,7 +12,7 @@ use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::webview::WebviewBuilder;
-use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, RunEvent, State, WebviewUrl};
+use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -231,6 +231,25 @@ fn main() {
     tauri::Builder::default()
         .manage(Running::default())
         .invoke_handler(tauri::generate_handler![run_script, show_login, hide_login, open_url])
+        .setup(|app| {
+            // Tauri's default WebView2 flags, plus a DevTools port only when CODEX_BUDDY_DEBUG_PORT is set (for
+            // driving the page in tests on a PC without a screen)
+            let mut browser_args = String::from("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection");
+            if let Ok(port) = std::env::var("CODEX_BUDDY_DEBUG_PORT") {
+                if let Ok(port) = port.parse::<u16>() {
+                    browser_args.push_str(&format!(" --remote-debugging-port={port}"));
+                }
+            }
+            WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                .title("Codex 搭子")
+                .inner_size(980.0, 680.0)
+                .resizable(false)
+                .maximizable(false)
+                .center()
+                .additional_browser_args(&browser_args)
+                .build()?;
+            Ok(())
+        })
         .build(tauri::generate_context!())
         .expect("failed to start Codex 搭子")
         .run(|app, event| {
