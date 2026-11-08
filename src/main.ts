@@ -1,0 +1,101 @@
+// Codex 搭子 main process. Three jobs:
+// 1. run codex.ps1 (from codex-install-made-easy, unchanged apart from its STEP switch) for the install;
+// 2. read its output line by line and pass the STEP:<id>:<start|done|fail>:<text> lines to the page;
+// 3. read and write Codex's config for the manage page (buddy.ts).
+// While the install waits for the WeChat scan, Zhipu's login page is shown inside the window; codex.ps1 reaches it
+// through the DevTools port below (CODEX_SETUP_LOGIN_PORT) and creates the key exactly as it does with its own Edge
+// window.
+import { app, BrowserWindow, ipcMain, shell, WebContentsView } from 'electron';
+import { spawn, type ChildProcess } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as readline from 'node:readline';
+import { buddyDir, log, runAction, type Emit } from './buddy';
+
+const ZHIPU_LOGIN_URL = 'https://bigmodel.cn/login?redirect=%2Fapikey%2Fplatform';
+const LOGIN_DEBUG_PORT = 9333;   // Chromium binds it to 127.0.0.1 only
+
+app.commandLine.appendSwitch('remote-debugging-port', String(LOGIN_DEBUG_PORT));
+app.commandLine.appendSwitch('lang', 'zh-CN');
+
+let win: BrowserWindow | null = null;
+let loginView: WebContentsView | null = null;
+const children = new Set<ChildProcess>();
+
+/** codex.ps1 is packed in the app; PowerShell needs it as a real file */
+function codexPs1Path(): string {
+  const target = path.join(buddyDir, 'scripts', 'codex.ps1');
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, fs.readFileSync(path.join(__dirname, '..', 'scripts', 'vendor', 'codex.ps1')));
+  return target;
+}
+
+/** Runs codex.ps1 hidden with STEP lines on, passing each line to onLine. Run through iex of the file text, as
+ *  `irm | iex` does: unlike -File, this is not blocked when group policy forbids running .ps1 files */
+function runCodexPs1(env: Record<string, string>, onLine: Emit): Promise<number> {
+  const script = codexPs1Path().replace(/'/g, "''");
+  const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', `iex ([IO.File]::ReadAllText('${script}', [Text.Encoding]::UTF8))`], {
+    windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'], env: { ...process.env, CODEX_SETUP_STEPS: '1', ...env },
+  });
+  children.add(child);
+  readline.createInterface({ input: child.stdout! }).on('line', line => { if (line.startsWith('STEP:')) onLine(line); });
+  return new Promise(resolve => {
+    child.on('error', e => { log(`codex.ps1 failed to start: ${e}`); });
+    child.on('close', code => { children.delete(child); resolve(code ?? -1); });
+  });
+}
+
+const send = (kind: 'install' | 'buddy') => (line: string) => win?.webContents.send('script-line', { kind, line });
+
+ipcMain.handle('run-install', async () => {
+  const code = await runCodexPs1({ CODEX_SETUP_LOGIN_PORT: String(LOGIN_DEBUG_PORT), CODEX_SETUP_NO_OPEN: '1', CODEX_SETUP_EDITION: 'zh' }, send('install'));
+  return { code };
+});
+ipcMain.handle('buddy', (_e, action: string, args: Record<string, unknown>) => runAction(action, args ?? {}, send('buddy'), runCodexPs1));
+
+// Zhipu's login page over the page's login slot. An in-memory session: no cookies of earlier logins, nothing kept,
+// like the temporary browser profile codex.ps1 uses
+ipcMain.handle('show-login', (_e, r: { x: number; y: number; w: number; h: number }) => {
+  if (!win) return;
+  const bounds = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.w), height: Math.round(r.h) };
+  if (loginView) { loginView.setBounds(bounds); return; }
+  loginView = new WebContentsView({ webPreferences: { partition: `login-${Date.now()}`, sandbox: true, contextIsolation: true } });
+  const contents = loginView.webContents;
+  contents.setUserAgent(contents.getUserAgent().replace(/ (Electron|codex-buddy)\/\S+/g, ''));
+  contents.setWindowOpenHandler(({ url }) => { if (url.startsWith('https://')) shell.openExternal(url); return { action: 'deny' }; });
+  win.contentView.addChildView(loginView);
+  loginView.setBounds(bounds);
+  contents.loadURL(ZHIPU_LOGIN_URL);
+});
+ipcMain.handle('hide-login', () => {
+  if (!win || !loginView) return;
+  win.contentView.removeChildView(loginView);
+  loginView.webContents.close();
+  loginView = null;
+});
+ipcMain.handle('open-url', (_e, url: string) => { if (/^https:\/\/[^\s"]+$/.test(url)) shell.openExternal(url); });
+
+function createWindow() {
+  win = new BrowserWindow({
+    width: 980, height: 680, useContentSize: true, resizable: false, maximizable: false, title: 'Codex 搭子',
+    backgroundColor: '#f5f7ff', autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
+  });
+  win.removeMenu();
+  // The page never navigates or opens windows; links go to the default browser through open-url
+  win.webContents.on('will-navigate', e => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
+  win.on('closed', () => { win = null; loginView = null; });
+}
+
+if (!app.requestSingleInstanceLock()) app.quit();
+else {
+  app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+  app.whenReady().then(createWindow);
+  app.on('window-all-closed', () => app.quit());
+  // Closing the window stops a running install too (a rerun resumes the download)
+  app.on('will-quit', () => {
+    for (const child of children) if (child.pid) spawn('taskkill.exe', ['/F', '/T', '/PID', String(child.pid)], { windowsHide: true });
+  });
+}

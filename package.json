@@ -1,0 +1,52 @@
+{
+  "name": "codex-buddy",
+  "version": "0.1.0",
+  "description": "Codex 搭子：一键装好 Codex，免费用 AI",
+  "author": "hhwyt",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p ui/tsconfig.json",
+    "start": "npm run build && electron .",
+    "preview": "scripts/preview.sh",
+    "dist": "npm run build && electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "electron": "38.4.0",
+    "electron-builder": "26.8.1",
+    "typescript": "5.9.3"
+  },
+  "build": {
+    "appId": "ai.humanslive.codexbuddy",
+    "productName": "Codex 搭子",
+    "executableName": "codex-buddy",
+    "directories": { "output": "release", "buildResources": "build" },
+    "files": [
+      "package.json",
+      "dist/*.js",
+      "ui/index.html",
+      "ui/app.css",
+      "ui/build/*.js",
+      "scripts/vendor/codex.ps1"
+    ],
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": ["zh-CN", "en-US"],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Codex 搭子",
+      "artifactName": "Codex搭子-安装-${version}.exe",
+      "deleteAppDataOnUninstall": true
+    }
+  }
+}

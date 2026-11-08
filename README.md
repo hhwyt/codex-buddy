@@ -30,15 +30,16 @@
 
 ## 它是怎么做的
 
-- 外壳是 [Tauri 2](https://v2.tauri.app/)，很小。Windows 10 上没有 WebView2 时，搭子会先自动装上。
+- 外壳是 [Electron](https://www.electronjs.org/)，自带浏览器内核，Windows 10 老电脑不用另外装组件。整个项目只用 TypeScript。
 - 安装的核心逻辑直接用开源项目 [codex-install-made-easy](https://github.com/hhwyt/codex-install-made-easy) 的 `codex.ps1`，没有重写：下载官方 Codex 并校验、国内镜像和微软商店自动选源、断点续传、管理员授权、扫码建 Key、测出可用的免费模型、汉化版，以及几种已知故障的处理。搭子打开它的「机器可读进度」开关（`CODEX_SETUP_STEPS=1`），读 `STEP:<id>:<start|done|fail>:<说明>` 这样的行来驱动界面。
-- 装好以后的管理功能在 [`scripts/buddy.ps1`](scripts/buddy.ps1)。
+- 装好以后的管理功能（读写 Codex 的配置、切换、测试、还原）在主进程 [`src/buddy.ts`](src/buddy.ts)。
 
 ```
-ui/                    界面（纯 HTML/CSS/JS，不用打包）
-  backend.js           在 App 里调 Rust；在普通浏览器里是模拟后端（预览模式）
-src-tauri/             Tauri 外壳（Rust）
-scripts/buddy.ps1      切换模型、版本、设置、还原
+src/main.ts            主进程：运行 codex.ps1、按行读 STEP 输出、内嵌智谱登录页
+src/buddy.ts           主进程：读写配置，切换模型、版本、设置、还原
+src/preload.ts         界面和主进程之间的桥
+ui/                    界面（HTML/CSS + TypeScript，编译到 ui/build/）
+  backend.ts           在 App 里调主进程；在普通浏览器里是模拟后端（预览模式）
 scripts/vendor/codex.ps1  从 codex-install-made-easy 同步过来的安装脚本
 scripts/preview.sh     在 Mac 的浏览器里预览界面
 docs/preview-scenario.md  预览的点击路线
@@ -49,6 +50,7 @@ docs/preview-scenario.md  预览的点击路线
 不需要 Windows，在 Mac 上就能把所有画面点一遍（后端是模拟的，不会改你的电脑）：
 
 ```bash
+npm install
 scripts/preview.sh
 ```
 
@@ -56,12 +58,11 @@ scripts/preview.sh
 
 ## 构建
 
-推到 `main` 后，GitHub Actions 在 Windows 上构建，产物是一个 `Codex搭子.exe`（见 [.github/workflows/build.yml](.github/workflows/build.yml)）。
-
-本地构建（Windows，装好 Rust 和 [Tauri CLI](https://v2.tauri.app/reference/cli/)）：
+产物是一个一键安装包 `Codex搭子-安装-<版本>.exe`（NSIS，双击就装、装完自动打开，不用点「下一步」），约 88 MB。推到 `main` 后 GitHub Actions 会在 Windows 上构建一份（见 [.github/workflows/build.yml](.github/workflows/build.yml)）；在 Mac 上也能直接打：
 
 ```bash
-cd src-tauri && tauri build --no-bundle
+npm install
+npm run dist
 ```
 
 还没有代码签名，第一次打开时 Windows 可能提示「Windows 已保护你的电脑」，点「更多信息 → 仍要运行」。

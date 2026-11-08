@@ -1,14 +1,15 @@
 // Codex 搭子 UI: four install screens (welcome, scan, progress, done) and the manage page.
-// The install is codex.ps1; its STEP lines drive the screens. Management actions are buddy.ps1 (see backend.js).
+// The install is codex.ps1; its STEP lines drive the screens. Management actions run in the main process (src/buddy.ts).
 const B = window.Backend;
-const $ = sel => document.querySelector(sel);
-const $$ = sel => [...document.querySelectorAll(sel)];
+const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
+const $$ = <T extends HTMLElement = HTMLElement>(sel: string) => [...document.querySelectorAll<T>(sel)];
 
 // Recommended (sponsored) providers, shown above "其他厂商". v1 ships none, so the block stays hidden. Later the list
 // comes from the server, one entry per provider:
 //   { id: 'acme', name: '某某云', note: '一句话介绍', baseUrl: 'https://…/v1', models: ['model-a'], signupUrl: 'https://…', sponsored: true }
 // Picking one fills the "其他厂商" form with its address and first model; the user still brings their own key.
-const RECOMMENDED_PROVIDERS = [];
+type RecommendedProvider = { id: string; name: string; note?: string; baseUrl?: string; models?: string[]; signupUrl?: string; sponsored: true };
+const RECOMMENDED_PROVIDERS: RecommendedProvider[] = [];
 
 const INSTALL_ROWS = [
   { id: 'check', title: '检测电脑' },
@@ -17,23 +18,24 @@ const INSTALL_ROWS = [
   { id: 'config', title: '配置模型' },
   { id: 'test', title: '测试连通' },
 ];
-const KIND_NAMES = { 'zhipu-free': '智谱免费', 'zhipu-paid': '智谱付费', openai: 'OpenAI 官方账号', custom: '其他厂商', none: '还没配置' };
+const KIND_NAMES: Record<string, string> = { 'zhipu-free': '智谱免费', 'zhipu-paid': '智谱付费', openai: 'OpenAI 官方账号', custom: '其他厂商', none: '还没配置' };
 const ICONS = '<svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>';
 const STEP_LINE = /^STEP:([a-z]+):(start|done|fail):(.*)$/;
 
-const state = { screen: null, started: 0, timer: 0, running: false, allDone: false, failed: false, model: '', editionWarn: '', status: null, busy: false };
+const state = { screen: '', started: 0, timer: 0, running: false, allDone: false, failed: false, model: '', editionWarn: '', status: null as BuddyResult | null, busy: false };
 
 // ---------------- Screens ----------------
-function show(name) {
+function show(name: string) {
   if (state.screen === 'scan' && name !== 'scan') B.hideLogin();
   $$('.screen').forEach(s => { s.hidden = s.dataset.screen !== name; });
   state.screen = name;
   $('#chip-timer').hidden = !state.started || !['scan', 'progress', 'done'].includes(name);
 }
-function toast(text, ms = 2600) {
+let toastTimer = 0;
+function toast(text: string, ms = 2600) {
   const t = $('#toast');
   t.textContent = text; t.hidden = false;
-  clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, ms);
+  clearTimeout(toastTimer); toastTimer = window.setTimeout(() => { t.hidden = true; }, ms);
 }
 
 // ---------------- Timer ----------------
@@ -53,28 +55,28 @@ function startTimer() {
 function stopTimer() { cancelAnimationFrame(state.timer); $('#chip-timer').classList.add('stopped'); return elapsed(); }
 
 // ---------------- Checklists ----------------
-function rowHtml(id, title) {
+function rowHtml(id: string) {
   return `<li data-id="${id}"><span class="ico">${ICONS}</span><span class="txt"><b></b><small></small></span><span class="sec"></span></li>`;
 }
-function setRow(list, id, st, text, title) {
-  let li = list.querySelector(`li[data-id="${id}"]`);
-  if (!li) { list.insertAdjacentHTML('beforeend', rowHtml(id)); li = list.lastElementChild; li.querySelector('b').textContent = title || text; }
+function setRow(list: HTMLElement, id: string, st: string, text: string, title?: string) {
+  let li = list.querySelector<HTMLElement>(`li[data-id="${id}"]`);
+  if (!li) { list.insertAdjacentHTML('beforeend', rowHtml(id)); li = list.lastElementChild as HTMLElement; li.querySelector('b')!.textContent = title || text; }
   if (st === 'start' && !li.classList.contains('running')) li.dataset.since = String(performance.now());
   li.classList.remove('running', 'done', 'fail');
   li.classList.add(st === 'start' ? 'running' : st);
-  if (title) li.querySelector('b').textContent = title;
-  li.querySelector('small').textContent = text || '';
-  if (st !== 'start' && li.dataset.since) li.querySelector('.sec').textContent = `${((performance.now() - Number(li.dataset.since)) / 1000).toFixed(1)}s`;
+  if (title) li.querySelector('b')!.textContent = title;
+  li.querySelector('small')!.textContent = text || '';
+  if (st !== 'start' && li.dataset.since) li.querySelector('.sec')!.textContent = `${((performance.now() - Number(li.dataset.since)) / 1000).toFixed(1)}s`;
 }
 function resetInstallRows() {
   const list = $('#checklist');
   list.innerHTML = INSTALL_ROWS.map(r => rowHtml(r.id)).join('');
-  INSTALL_ROWS.forEach(r => { list.querySelector(`li[data-id="${r.id}"] b`).textContent = r.title; });
+  INSTALL_ROWS.forEach(r => { list.querySelector(`li[data-id="${r.id}"] b`)!.textContent = r.title; });
   list.querySelectorAll('small').forEach(s => { s.textContent = '等待中'; });
 }
-function setMini(id, st, text) {
+function setMini(id: string, st: string, text: string) {
   const box = $('#scan-mini');
-  let chip = box.querySelector(`[data-id="${id}"]`);
+  let chip = box.querySelector<HTMLElement>(`[data-id="${id}"]`);
   if (!chip) { chip = document.createElement('span'); chip.dataset.id = id; box.appendChild(chip); }
   chip.className = st === 'done' ? 'done' : '';
   chip.textContent = (st === 'done' ? '✓ ' : '· ') + text;
@@ -87,9 +89,10 @@ async function startInstall() {
   resetInstallRows();
   $('#scan-mini').innerHTML = '';
   $('#failure').hidden = true; $('#fixing').hidden = true; $('#login-wait').hidden = false;
+  $('.progress').classList.remove('failed');
   $('#login-wait-text').textContent = '正在检测电脑，马上打开智谱登录…';
   $('#progress-title').textContent = '搭子正在帮你装，不用管它';
-  $('#btn-start').disabled = true;
+  $<HTMLButtonElement>('#btn-start').disabled = true;
   startTimer();
   show('scan');
   await B.buddy('snapshot');
@@ -97,12 +100,12 @@ async function startInstall() {
   try { code = (await B.runInstall()).code; } catch (e) { console.error(e); }
   await new Promise(r => setTimeout(r, 300));   // Let the last STEP events land
   state.running = false;
-  $('#btn-start').disabled = false;
+  $<HTMLButtonElement>('#btn-start').disabled = false;
   if (state.allDone) return finishInstall();
   if (!state.failed) failInstall(code === 0 ? '安装没有走完。' : '安装中途停了下来。点「再试一次」，已经下载的部分会接着下。');
 }
 
-function onInstallLine(line) {
+function onInstallLine(line: string) {
   const m = STEP_LINE.exec(line);
   if (!m) return;
   const [, id, st, text] = m;
@@ -136,12 +139,13 @@ async function placeLogin() {
   await B.showLogin({ x: r.left, y: r.top, w: r.width, h: r.height });
 }
 
-function failInstall(text) {
+function failInstall(text: string) {
   if (state.failed) return;
   state.failed = true;
   stopTimer();
   show('progress');
   $('#fixing').hidden = true;
+  $('.progress').classList.add('failed');
   $('#progress-title').textContent = '遇到了一点问题';
   $('#failure-text').textContent = text;
   $('#failure').hidden = false;
@@ -154,13 +158,12 @@ function finishInstall() {
   $('#done-warn').textContent = state.editionWarn ? `${state.editionWarn}。可以在管理页里再切换一次。` : '';
   show('done');
   countUp($('#done-seconds'), seconds);
-  confetti($('#confetti'));
-  B.buddy('selfinstall');   // Start-menu entry "Codex 搭子", so the manage page is easy to find later
+  confetti($<HTMLCanvasElement>('#confetti'));
 }
 
-function countUp(el, target) {
+function countUp(el: HTMLElement, target: number) {
   const t0 = performance.now(), dur = 1100;
-  const step = now => {
+  const step = (now: number) => {
     const p = Math.min(1, (now - t0) / dur);
     el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
     if (p < 1) requestAnimationFrame(step);
@@ -168,8 +171,8 @@ function countUp(el, target) {
   requestAnimationFrame(step);
 }
 
-function confetti(canvas) {
-  const ctx = canvas.getContext('2d');
+function confetti(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d')!;
   const w = canvas.width = canvas.offsetWidth * devicePixelRatio, h = canvas.height = canvas.offsetHeight * devicePixelRatio;
   const colors = ['#0ea5e9', '#6366f1', '#ec4899', '#f59e0b', '#10b981'];
   const parts = Array.from({ length: 160 }, () => ({
@@ -177,7 +180,7 @@ function confetti(canvas) {
     s: (Math.random() * 8 + 5) * devicePixelRatio, r: Math.random() * 6, vr: (Math.random() - .5) * .3, c: colors[Math.floor(Math.random() * colors.length)],
   }));
   const t0 = performance.now();
-  const frame = now => {
+  const frame = (now: number) => {
     ctx.clearRect(0, 0, w, h);
     parts.forEach(p => { p.vy += .7; p.vx *= .985; p.x += p.vx; p.y += p.vy; p.r += p.vr; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); });
     if (now - t0 < 3200) requestAnimationFrame(frame); else ctx.clearRect(0, 0, w, h);
@@ -188,9 +191,9 @@ function confetti(canvas) {
 async function copyLog() {
   const r = await B.buddy('log');
   if (!r.ok) return toast('没拿到日志');
-  try { await navigator.clipboard.writeText(r.text); }
+  try { await navigator.clipboard.writeText(String(r.text)); }
   catch {
-    const ta = document.createElement('textarea'); ta.value = r.text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    const ta = document.createElement('textarea'); ta.value = String(r.text); document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
   }
   toast('日志已复制，发给我们就行（里面没有你的 Key）', 3500);
 }
@@ -209,33 +212,33 @@ async function loadStatus() {
   renderManage(s);
   return s;
 }
-function renderManage(s) {
-  $('#current-name').textContent = KIND_NAMES[s.kind] || '还没配置';
+function renderManage(s: BuddyResult) {
+  $('#current-name').textContent = KIND_NAMES[String(s.kind)] || '还没配置';
   const bits = [];
   if (s.model) bits.push(`模型 ${s.model}`);
   bits.push(s.edition === 'zh' ? '汉化版' : '英文原版');
   if (s.version) bits.push(`Codex ${s.version}`);
   $('#current-sub').textContent = bits.join(' · ');
   $$('#screen-manage .card').forEach(c => c.classList.toggle('current', c.dataset.kind === s.kind));
-  if (s.kind === 'zhipu-paid' && s.model) $('#paid-model').value = s.model;
-  if (s.kind === 'custom') { $('#custom-url').value = s.customBaseUrl || ''; $('#custom-model').value = s.model || ''; }
+  if (s.kind === 'zhipu-paid' && s.model) $<HTMLSelectElement>('#paid-model').value = s.model;
+  if (s.kind === 'custom') { $<HTMLInputElement>('#custom-url').value = s.customBaseUrl || ''; $<HTMLInputElement>('#custom-model').value = s.model || ''; }
   $$('#edition-seg button').forEach(b => b.classList.toggle('active', b.dataset.edition === s.edition));
   $$('#set-ask button').forEach(b => b.classList.toggle('active', b.dataset.value === String(!!s.askBeforeEdit)));
   $$('#set-effort button').forEach(b => b.classList.toggle('active', b.dataset.value === (s.effort || 'medium')));
-  $('#btn-restore').disabled = !s.hasOriginal;
+  $<HTMLButtonElement>('#btn-restore').disabled = !s.hasOriginal;
   renderSponsors(RECOMMENDED_PROVIDERS);
 }
-function renderSponsors(list) {
+function renderSponsors(list: RecommendedProvider[]) {
   $('#sponsor-block').hidden = !list.length;
   $('#sponsor-cards').innerHTML = '';
   list.forEach(p => {
     const card = document.createElement('article');
     card.className = 'card';
     card.innerHTML = '<span class="badge sponsor">赞助</span><h3></h3><p></p><button class="btn" type="button">填进下面的表单</button>';
-    card.querySelector('h3').textContent = p.name;
-    card.querySelector('p').textContent = p.note || '';
-    card.querySelector('button').onclick = () => {
-      $('#custom-url').value = p.baseUrl || ''; $('#custom-model').value = (p.models || [])[0] || ''; $('#custom-key').focus();
+    card.querySelector('h3')!.textContent = p.name;
+    card.querySelector('p')!.textContent = p.note || '';
+    card.querySelector('button')!.onclick = () => {
+      $<HTMLInputElement>('#custom-url').value = p.baseUrl || ''; $<HTMLInputElement>('#custom-model').value = (p.models || [])[0] || ''; $('#custom-key').focus();
       if (p.signupUrl) B.openUrl(p.signupUrl);
     };
     $('#sponsor-cards').appendChild(card);
@@ -243,7 +246,7 @@ function renderSponsors(list) {
 }
 
 // Runs one buddy action in the task dialog, one row per STEP line
-async function runTask(title, action, args) {
+async function runTask(title: string, action: string, args?: Record<string, unknown>): Promise<BuddyResult | null> {
   if (state.busy) return null;
   state.busy = true;
   $('#task-title').textContent = title;
@@ -251,37 +254,38 @@ async function runTask(title, action, args) {
   $('#task-result').textContent = ''; $('#task-result').className = 'task-result';
   $('#task-actions').hidden = true; $('#task-copy-log').hidden = true;
   $('#task-modal').hidden = false;
-  let r;
+  let r: BuddyResult;
   try { r = await B.buddy(action, args); } catch (e) { r = { ok: false, reason: String(e) }; }
   state.busy = false;
-  $('#task-list').querySelectorAll('li.running').forEach(li => setRow($('#task-list'), li.dataset.id, r.ok ? 'done' : 'fail', li.querySelector('small').textContent));
+  $('#task-list').querySelectorAll<HTMLElement>('li.running').forEach(li => setRow($('#task-list'), li.dataset.id!, r.ok ? 'done' : 'fail', li.querySelector('small')!.textContent || ''));
   $('#task-result').textContent = r.ok ? '✓ 好了' : `没成功：${r.reason || '原因不明'}${action === 'switch' ? '。原来的配置没动。' : ''}`;
   $('#task-result').className = 'task-result ' + (r.ok ? 'ok' : 'bad');
   $('#task-actions').hidden = false; $('#task-copy-log').hidden = r.ok;
   return r;
 }
-function onBuddyLine(line) {
+function onBuddyLine(line: string) {
   const m = STEP_LINE.exec(line);
   if (!m || $('#task-modal').hidden) return;
   const [, id, st, text] = m;
   setRow($('#task-list'), id, st, st === 'start' ? '' : text, st === 'start' ? text : undefined);
 }
 
-async function switchTo(kind) {
-  const args = { kind };
-  if (kind === 'zhipu-paid') args.model = $('#paid-model').value;
-  if (kind === 'custom') Object.assign(args, { baseUrl: $('#custom-url').value.trim(), apiKey: $('#custom-key').value.trim(), model: $('#custom-model').value.trim() });
+async function switchTo(kind: string) {
+  const args: Record<string, string> = { kind };
+  const input = (sel: string) => $<HTMLInputElement>(sel).value.trim();
+  if (kind === 'zhipu-paid') args.model = $<HTMLSelectElement>('#paid-model').value;
+  if (kind === 'custom') Object.assign(args, { baseUrl: input('#custom-url'), apiKey: input('#custom-key'), model: input('#custom-model') });
   const r = await runTask(`切换到：${KIND_NAMES[kind]}`, 'switch', args);
   if (!r) return;
-  if (r.ok && kind === 'custom') $('#custom-key').value = '';
+  if (r.ok && kind === 'custom') $<HTMLInputElement>('#custom-key').value = '';
   await loadStatus();
 }
 
-function confirmBox(title, text) {
-  return new Promise(resolve => {
+function confirmBox(title: string, text: string) {
+  return new Promise<boolean>(resolve => {
     $('#confirm-title').textContent = title; $('#confirm-text').textContent = text;
     $('#confirm-modal').hidden = false;
-    const close = v => { $('#confirm-modal').hidden = true; resolve(v); };
+    const close = (v: boolean) => { $('#confirm-modal').hidden = true; resolve(v); };
     $('#confirm-yes').onclick = () => close(true);
     $('#confirm-no').onclick = () => close(false);
   });
@@ -297,24 +301,24 @@ $('#btn-open-codex').onclick = openCodex;
 $('#btn-open-codex-2').onclick = openCodex;
 $('#btn-to-manage').onclick = async () => { await loadStatus(); show('manage'); };
 $('#task-close').onclick = () => { $('#task-modal').hidden = true; };
-$$('.tab').forEach(t => t.onclick = () => {
+$$('.tab').forEach(t => { t.onclick = () => {
   $$('.tab').forEach(x => x.classList.toggle('active', x === t));
   $$('.panel').forEach(p => { p.hidden = p.dataset.panel !== t.dataset.tab; });
-});
-$$('[data-switch]').forEach(b => b.onclick = () => switchTo(b.dataset.switch));
-$$('[data-url]').forEach(a => a.onclick = e => { e.preventDefault(); B.openUrl(a.dataset.url); });
-$$('#edition-seg button').forEach(b => b.onclick = async () => {
+}; });
+$$('[data-switch]').forEach(b => { b.onclick = () => switchTo(b.dataset.switch!); });
+$$('[data-url]').forEach(a => { a.onclick = e => { e.preventDefault(); B.openUrl(a.dataset.url!); }; });
+$$('#edition-seg button').forEach(b => { b.onclick = async () => {
   if (b.classList.contains('active')) return;
   const r = await runTask(b.dataset.edition === 'zh' ? '切换到汉化版' : '切换到英文原版', 'edition', { edition: b.dataset.edition });
   if (r) await loadStatus();
-});
-const saveSetting = async (args, label) => {
+}; });
+const saveSetting = async (args: Record<string, unknown>, label: string) => {
   const r = await B.buddy('settings', args);
   toast(r.ok ? `✓ 已保存：${label}${r.running ? '（Codex 重新打开后生效）' : ''}` : '没保存成功');
   await loadStatus();
 };
-$$('#set-ask button').forEach(b => b.onclick = () => saveSetting({ askBeforeEdit: b.dataset.value === 'true' }, `改文件前${b.textContent}`));
-$$('#set-effort button').forEach(b => b.onclick = () => saveSetting({ effort: b.dataset.value }, `思考深度「${b.textContent}」`));
+$$('#set-ask button').forEach(b => { b.onclick = () => saveSetting({ askBeforeEdit: b.dataset.value === 'true' }, `改文件前${b.textContent}`); });
+$$('#set-effort button').forEach(b => { b.onclick = () => saveSetting({ effort: b.dataset.value }, `思考深度「${b.textContent}」`); });
 $('#btn-restore').onclick = async () => {
   const ok = await confirmBox('还原到安装前的样子？', 'Codex 的配置会放回安装前的样子，汉化版的快捷方式会去掉；如果 Codex 是这次才装的，也会一起卸载。你在 Codex 里的聊天记录不会删。');
   if (!ok) return;
@@ -327,7 +331,7 @@ $('#btn-restore').onclick = async () => {
 
 // Start: installed and configured → manage page; otherwise the welcome screen
 (async () => {
-  let s = null;
+  let s: BuddyResult | null = null;
   try { s = await loadStatus(); } catch (e) { console.error(e); }
   show(s && s.installed && s.kind !== 'none' ? 'manage' : 'welcome');
 })();
