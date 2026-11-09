@@ -24,7 +24,8 @@
   }
 
   // ---------------- Preview mock ----------------
-  document.documentElement.classList.add('preview');
+  // In a plain browser, draw the app as a window-sized frame; in the app itself (a non-Windows build) the window is the frame
+  if (!/Electron/.test(navigator.userAgent)) document.documentElement.classList.add('preview');
   const params = new URLSearchParams(location.search);
   const scenario = params.get('scenario') || 'normal';   // normal | fix | fail
   const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));

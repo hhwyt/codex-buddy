@@ -85,7 +85,9 @@ function createWindow() {
     // Same clock rule as ui/theme.ts (07:00–19:00 day), so the window doesn't flash the other theme's color before the page paints
     backgroundColor: hour >= 7 && hour < 19 ? '#f6f7f8' : '#0a0d12', autoHideMenuBar: true,
     // backgroundThrottling off: the stopwatch and the STEP updates keep their pace while the window is minimized
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, backgroundThrottling: false },
+    // The real backend (codex.ps1, Appx, the Windows Codex app) only exists on Windows. Elsewhere (a Mac build to try the UI)
+    // there is no bridge, so the page falls back to its preview backend and never touches ~/.codex
+    webPreferences: { preload: process.platform === 'win32' ? path.join(__dirname, 'preload.js') : undefined, contextIsolation: true, sandbox: true, backgroundThrottling: false },
   });
   win.removeMenu();
   // The page never navigates or opens windows; links go to the default browser through open-url
