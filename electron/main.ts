@@ -13,9 +13,10 @@ import * as readline from 'node:readline';
 import { buddyDir, log, runAction, type Emit } from './buddy';
 
 const ZHIPU_LOGIN_URL = 'https://bigmodel.cn/login?redirect=%2Fapikey%2Fplatform';
-const LOGIN_DEBUG_PORT = 9333;   // Chromium binds it to 127.0.0.1 only
-
-app.commandLine.appendSwitch('remote-debugging-port', String(LOGIN_DEBUG_PORT));
+// Port 0: Chromium picks a free port (bound to 127.0.0.1 only) and writes it to <userData>/DevToolsActivePort, so another
+// program already on a fixed port can't break the login
+app.commandLine.appendSwitch('remote-debugging-port', '0');
+const loginDebugPort = () => fs.readFileSync(path.join(app.getPath('userData'), 'DevToolsActivePort'), 'utf8').split('\n')[0].trim();
 app.commandLine.appendSwitch('lang', 'zh-CN');
 
 let win: BrowserWindow | null = null;
@@ -38,7 +39,8 @@ function runCodexPs1(env: Record<string, string>, onLine: Emit): Promise<number>
     windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'], env: { ...process.env, CODEX_SETUP_STEPS: '1', ...env },
   });
   children.add(child);
-  readline.createInterface({ input: child.stdout! }).on('line', line => { if (line.startsWith('STEP:')) onLine(line); });
+  // The script's advice is written for its terminal ("rerun this command"); in the app that is the 再试一次 button
+  readline.createInterface({ input: child.stdout! }).on('line', line => { if (line.startsWith('STEP:')) onLine(line.replace(/重新运行这行命令(再试一次)?/g, '点「再试一次」')); });
   return new Promise(resolve => {
     child.on('error', e => { log(`codex.ps1 failed to start: ${e}`); });
     child.on('close', code => { children.delete(child); resolve(code ?? -1); });
@@ -48,7 +50,7 @@ function runCodexPs1(env: Record<string, string>, onLine: Emit): Promise<number>
 const send = (kind: 'install' | 'buddy') => (line: string) => win?.webContents.send('script-line', { kind, line });
 
 ipcMain.handle('run-install', async () => {
-  const code = await runCodexPs1({ CODEX_SETUP_LOGIN_PORT: String(LOGIN_DEBUG_PORT), CODEX_SETUP_NO_OPEN: '1', CODEX_SETUP_EDITION: 'zh' }, send('install'));
+  const code = await runCodexPs1({ CODEX_SETUP_LOGIN_PORT: loginDebugPort(), CODEX_SETUP_NO_OPEN: '1', CODEX_SETUP_EDITION: 'zh' }, send('install'));
   return { code };
 });
 ipcMain.handle('buddy', (_e, action: string, args: Record<string, unknown>) => runAction(action, args ?? {}, send('buddy'), runCodexPs1));
