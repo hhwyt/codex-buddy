@@ -18,7 +18,7 @@
   --timer-size: 252px;
   --on-accent: #fff;
 }
-/* Colours: every colour in the app comes from this one set. Day (white, ink text) is the default; the main process
+/* Colours: every colour in the app comes from this one set. Day (white, ink text) is the default; ui/theme.ts
    sets <html data-theme="day|night"> by the clock. Blue is the only accent in both. */
 :root, [data-theme="day"] {
   --bg: #f6f7f8; --bg2: #fbfbfc; --surface: #fff; --surface-glass: rgba(255, 255, 255, .86); --topbar: rgba(246, 247, 248, .82);

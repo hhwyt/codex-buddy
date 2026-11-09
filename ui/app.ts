@@ -31,17 +31,14 @@ const state = {
   finalSeconds: null as number | null,   // Frozen when STEP:all:done arrives
 };
 
-// Preview only: ?size=1090x570 renders the app frame at another window size; ?theme=day|night pins the theme
+// Preview only: ?size=1090x570 renders the app frame at another window size (?theme=day|night is handled by theme.ts)
 if (B.mock) {
-  const params = new URLSearchParams(location.search);
-  const size = /^(\d+)x(\d+)$/.exec(params.get('size') || '');
+  const size = /^(\d+)x(\d+)$/.exec(new URLSearchParams(location.search).get('size') || '');
   if (size) Object.assign(document.body.style, { width: `${size[1]}px`, height: `${size[2]}px` });
-  const theme = params.get('theme');
-  if (theme === 'day' || theme === 'night') document.documentElement.dataset.theme = theme;
 }
 
 // ---------------- Theme (day / night) ----------------
-// The main process sets <html data-theme="day|night"> by the clock. When it changes, every colour eases over .5s
+// theme.ts sets <html data-theme="day|night"> by the clock, before the first paint. When it changes, every colour eases over .5s
 // (html.theme-anim in app.css) and the canvases pick up the new colours on their next frame.
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const themeColours = { accent: '', ink: '' };
