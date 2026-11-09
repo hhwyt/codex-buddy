@@ -27,7 +27,7 @@ const SWITCH_STAGE_LAST_STEP = { backup: 0, test: 1, save: 2 };
 
 const state = {
   screen: null, started: 0, running: false, allDone: false, failed: false,
-  model: '', editionWarn: '', status: null, busy: false, afterTaskClose: null,
+  model: '', edition: '', editionWarn: '', status: null, busy: false, afterTaskClose: null,
   finalSeconds: null as number | null,   // Frozen when STEP:all:done arrives
 };
 
@@ -95,7 +95,7 @@ function resetInstallRows() {
 // ---------------- Install ----------------
 async function startInstall() {
   if (state.running) return;
-  Object.assign(state, { running: true, allDone: false, failed: false, model: '', editionWarn: '', finalSeconds: null });
+  Object.assign(state, { running: true, allDone: false, failed: false, model: '', edition: '', editionWarn: '', finalSeconds: null });
   resetInstallRows();
   $('#failure').hidden = true; $('#fixing').hidden = true; $('#login-wait').hidden = false;
   $('#login-wait-text').textContent = '正在检测电脑，马上打开智谱登录…';
@@ -132,7 +132,7 @@ function onInstallLine(line) {
     if (st === 'done') toast('✓ ' + text);
     return;
   }
-  if (id === 'edition') { if (st === 'fail') state.editionWarn = text; return; }
+  if (id === 'edition') { if (st === 'done') state.edition = text; if (st === 'fail') state.editionWarn = text; return; }
   // Stop the stopwatch right here, not when the done screen renders (a hidden window renders late)
   if (id === 'all') { if (st === 'done') { state.allDone = true; state.model = text; state.finalSeconds = stopTimer(); } return; }
   if (!INSTALL_ROWS.some(r => r.id === id)) return;
@@ -169,7 +169,8 @@ function failInstall(text) {
 
 function finishInstall() {
   const seconds = Math.round(state.finalSeconds ?? stopTimer());
-  $('#done-model').textContent = state.model ? `用的是智谱免费模型 ${state.model}` : '';
+  // Next time the user opens Codex itself, not this app; the Chinese shortcut is named 「ChatGPT 汉化版」, which nobody would guess
+  $('#done-model').textContent = state.edition === '汉化版' ? '以后从桌面或开始菜单的「ChatGPT 汉化版」打开 Codex' : '以后从开始菜单的「ChatGPT」打开 Codex';
   $('#done-warn').hidden = !state.editionWarn;
   $('#done-warn').textContent = state.editionWarn ? `${state.editionWarn}。可以在管理页里再切换一次。` : '';
   $('#done-seconds').textContent = String(seconds);
