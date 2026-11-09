@@ -23,11 +23,10 @@ const STEP_LINE = /^STEP:([a-z]+):(start|done|fail):(.*)$/;
 // Switch dialog: which of the three stages (备份 → 测试连通 → 保存) each management step belongs to
 const SWITCH_STAGE_OF_STEP = { backup: 0, write: 1, login: 1, test: 1, save: 2 };
 const SWITCH_STAGE_LAST_STEP = { backup: 0, test: 1, save: 2 };
-const WELCOME_BEAT_MS = 2500;   // After 「开始」 the welcome timer runs this long at most before the scan screen
 
 const state = {
-  screen: null, started: 0, timer: 0, lastWholeSecond: -1, running: false, allDone: false, failed: false,
-  scanned: false, model: '', editionWarn: '', status: null, busy: false, welcomeBeat: 0, afterTaskClose: null,
+  screen: null, started: 0, running: false, allDone: false, failed: false,
+  model: '', editionWarn: '', status: null, busy: false, afterTaskClose: null,
   finalSeconds: null as number | null,   // Frozen when STEP:all:done arrives
 };
 
@@ -39,114 +38,23 @@ if (B.mock) {
 
 // ---------------- Theme (day / night) ----------------
 // theme.ts sets <html data-theme="day|night"> by the clock, before the first paint. When it changes, every colour eases over .5s
-// (html.theme-anim in app.css) and the canvases pick up the new colours on their next frame.
-const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const themeColours = { accent: '', ink: '' };
-function readThemeColours() { themeColours.accent = css('--accent-rgb'); themeColours.ink = css('--ink-rgb'); }
-readThemeColours();
+// (html.theme-anim in app.css).
 let themeAnimTimer = 0;
 new MutationObserver(() => {
   const html = document.documentElement;
   html.classList.add('theme-anim');
   clearTimeout(themeAnimTimer);
   themeAnimTimer = window.setTimeout(() => html.classList.remove('theme-anim'), 600);
-  readThemeColours();
 }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 // ---------------- Screens ----------------
 function show(name) {
   if (state.screen === 'scan' && name !== 'scan') B.hideLogin();
-  if (name !== 'welcome') clearTimeout(state.welcomeBeat);
   if (name === 'welcome' && !state.running) resetWelcome();
   $$('.screen').forEach(s => { s.hidden = s.dataset.screen !== name; });
-  const changed = state.screen !== name;
   state.screen = name;
-  $('#chip-timer').hidden = !state.started || !['scan', 'progress', 'done'].includes(name);
-  if (!changed) return;
-  $$(`#screen-${name} [data-decode]`).forEach(decode);
-  if (name === 'welcome' || name === 'done') startFlow(); else stopFlow();
 }
 
-// ---------------- Effects (same as humanslive.ai and the installer's terminal) ----------------
-// Text decodes out of noise, like the installer's "HUMANSLIVE.AI ▸" header: only ASCII is scrambled, CJK stays
-const DECODE_POOL = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-function decode(el) {
-  const text: string = el.dataset.text || (el.dataset.text = el.textContent);
-  let step = 0;
-  clearInterval(el.decodeTimer);
-  el.decodeTimer = setInterval(() => {
-    const shown = Math.floor((text.length * step) / 14);
-    el.textContent = [...text].map((c, i) => (i < shown || !/[!-~]/.test(c) ? c : DECODE_POOL[Math.floor(Math.random() * DECODE_POOL.length)])).join('');
-    if (++step > 14) { clearInterval(el.decodeTimer); el.textContent = text; }
-  }, 32);
-}
-
-// Flow lines drifting over the grid, like the site's first screen. Runs only on the welcome and done screens.
-const flow = { raf: 0, parts: [] as { x: number; y: number; age: number; life: number; bright: boolean }[] };
-const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-function startFlow() {
-  const canvas = $('#flow');
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.width = canvas.offsetWidth * dpr, h = canvas.height = canvas.offsetHeight * dpr;
-  const ctx = canvas.getContext('2d');
-  const spawn = p => Object.assign(p, { x: Math.random() * w, y: Math.random() * h, age: 0, life: 120 + Math.random() * 220, bright: Math.random() < .14 });
-  flow.parts = Array.from({ length: 260 }, () => spawn({} as any));
-  cancelAnimationFrame(flow.raf);
-  canvas.classList.add('on');
-  const t0 = performance.now();
-  const frame = (now: number) => {
-    const t = now - t0;
-    ctx.globalCompositeOperation = 'destination-out';   // Fade old strokes into trails, keep the canvas transparent
-    ctx.fillStyle = 'rgba(0,0,0,.07)'; ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.lineWidth = .8 * dpr;
-    for (const p of flow.parts) {
-      const a = Math.sin(p.x * .0019 / dpr + t * .00012) * Math.cos(p.y * .0023 / dpr - t * .0001) * Math.PI * 2 + Math.sin((p.x + p.y) * .0008 / dpr);
-      const nx = p.x + Math.cos(a) * .9 * dpr, ny = p.y + Math.sin(a) * .9 * dpr;
-      const fade = Math.min(1, p.age / 30, (p.life - p.age) / 30);
-      ctx.strokeStyle = p.bright ? `rgba(${themeColours.ink},${.32 * fade})` : `rgba(${themeColours.accent},${.42 * fade})`;
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny); ctx.stroke();
-      p.x = nx; p.y = ny;
-      if (++p.age > p.life || p.x < 0 || p.x > w || p.y < 0 || p.y > h) spawn(p);
-    }
-    if (!reducedMotion()) flow.raf = requestAnimationFrame(frame);
-  };
-  flow.raf = requestAnimationFrame(frame);
-}
-function stopFlow() { cancelAnimationFrame(flow.raf); $('#flow').classList.remove('on'); }
-
-// Done screen: blue signal lines shoot out from behind the number and three hairline rings spread (no multi-colour confetti)
-function signalBurst(canvas) {
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.width = canvas.offsetWidth * dpr, h = canvas.height = canvas.offsetHeight * dpr;
-  const box = canvas.getBoundingClientRect(), num = $('.done-time').getBoundingClientRect();
-  const cx = (num.left + num.width / 2 - box.left) * dpr, cy = (num.top + num.height / 2 - box.top) * dpr;
-  const ctx = canvas.getContext('2d');
-  const lines = Array.from({ length: 150 }, () => {
-    const a = Math.random() * Math.PI * 2, v = (5 + Math.random() * 15) * dpr;
-    return { x: cx + Math.cos(a) * 40 * dpr, y: cy + Math.sin(a) * 26 * dpr, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .72, bright: Math.random() < .25 };
-  });
-  const t0 = performance.now(), life = 2600;
-  const frame = (now: number) => {
-    const t = now - t0, k = Math.max(0, 1 - t / life);
-    ctx.clearRect(0, 0, w, h);
-    ctx.lineCap = 'round';
-    for (const p of lines) {
-      p.x += p.vx; p.y += p.vy; p.vx *= .955; p.vy *= .955;
-      ctx.strokeStyle = p.bright ? `rgba(${themeColours.ink},${.8 * k})` : `rgba(${themeColours.accent},${.9 * k})`;
-      ctx.lineWidth = 1.2 * dpr;
-      ctx.beginPath(); ctx.moveTo(p.x - p.vx * 3.5, p.y - p.vy * 3.5); ctx.lineTo(p.x, p.y); ctx.stroke();
-    }
-    for (let i = 0; i < 3; i++) {
-      const rt = (t - i * 260) / 1600;
-      if (rt <= 0 || rt >= 1) continue;
-      ctx.strokeStyle = `rgba(${themeColours.accent},${.6 * (1 - rt)})`; ctx.lineWidth = dpr;
-      ctx.beginPath(); ctx.ellipse(cx, cy, (120 + rt * 420) * dpr, (70 + rt * 250) * dpr, 0, 0, Math.PI * 2); ctx.stroke();
-    }
-    if (t < life && !reducedMotion()) requestAnimationFrame(frame); else ctx.clearRect(0, 0, w, h);
-  };
-  requestAnimationFrame(frame);
-}
 let toastTimer = 0;
 function toast(text: string, ms = 2600) {
   const t = $('#toast');
@@ -156,109 +64,45 @@ function toast(text: string, ms = 2600) {
 }
 function restartAnimation(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 
-// ---------------- Timer ----------------
-function buildTicks() {
-  const g = $('#ring-ticks'), ns = 'http://www.w3.org/2000/svg';
-  for (let i = 0; i < 60; i++) {
-    const a = (i / 60) * Math.PI * 2, major = i % 5 === 0, r1 = major ? 105 : 108, r2 = 114;
-    const line = document.createElementNS(ns, 'line');
-    line.setAttribute('x1', String(120 + r1 * Math.cos(a))); line.setAttribute('y1', String(120 + r1 * Math.sin(a)));
-    line.setAttribute('x2', String(120 + r2 * Math.cos(a))); line.setAttribute('y2', String(120 + r2 * Math.sin(a)));
-    if (major) line.classList.add('major');
-    g.appendChild(line);
-  }
-}
+// ---------------- Timer (no stopwatch on screen: only the done screen shows the total) ----------------
 function elapsed() { return state.started ? (performance.now() - state.started) / 1000 : 0; }
-function renderTime(s) {
-  const whole = Math.floor(s);
-  $('#timer-num').textContent = String(whole);
-  $('#timer-dec').textContent = `.${Math.floor((s - whole) * 10)}`;
-  $('#chip-timer-text').textContent = `${s.toFixed(1)} 秒`;
-  $('#ring-fill').style.strokeDashoffset = String(603.2 * (1 - (s % 60) / 60));
-  if (whole !== state.lastWholeSecond) {
-    state.lastWholeSecond = whole;
-    $$('#ring-ticks line').forEach((l, i) => l.classList.toggle('on', i <= whole % 60 && s > 0));
-    if (whole > 0) restartAnimation($('#chip-timer'), 'tick');
-  }
-}
-function startTimer() {
-  state.started = performance.now(); state.lastWholeSecond = -1;
-  $('#chip-timer').classList.remove('stopped'); $('#chip-timer-label').textContent = '已用时';
-  const tick = () => { renderTime(elapsed()); state.timer = requestAnimationFrame(tick); };
-  cancelAnimationFrame(state.timer); tick();
-}
-function stopTimer() {
-  cancelAnimationFrame(state.timer);
-  const s = elapsed(); renderTime(s);
-  $('#chip-timer').classList.add('stopped'); $('#chip-timer-label').textContent = '共用时';
-  return s;
-}
+function startTimer() { state.started = performance.now(); }
+function stopTimer() { return elapsed(); }
 function resetWelcome() {
-  state.started = 0; state.lastWholeSecond = -1; renderTime(0);
-  $('#timer-card').classList.remove('running');
-  $('#timer-status').textContent = '点「开始」后开始计时';
+  state.started = 0;
   $('#btn-start').disabled = false; $('#btn-start-text').textContent = '开始';
 }
 
 // ---------------- Checklists ----------------
 function rowHtml(id) {
-  return `<li data-id="${id}"><span class="ico">${ICONS}</span><span class="txt"><b></b><small></small></span><span class="sec"></span></li>`;
+  return `<li data-id="${id}"><span class="ico">${ICONS}</span><span class="txt"><b></b><small></small></span></li>`;
 }
 function setRow(list, id: string, st: string, text: string, title?: string) {
   let li = list.querySelector(`li[data-id="${id}"]`);
   if (!li) { list.insertAdjacentHTML('beforeend', rowHtml(id)); li = list.lastElementChild; li.querySelector('b').textContent = title || text; }
-  if (st === 'start' && !li.classList.contains('running')) li.dataset.since = String(performance.now());
   li.classList.remove('running', 'done', 'fail');
   li.classList.add(st === 'start' ? 'running' : st);
   if (title) li.querySelector('b').textContent = title;
   li.querySelector('small').textContent = text || '';
-  const pct = st === 'start' && /(\d{1,3})%/.exec(text || '');
-  li.classList.toggle('has-pct', !!pct);
-  if (pct) li.style.setProperty('--pct', `${Math.min(100, Number(pct[1]))}%`);
-  if (st !== 'start' && li.dataset.since) li.querySelector('.sec').textContent = `${((performance.now() - Number(li.dataset.since)) / 1000).toFixed(1)} 秒`;
-  if (list.id === 'checklist') renderInstallProgress();
-}
-function renderInstallProgress() {
-  const list = $('#checklist');
-  const done = list.querySelectorAll('li.done').length, running = list.querySelectorAll('li.running').length;
-  $('#progress-count').textContent = `${done} / ${INSTALL_ROWS.length}`;
-  $('#progress-bar').style.width = `${((done + running * 0.35) / INSTALL_ROWS.length) * 100}%`;
-  $('.progress-bar').classList.toggle('full', done === INSTALL_ROWS.length);
 }
 function resetInstallRows() {
   const list = $('#checklist');
   list.innerHTML = INSTALL_ROWS.map(r => rowHtml(r.id)).join('');
   INSTALL_ROWS.forEach(r => { list.querySelector(`li[data-id="${r.id}"] b`).textContent = r.title; });
-  list.querySelectorAll('small').forEach(s => { s.textContent = '等一下就轮到它'; });
-  renderInstallProgress();
-}
-function setMini(id, st, text) {
-  const box = $('#scan-mini');
-  let chip = box.querySelector(`[data-id="${id}"]`);
-  if (!chip) { chip = document.createElement('span'); chip.dataset.id = id; chip.innerHTML = '<i class="mp-ico"></i><em></em>'; box.appendChild(chip); }
-  chip.className = st === 'done' ? 'done' : '';
-  chip.querySelector('em').textContent = text;
 }
 
 // ---------------- Install ----------------
 async function startInstall() {
   if (state.running) return;
-  const fromWelcome = state.screen === 'welcome';
-  Object.assign(state, { running: true, allDone: false, failed: false, scanned: false, model: '', editionWarn: '', finalSeconds: null });
+  Object.assign(state, { running: true, allDone: false, failed: false, model: '', editionWarn: '', finalSeconds: null });
   resetInstallRows();
-  $('#scan-mini').innerHTML = '';
   $('#failure').hidden = true; $('#fixing').hidden = true; $('#login-wait').hidden = false;
   $('#login-wait-text').textContent = '正在检测电脑，马上打开智谱登录…';
   $('#progress-title').textContent = '搭子正在帮你装，不用管它';
   $('.progress').classList.remove('failed');
   $('#btn-start').disabled = true; $('#btn-start-text').textContent = '已开始';
   startTimer();
-  if (fromWelcome) {
-    // A short beat on the welcome screen: the big timer comes alive, then the scan screen slides in
-    restartAnimation($('#timer-card'), 'running');
-    $('#timer-status').innerHTML = '<span class="spinner"></span>正在检测电脑…';
-    state.welcomeBeat = setTimeout(() => { if (state.screen === 'welcome' && state.running) show('scan'); }, WELCOME_BEAT_MS);
-  } else show('scan');
+  show('scan');
   await B.buddy('snapshot');
   let code = 1;
   try { code = (await B.runInstall()).code; } catch (e) { console.error(e); }
@@ -275,7 +119,7 @@ function onInstallLine(line) {
   const [, id, st, text] = m;
   const list = $('#checklist');
   if (id === 'scan') {
-    if (st === 'start') { state.scanned = true; show('scan'); placeLogin(); }
+    if (st === 'start') { show('scan'); placeLogin(); }
     else if (st === 'done') show('progress');
     if (st === 'fail') failInstall(text);
     return;
@@ -292,7 +136,6 @@ function onInstallLine(line) {
   if (id === 'all') { if (st === 'done') { state.allDone = true; state.model = text; state.finalSeconds = stopTimer(); } return; }
   if (!INSTALL_ROWS.some(r => r.id === id)) return;
   setRow(list, id, st, text);
-  if (id === 'check' || id === 'install') setMini(id, st, st === 'done' && id === 'check' ? `检测电脑：${text}` : text);
   // An earlier login still works: no scan needed, go straight to the progress screen
   if (id === 'key' && st === 'done' && ['welcome', 'scan'].includes(state.screen)) show('progress');
   if (state.screen === 'welcome' && ['config', 'test'].includes(id)) show('progress');
@@ -328,22 +171,10 @@ function finishInstall() {
   $('#done-model').textContent = state.model ? `用的是智谱免费模型 ${state.model}` : '';
   $('#done-warn').hidden = !state.editionWarn;
   $('#done-warn').textContent = state.editionWarn ? `${state.editionWarn}。可以在管理页里再切换一次。` : '';
-  $('#done-facts').innerHTML = (state.scanned ? '<li>扫码 <b>1</b> 次</li>' : '') +
-    `<li>自动完成 <b>${INSTALL_ROWS.length}</b> 步</li><li>花费 <b>0</b> 元</li>`;
+  $('#done-seconds').textContent = String(seconds);
   show('done');
-  // Rhythm: the header decodes, the number counts up, and when it lands the signal burst goes off
-  countUp($('#done-seconds'), seconds, () => { restartAnimation($('.done-time'), 'landed'); signalBurst($('#confetti')); });
 }
 
-function countUp(el, target, onDone) {
-  const t0 = performance.now(), dur = 1300;
-  const step = now => {
-    const p = Math.min(1, (now - t0) / dur);
-    el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 4))));
-    if (p < 1) requestAnimationFrame(step); else if (onDone) onDone();
-  };
-  requestAnimationFrame(step);
-}
 
 async function copyLog() {
   const r = await B.buddy('log');
@@ -376,7 +207,6 @@ function renderManage(s) {
   const bits = [];
   if (s.model) bits.push(`模型 ${s.model}`);
   bits.push(s.edition === 'zh' ? '汉化版' : '英文原版');
-  if (s.version) bits.push(`Codex ${s.version}`);
   $('#current-sub').textContent = bits.join(' · ');
   $$('#screen-manage .card').forEach(c => c.classList.toggle('current', c.dataset.kind === s.kind));
   // One-click cards that are already in use: the button turns into a quiet "正在用" label
@@ -495,17 +325,15 @@ function confirmBox(title, text) {
 }
 
 async function saveSetting(group, args, label) {
-  const pills = $(group), row = pills.closest('.setting');
+  const pills = $(group);
   pills.classList.add('saving');
   const r = await B.buddy('settings', args);
   pills.classList.remove('saving');
   toast(r.ok ? `✓ 已保存：${label}${r.running ? '（Codex 重新打开后生效）' : ''}` : '没保存成功');
   await loadStatus();
-  if (r.ok) { restartAnimation(row, 'saved-flash'); clearTimeout(row.flashTimer); row.flashTimer = setTimeout(() => row.classList.remove('saved-flash'), 1800); }
 }
 
 // ---------------- Wiring ----------------
-buildTicks();
 B.onLine(({ kind, line }) => (kind === 'install' ? onInstallLine : onBuddyLine)(line));
 $('#btn-start').onclick = startInstall;
 $('#btn-retry').onclick = startInstall;
