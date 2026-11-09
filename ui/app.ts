@@ -1,4 +1,4 @@
-// Codex 搭子 UI: four install screens (welcome, scan, progress, done) and the manage page.
+// CodexBuddy UI: four install screens (welcome, scan, progress, done) and the manage page.
 // The install is codex.ps1; its STEP lines drive the screens. Management actions run in the main process (electron/buddy.ts).
 const B = window.Backend;
 const $ = (sel: string): any => document.querySelector(sel);
@@ -10,11 +10,12 @@ const $$ = (sel: string): any[] => [...document.querySelectorAll(sel)];
 // Picking one fills the "其他厂商" form with its address and first model; the user still brings their own key.
 const RECOMMENDED_PROVIDERS = [];
 
+// Listed in the order they usually finish: Codex downloads in the background while the key and model are set up
 const INSTALL_ROWS = [
   { id: 'check', title: '检测电脑' },
-  { id: 'install', title: '安装 Codex' },
   { id: 'key', title: '获取免费 Key' },
   { id: 'config', title: '配置模型' },
+  { id: 'install', title: '安装 Codex' },
   { id: 'test', title: '测试连通' },
 ];
 const KIND_NAMES = { 'zhipu-free': '智谱免费', 'zhipu-paid': '智谱付费', openai: 'OpenAI 官方账号', custom: '其他厂商', none: '还没配置' };
@@ -98,7 +99,7 @@ async function startInstall() {
   resetInstallRows();
   $('#failure').hidden = true; $('#fixing').hidden = true; $('#login-wait').hidden = false;
   $('#login-wait-text').textContent = '正在检测电脑，马上打开智谱登录…';
-  $('#progress-title').textContent = '搭子正在帮你装，不用管它';
+  $('#progress-title').textContent = '正在自动安装，不用管它';
   $('.progress').classList.remove('failed');
   $('#btn-start').disabled = true; $('#btn-start-text').textContent = '已开始';
   startTimer();

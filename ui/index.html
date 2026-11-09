@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Codex 搭子</title>
+  <title>CodexBuddy</title>
   <link rel="icon" href="data:,">
   <script src="build/theme.js"></script>   <!-- Sets data-theme="day|night" before the first paint -->
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <header class="top"><span class="wordmark">Codex 搭子</span></header>
+  <header class="top"><span class="wordmark">CodexBuddy</span></header>
 
   <!-- 1. Welcome: one sentence, one button -->
   <section class="screen" id="screen-welcome" data-screen="welcome" hidden>
     <div class="welcome">
       <h1>一键装好 Codex，<br><em>免费用 AI。</em></h1>
-      <p class="lead">你只要用微信扫一下码，其余的交给搭子。</p>
+      <p class="lead">你只要用微信扫一下码，其余的自动完成。</p>
       <button class="btn primary big" id="btn-start" type="button"><span id="btn-start-text">开始</span></button>
     </div>
   </section>
@@ -25,7 +25,7 @@
     <div class="scan">
       <div class="scan-text">
         <h2>用微信扫码登录</h2>
-        <p class="lead">第一次用智谱，扫码后要填手机号、收一次验证码。登录好就不用管了，搭子会自己往下走。</p>
+        <p class="lead">第一次用智谱，扫码后要填手机号、收一次验证码。登录好就不用管了，后面会自动往下走。</p>
       </div>
       <div class="login-slot" id="login-slot">
         <div class="login-wait" id="login-wait"><span class="spinner"></span><span id="login-wait-text">正在打开智谱登录…</span></div>
@@ -36,7 +36,7 @@
   <!-- 3. Auto progress -->
   <section class="screen" id="screen-progress" data-screen="progress" hidden>
     <div class="progress">
-      <h2 id="progress-title">搭子正在帮你装，不用管它</h2>
+      <h2 id="progress-title">正在自动安装，不用管它</h2>
       <ul class="checklist" id="checklist"></ul>
       <div class="fixing" id="fixing" hidden><span class="spinner"></span><span id="fixing-text">正在帮你修…</span></div>
       <div class="failure" id="failure" hidden>
