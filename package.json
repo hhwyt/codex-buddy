@@ -22,20 +22,34 @@
     "appId": "ai.humanslive.codexbuddy",
     "productName": "Codex 搭子",
     "executableName": "codex-buddy",
-    "directories": { "output": "release", "buildResources": "build" },
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
     "files": [
       "package.json",
       "dist/*.js",
       "ui/index.html",
       "ui/app.css",
       "ui/build/*.js",
+      "ui/assets/**",
       "scripts/vendor/codex.ps1"
     ],
     "asar": true,
     "compression": "maximum",
-    "electronLanguages": ["zh-CN", "en-US"],
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico"
     },
     "nsis": {
