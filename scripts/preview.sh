@@ -5,6 +5,7 @@
 #   http://127.0.0.1:5180/?state=installed      straight to the manage page
 #   http://127.0.0.1:5180/?scenario=fix         install hits a known problem and fixes it
 #   http://127.0.0.1:5180/?scenario=fail        install fails and offers "copy log"
+#   add &theme=day or &theme=night to force a theme (otherwise 07:00–19:00 is day, the rest night)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # The page scripts are TypeScript: compile ui/*.ts to ui/build/ first (needs `npm install` once)
