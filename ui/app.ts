@@ -441,6 +441,7 @@ async function runTask(title: string, action: string, args?: Record<string, unkn
   $('#task-title').textContent = title;
   $('#task-list').innerHTML = '';
   $('#task-stages').hidden = !stages;
+  $('#task-details').open = !stages; $('#task-details').classList.toggle('foldable', stages);
   $$('#task-stages li').forEach(li => li.classList.remove('running', 'done', 'fail'));
   $('#task-result').hidden = true;
   $('#task-actions').hidden = true; $('#task-copy-log').hidden = true;

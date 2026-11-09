@@ -153,7 +153,7 @@
             <label class="field inline"><span>模型</span>
               <select id="paid-model"><option value="glm-5">GLM-5</option><option value="glm-4.6">GLM-4.6</option></select>
             </label>
-            <button class="btn primary" data-switch="zhipu-paid" type="button">用这个</button>
+            <button class="btn primary" data-switch="zhipu-paid" type="button">用这个（按用量付费）</button>
           </article>
           <article class="card" data-kind="openai">
             <div class="card-top"><span class="idx">03</span></div>
@@ -241,7 +241,8 @@
         <li data-stage="1"><span class="st-ico"><b>02</b><svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span class="st-txt">测试连通</span></li>
         <li data-stage="2"><span class="st-ico"><b>03</b><svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span class="st-txt">保存</span></li>
       </ol>
-      <ul class="checklist small" id="task-list"></ul>
+      <!-- A switch shows only the three stages; the per-step rows fold away until asked for -->
+      <details class="task-details" id="task-details" open><summary>看明细</summary><ul class="checklist small" id="task-list"></ul></details>
       <div class="task-result" id="task-result" hidden><span class="tr-ico" aria-hidden="true"></span><div><b id="task-result-title"></b><p id="task-result-text"></p></div></div>
       <div class="row" id="task-actions" hidden>
         <button class="btn ghost" id="task-copy-log" type="button" hidden>复制日志</button>

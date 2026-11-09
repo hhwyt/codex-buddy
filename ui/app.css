@@ -373,6 +373,13 @@ h1 em, h2 em { font-style: normal; color: var(--accent); }
 .stages li.fail .st-ico { border-color: var(--error); }
 .stages li.fail svg.no { display: block; stroke: var(--error); stroke-dashoffset: 0; }
 
+/* Switch details: folded under the three stages (CLAUDE.md principle 4); other tasks show the rows directly */
+.task-details > summary { display: none; }
+.task-details.foldable > summary { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 4px; color: var(--dim); font-size: 12.5px; list-style: none; cursor: pointer; transition: color .5s var(--q-ease); }
+.task-details.foldable > summary::-webkit-details-marker { display: none; }
+.task-details.foldable > summary::after { content: "▸"; font-family: var(--mono); transition: transform .4s var(--q-ease); }
+.task-details.foldable[open] > summary::after { transform: rotate(90deg); }
+.task-details.foldable > summary:hover { color: var(--ink); }
 .checklist.small li { gap: 12px; padding: 10px 4px; }
 .checklist.small li + li { border-top-color: var(--rule); }
 .checklist.small .ico { width: 18px; height: 18px; }
