@@ -43,8 +43,93 @@ function show(name) {
   if (name !== 'welcome') clearTimeout(state.welcomeBeat);
   if (name === 'welcome' && !state.running) resetWelcome();
   $$('.screen').forEach(s => { s.hidden = s.dataset.screen !== name; });
+  const changed = state.screen !== name;
   state.screen = name;
   $('#chip-timer').hidden = !state.started || !['scan', 'progress', 'done'].includes(name);
+  if (!changed) return;
+  $$(`#screen-${name} [data-decode]`).forEach(decode);
+  if (name === 'welcome' || name === 'done') startFlow(); else stopFlow();
+}
+
+// ---------------- Machine-world effects (same as humanslive.ai and the installer's terminal) ----------------
+// Text decodes out of noise, like the installer's "HUMANSLIVE.AI ▸" header: only ASCII is scrambled, CJK stays
+const DECODE_POOL = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+function decode(el) {
+  const text: string = el.dataset.text || (el.dataset.text = el.textContent);
+  let step = 0;
+  clearInterval(el.decodeTimer);
+  el.decodeTimer = setInterval(() => {
+    const shown = Math.floor((text.length * step) / 14);
+    el.textContent = [...text].map((c, i) => (i < shown || !/[!-~]/.test(c) ? c : DECODE_POOL[Math.floor(Math.random() * DECODE_POOL.length)])).join('');
+    if (++step > 14) { clearInterval(el.decodeTimer); el.textContent = text; }
+  }, 32);
+}
+
+// Flow lines drifting over the grid, like the site's first screen. Runs only on the welcome and done screens.
+const flow = { raf: 0, parts: [] as { x: number; y: number; age: number; life: number; bright: boolean }[] };
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function startFlow() {
+  const canvas = $('#flow');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.width = canvas.offsetWidth * dpr, h = canvas.height = canvas.offsetHeight * dpr;
+  const ctx = canvas.getContext('2d');
+  const spawn = p => Object.assign(p, { x: Math.random() * w, y: Math.random() * h, age: 0, life: 120 + Math.random() * 220, bright: Math.random() < .14 });
+  flow.parts = Array.from({ length: 260 }, () => spawn({} as any));
+  cancelAnimationFrame(flow.raf);
+  canvas.classList.add('on');
+  const t0 = performance.now();
+  const frame = (now: number) => {
+    const t = now - t0;
+    ctx.globalCompositeOperation = 'destination-out';   // Fade old strokes into trails, keep the canvas transparent
+    ctx.fillStyle = 'rgba(0,0,0,.07)'; ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineWidth = .8 * dpr;
+    for (const p of flow.parts) {
+      const a = Math.sin(p.x * .0019 / dpr + t * .00012) * Math.cos(p.y * .0023 / dpr - t * .0001) * Math.PI * 2 + Math.sin((p.x + p.y) * .0008 / dpr);
+      const nx = p.x + Math.cos(a) * .9 * dpr, ny = p.y + Math.sin(a) * .9 * dpr;
+      const fade = Math.min(1, p.age / 30, (p.life - p.age) / 30);
+      ctx.strokeStyle = p.bright ? `rgba(214,220,226,${.32 * fade})` : `rgba(91,147,207,${.42 * fade})`;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny); ctx.stroke();
+      p.x = nx; p.y = ny;
+      if (++p.age > p.life || p.x < 0 || p.x > w || p.y < 0 || p.y > h) spawn(p);
+    }
+    if (!reducedMotion()) flow.raf = requestAnimationFrame(frame);
+  };
+  flow.raf = requestAnimationFrame(frame);
+}
+function stopFlow() { cancelAnimationFrame(flow.raf); $('#flow').classList.remove('on'); }
+
+// Done screen: blue signal lines shoot out from behind the number and three hairline rings spread (no multi-colour confetti)
+function signalBurst(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.width = canvas.offsetWidth * dpr, h = canvas.height = canvas.offsetHeight * dpr;
+  const box = canvas.getBoundingClientRect(), num = $('.done-time').getBoundingClientRect();
+  const cx = (num.left + num.width / 2 - box.left) * dpr, cy = (num.top + num.height / 2 - box.top) * dpr;
+  const ctx = canvas.getContext('2d');
+  const lines = Array.from({ length: 150 }, () => {
+    const a = Math.random() * Math.PI * 2, v = (5 + Math.random() * 15) * dpr;
+    return { x: cx + Math.cos(a) * 40 * dpr, y: cy + Math.sin(a) * 26 * dpr, vx: Math.cos(a) * v, vy: Math.sin(a) * v * .72, bright: Math.random() < .25 };
+  });
+  const t0 = performance.now(), life = 2600;
+  const frame = (now: number) => {
+    const t = now - t0, k = Math.max(0, 1 - t / life);
+    ctx.clearRect(0, 0, w, h);
+    ctx.lineCap = 'round';
+    for (const p of lines) {
+      p.x += p.vx; p.y += p.vy; p.vx *= .955; p.vy *= .955;
+      ctx.strokeStyle = p.bright ? `rgba(214,220,226,${.8 * k})` : `rgba(91,147,207,${.9 * k})`;
+      ctx.lineWidth = 1.2 * dpr;
+      ctx.beginPath(); ctx.moveTo(p.x - p.vx * 3.5, p.y - p.vy * 3.5); ctx.lineTo(p.x, p.y); ctx.stroke();
+    }
+    for (let i = 0; i < 3; i++) {
+      const rt = (t - i * 260) / 1600;
+      if (rt <= 0 || rt >= 1) continue;
+      ctx.strokeStyle = `rgba(91,147,207,${.6 * (1 - rt)})`; ctx.lineWidth = dpr;
+      ctx.beginPath(); ctx.ellipse(cx, cy, (120 + rt * 420) * dpr, (70 + rt * 250) * dpr, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (t < life && !reducedMotion()) requestAnimationFrame(frame); else ctx.clearRect(0, 0, w, h);
+  };
+  requestAnimationFrame(frame);
 }
 let toastTimer = 0;
 function toast(text: string, ms = 2600) {
@@ -230,8 +315,8 @@ function finishInstall() {
   $('#done-facts').innerHTML = (state.scanned ? '<li>扫码 <b>1</b> 次</li>' : '') +
     `<li>自动完成 <b>${INSTALL_ROWS.length}</b> 步</li><li>花费 <b>0</b> 元</li>`;
   show('done');
-  countUp($('#done-seconds'), seconds, () => restartAnimation($('.done-time'), 'landed'));
-  confetti($('#confetti'));
+  // Rhythm: the header decodes, the number counts up, and when it lands the signal burst goes off
+  countUp($('#done-seconds'), seconds, () => { restartAnimation($('.done-time'), 'landed'); signalBurst($('#confetti')); });
 }
 
 function countUp(el, target, onDone) {
@@ -242,45 +327,6 @@ function countUp(el, target, onDone) {
     if (p < 1) requestAnimationFrame(step); else if (onDone) onDone();
   };
   requestAnimationFrame(step);
-}
-
-// Two confetti cannons from the bottom corners, then a light shower from the top
-function confetti(canvas) {
-  const dpr = window.devicePixelRatio || 1;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width = canvas.offsetWidth * dpr, h = canvas.height = canvas.offsetHeight * dpr;
-  const colors = ['#0ea5e9', '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#a855f7', '#facc15'];
-  const parts = [];
-  const add = (x, y, vx, vy, delay) => parts.push({
-    x, y, vx, vy, delay, s: (Math.random() * 7 + 6) * dpr, r: Math.random() * 6, vr: (Math.random() - .5) * .35,
-    c: colors[Math.floor(Math.random() * colors.length)], round: Math.random() < .25, wob: Math.random() * 6,
-  });
-  const cannon = (x, angle, n, delay) => {
-    for (let i = 0; i < n; i++) {
-      const a = angle + (Math.random() - .5) * .55, v = (16 + Math.random() * 12) * dpr;
-      add(x, h * .98, Math.cos(a) * v, Math.sin(a) * v, delay + Math.random() * 120);
-    }
-  };
-  cannon(0, -Math.PI * .3, 110, 0);
-  cannon(w, -Math.PI * .7, 110, 0);
-  for (let i = 0; i < 70; i++) add(Math.random() * w, -20 * dpr, (Math.random() - .5) * 3 * dpr, (Math.random() * 2 + 1) * dpr, 500 + Math.random() * 1400);
-  const t0 = performance.now(), life = 5200;
-  const frame = now => {
-    const t = now - t0;
-    ctx.clearRect(0, 0, w, h);
-    ctx.globalAlpha = t > life - 900 ? Math.max(0, (life - t) / 900) : 1;
-    parts.forEach(p => {
-      if (t < p.delay) return;
-      p.vy += .42 * dpr; p.vx *= .985; p.vy *= .985;
-      p.x += p.vx + Math.sin((t / 180) + p.wob) * .8 * dpr; p.y += p.vy; p.r += p.vr;
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
-      if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.s / 3, 0, Math.PI * 2); ctx.fill(); }
-      else ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2 * Math.abs(Math.cos(p.r * 1.7)) + dpr);
-      ctx.restore();
-    });
-    if (t < life) requestAnimationFrame(frame); else ctx.clearRect(0, 0, w, h);
-  };
-  requestAnimationFrame(frame);
 }
 
 async function copyLog() {

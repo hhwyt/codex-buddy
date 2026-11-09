@@ -3,52 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Codex 搭子</title>
-  <link rel="icon" href="data:,">
+  <title>Codex 搭子 · HumansLive</title>
+  <link rel="icon" href="assets/logo.svg">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
-
-  <!-- Shared SVG gradients -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <defs>
-      <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset=".55" stop-color="#6366f1"/><stop offset="1" stop-color="#ec4899"/></linearGradient>
-      <linearGradient id="ok-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#10b981"/></linearGradient>
-    </defs>
-  </svg>
+  <!-- Machine world background: hairline grid + flow lines (welcome and done screens) -->
+  <div class="grid-bg" aria-hidden="true"></div>
+  <canvas class="flow" id="flow" aria-hidden="true"></canvas>
 
   <header class="top">
-    <div class="brand"><span class="logo">搭</span><b>Codex 搭子</b><small>HumansLive</small></div>
-    <div class="chip-timer" id="chip-timer" hidden><span class="dot"></span><span class="chip-label" id="chip-timer-label">已用时</span><span class="chip-num" id="chip-timer-text">0.0 秒</span></div>
+    <div class="brand">
+      <!-- HumansLive logo, reverse version for the dark bar (design/humanslive/logo-v4/svg/a-icon-reverse.svg) -->
+      <svg class="logo" viewBox="0 0 256 256" aria-hidden="true"><rect x="11.5" y="11.5" width="233" height="233" rx="50.5" fill="none" stroke="#69737d" stroke-width="7"/><path d="M128 12V244" stroke="#5b93cf" stroke-width="5"/><rect x="72" y="96" width="24" height="24" fill="#d6dce2"/><circle cx="172" cy="108" r="13" fill="#d6dce2"/><path d="M72 160H128" stroke="#d6dce2" stroke-width="10"/><path d="M128 160H148A20 20 0 0 0 168 140" fill="none" stroke="#d6dce2" stroke-width="10" stroke-linecap="round"/><rect x="128" y="155.0" width="5.0" height="10" fill="#d6dce2"/></svg>
+      <span class="wordmark">Humans<i></i>Live</span>
+      <span class="app-tag">Codex 搭子</span>
+    </div>
+    <div class="chip-timer" id="chip-timer" hidden><span class="sig"></span><span class="chip-label" id="chip-timer-label">已用时</span><span class="chip-num" id="chip-timer-text">0.0 秒</span></div>
   </header>
 
   <!-- 1. Welcome -->
-  <section class="screen" id="screen-welcome" data-screen="welcome" hidden>
+  <section class="screen dark" id="screen-welcome" data-screen="welcome" hidden>
     <div class="welcome">
       <div class="welcome-text">
+        <p class="kicker"><span class="sig"></span><span data-decode>HUMANSLIVE.AI ▸ CODEX</span></p>
+        <h1>一键装好 Codex，<br><em>免费用 AI。</em></h1>
+        <p class="lead">你只要做一件事：<b>用微信扫一下码</b>。其余的，交给搭子。</p>
         <p class="tags"><span>免费</span><span>不用科学上网</span><span>不花一分钱</span></p>
-        <h1>一键装好 Codex<br><em>免费用 AI</em></h1>
-        <p class="lead">你只要做一件事：<b>用微信扫一下码</b>。<br>其余的，交给搭子。</p>
-        <div class="start-wrap">
-          <button class="btn-start" id="btn-start" type="button"><span id="btn-start-text">开始</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-        </div>
+        <button class="btn primary big" id="btn-start" type="button"><span id="btn-start-text">开始</span><i class="arrow">→</i></button>
         <ol class="flow-steps" aria-label="一共三步">
-          <li><i>1</i>点开始</li>
-          <li><i>2</i>微信扫码</li>
-          <li><i>3</i>自动装好</li>
+          <li><i>01</i>点开始</li>
+          <li><i>02</i>微信扫码</li>
+          <li><i>03</i>自动装好</li>
         </ol>
       </div>
       <div class="timer-card" id="timer-card" aria-label="计时器">
-        <svg class="ring" viewBox="0 0 240 240" aria-hidden="true">
-          <g class="ticks" id="ring-ticks"></g>
-          <circle class="ring-track" cx="120" cy="120" r="96"/>
-          <circle class="ring-fill" id="ring-fill" cx="120" cy="120" r="96"/>
-        </svg>
-        <div class="timer-face">
-          <span class="timer-label">从零到能用</span>
-          <span class="timer-num"><span id="timer-num">0</span><span class="timer-dec" id="timer-dec">.0</span></span>
-          <span class="timer-unit">秒</span>
+        <p class="panel-head"><span>TIMER</span><span>从零到能用</span></p>
+        <div class="dial">
+          <svg class="ring" viewBox="0 0 240 240" aria-hidden="true">
+            <g class="ticks" id="ring-ticks"></g>
+            <circle class="ring-track" cx="120" cy="120" r="96"/>
+            <circle class="ring-fill" id="ring-fill" cx="120" cy="120" r="96"/>
+          </svg>
+          <div class="timer-face">
+            <span class="timer-num"><span id="timer-num">0</span><span class="timer-dec" id="timer-dec">.0</span></span>
+            <span class="timer-unit">秒</span>
+          </div>
         </div>
         <p class="timer-status" id="timer-status">点「开始」后开始计时</p>
       </div>
@@ -56,15 +56,15 @@
   </section>
 
   <!-- 2. Scan -->
-  <section class="screen" id="screen-scan" data-screen="scan" hidden>
+  <section class="screen dark" id="screen-scan" data-screen="scan" hidden>
     <div class="scan">
       <div class="scan-text">
-        <p class="eyebrow">你只需要做这一步</p>
-        <h2>用微信扫码，<br><em>免费用 AI</em></h2>
+        <p class="kicker"><span class="sig"></span><span data-decode>STEP 01 ▸ 扫码登录</span></p>
+        <h2>用微信扫码，<br><em>免费用 AI。</em></h2>
         <ol class="scan-tips">
-          <li>打开手机微信，扫右边的二维码</li>
-          <li>第一次用智谱：扫码后填手机号、收一次验证码</li>
-          <li>登录好就不用管了，搭子会自己往下走</li>
+          <li><i>01</i>打开手机微信，扫右边的二维码</li>
+          <li><i>02</i>第一次用智谱：扫码后填手机号、收一次验证码</li>
+          <li><i>03</i>登录好就不用管了，搭子会自己往下走</li>
         </ol>
         <div class="mini-progress" id="scan-mini"></div>
         <p class="safe-note"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Key 用你自己的智谱账号创建，只保存在这台电脑上。</p>
@@ -78,34 +78,30 @@
   </section>
 
   <!-- 3. Auto progress -->
-  <section class="screen" id="screen-progress" data-screen="progress" hidden>
+  <section class="screen dark" id="screen-progress" data-screen="progress" hidden>
     <div class="progress">
-      <div class="progress-head">
-        <h2 id="progress-title">搭子正在帮你装，不用管它</h2>
-        <span class="progress-count" id="progress-count">0 / 5</span>
-      </div>
+      <p class="kicker"><span class="sig"></span><span data-decode>HUMANSLIVE.AI ▸ 正在安装</span><span class="progress-count" id="progress-count">0 / 5</span></p>
+      <h2 id="progress-title">搭子正在帮你装，不用管它</h2>
       <div class="progress-bar" aria-hidden="true"><i id="progress-bar"></i></div>
       <ul class="checklist" id="checklist"></ul>
-      <div class="fixing" id="fixing" hidden><span class="spinner amber"></span><span id="fixing-text">正在帮你修…</span></div>
+      <div class="fixing" id="fixing" hidden><span class="sig"></span><span id="fixing-text">正在帮你修…</span></div>
       <div class="failure" id="failure" hidden>
         <p class="failure-title">这一步没走通</p>
         <p class="failure-text" id="failure-text"></p>
         <div class="row">
-          <button class="btn" id="btn-copy-log" type="button">一键复制日志</button>
           <button class="btn ghost" id="btn-retry" type="button">再试一次</button>
+          <button class="btn primary" id="btn-copy-log" type="button">一键复制日志 <i class="arrow">→</i></button>
         </div>
         <p class="hint">把日志发给我们，我们来修。日志里没有你的 Key。</p>
       </div>
     </div>
   </section>
 
-  <!-- 4. Done -->
-  <section class="screen" id="screen-done" data-screen="done" hidden>
-    <div class="done-glow" aria-hidden="true"></div>
-    <div class="sparkles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+  <!-- 4. Done (this frame doubles as the video cover) -->
+  <section class="screen dark" id="screen-done" data-screen="done" hidden>
+    <canvas class="burst" id="confetti" aria-hidden="true"></canvas>
     <div class="done-wrap">
-      <p class="done-pill"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Codex 已装好</p>
+      <p class="kicker center"><span class="sig on"></span><span data-decode>✓ ALL SYSTEMS GO · 全部完成</span></p>
       <p class="done-label">从零到能用</p>
       <p class="done-time"><span id="done-seconds">0</span><small>秒</small></p>
       <ul class="done-facts" id="done-facts">
@@ -115,55 +111,54 @@
       </ul>
       <p class="done-model" id="done-model"></p>
       <p class="done-warn" id="done-warn" hidden></p>
-      <button class="btn-start" id="btn-open-codex" type="button"><span>打开 Codex</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+      <button class="btn primary big" id="btn-open-codex" type="button"><span>打开 Codex</span><i class="arrow">→</i></button>
       <button class="link" id="btn-to-manage" type="button">以后想换模型、换语言，点这里</button>
-      <p class="follow">关注<b>黄金金不AI</b>，看入门教程</p>
+      <p class="follow">关注 <b>黄金金不AI</b>，看入门教程</p>
     </div>
   </section>
 
-  <!-- Manage -->
-  <section class="screen" id="screen-manage" data-screen="manage" hidden>
+  <!-- Manage (human world: light, serif titles) -->
+  <section class="screen light" id="screen-manage" data-screen="manage" hidden>
     <div class="manage">
       <div class="manage-head">
         <div class="now">
-          <span class="now-dot" aria-hidden="true"></span>
-          <div>
-            <p class="eyebrow">Codex 已装好，可以直接用</p>
-            <h2>正在用：<span id="current-name">—</span></h2>
-            <p class="sub" id="current-sub"></p>
-          </div>
+          <p class="label"><span class="dot"></span>MANAGE · Codex 已装好，可以直接用</p>
+          <h2>正在用：<em id="current-name">—</em></h2>
+          <p class="sub" id="current-sub"></p>
         </div>
-        <button class="btn" id="btn-open-codex-2" type="button">打开 Codex</button>
+        <button class="btn primary" id="btn-open-codex-2" type="button">打开 Codex <i class="arrow">→</i></button>
       </div>
 
       <nav class="tabs" role="tablist">
-        <button role="tab" class="tab active" data-tab="model" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h11M4 17h7M17 4l3 3-3 3M14 14l3 3-3 3"/></svg>切换模型</button>
-        <button role="tab" class="tab" data-tab="edition" type="button"><svg viewBox="0 0 24 24"><path d="M4 5h9M8.5 3v2M6 5c1 4 3.5 6.5 7 8M11 5c-1 4-3.5 6.5-7 8M13 21l4-10 4 10M14.5 17.5h5"/></svg>中文 / 英文</button>
-        <button role="tab" class="tab" data-tab="settings" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>常用设置</button>
-        <button role="tab" class="tab" data-tab="restore" type="button"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5"/></svg>还原</button>
+        <button role="tab" class="tab active" data-tab="model" type="button">切换模型</button>
+        <button role="tab" class="tab" data-tab="edition" type="button">中文 / 英文</button>
+        <button role="tab" class="tab" data-tab="settings" type="button">常用设置</button>
+        <button role="tab" class="tab" data-tab="restore" type="button">还原</button>
       </nav>
 
       <div class="panel" data-panel="model">
-        <p class="panel-note"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>每次切换：先自动备份，再测试连通，测通了才保存。没测通就什么都不改。</p>
+        <p class="panel-note"><span class="dot"></span>每次切换：先自动备份，再测试连通，测通了才保存。没测通就什么都不改。</p>
         <div class="cards" id="model-cards">
-          <article class="card featured" data-kind="zhipu-free">
-            <span class="badge free">免费</span>
-            <div class="card-head"><span class="mono zhipu">智</span><h3>智谱免费</h3></div>
+          <article class="card" data-kind="zhipu-free">
+            <div class="card-top"><span class="idx">01</span><span class="badge">免费</span></div>
+            <h3>智谱免费</h3>
             <p>智谱 GLM 免费模型。不扣费，用得太频繁会被限速，等一会儿就恢复。</p>
-            <button class="btn" data-switch="zhipu-free" type="button">用这个</button>
+            <button class="btn primary" data-switch="zhipu-free" type="button">用这个</button>
           </article>
           <article class="card" data-kind="zhipu-paid">
-            <div class="card-head"><span class="mono zhipu-paid">智</span><h3>智谱付费</h3></div>
+            <div class="card-top"><span class="idx">02</span></div>
+            <h3>智谱付费</h3>
             <p>更强、不限速。要先在智谱<a href="#" data-url="https://bigmodel.cn/finance/pay">充值</a>，按用量扣你自己的钱。</p>
             <label class="field inline"><span>模型</span>
               <select id="paid-model"><option value="glm-5">GLM-5</option><option value="glm-4.6">GLM-4.6</option></select>
             </label>
-            <button class="btn" data-switch="zhipu-paid" type="button">用这个</button>
+            <button class="btn primary" data-switch="zhipu-paid" type="button">用这个</button>
           </article>
           <article class="card" data-kind="openai">
-            <div class="card-head"><span class="mono openai">AI</span><h3>OpenAI 官方账号</h3></div>
+            <div class="card-top"><span class="idx">03</span></div>
+            <h3>OpenAI 官方账号</h3>
             <p>用你自己的 ChatGPT 账号登录。会弹出浏览器，要能打开 OpenAI 的网站。</p>
-            <button class="btn" data-switch="openai" type="button">登录并使用</button>
+            <button class="btn primary" data-switch="openai" type="button">登录并使用</button>
           </article>
         </div>
 
@@ -174,26 +169,26 @@
         </div>
 
         <article class="card wide" data-kind="custom">
-          <div class="card-head"><span class="mono custom">+</span><h3>其他厂商</h3><p class="card-note">任何兼容 OpenAI 接口的厂商都行：把它给你的地址、Key、模型名填进来。</p></div>
+          <div class="wide-head"><span class="idx">04</span><h3>其他厂商</h3><p>任何兼容 OpenAI 接口的厂商都行：把它给你的地址、Key、模型名填进来。</p></div>
           <div class="form">
             <label class="field"><span>地址</span><input id="custom-url" type="url" placeholder="https://…/v1" autocomplete="off" spellcheck="false"></label>
             <label class="field"><span>Key</span><input id="custom-key" type="password" placeholder="只保存在这台电脑上" autocomplete="off" spellcheck="false"></label>
             <label class="field"><span>模型名</span><input id="custom-model" type="text" placeholder="厂商文档里写的模型名" autocomplete="off" spellcheck="false"></label>
-            <button class="btn" data-switch="custom" type="button">测试并保存</button>
+            <button class="btn primary" data-switch="custom" type="button">测试并保存</button>
           </div>
         </article>
       </div>
 
       <div class="panel" data-panel="edition" hidden>
-        <p class="panel-note">一键切换，不用重装。Codex 重新打开后生效。</p>
+        <p class="panel-note"><span class="dot"></span>一键切换，不用重装。Codex 重新打开后生效。</p>
         <div class="segmented" id="edition-seg">
           <button type="button" data-edition="zh">
-            <span class="win" aria-hidden="true"><span class="win-bar"><i></i><i></i><i></i></span><span class="win-menu">文件　编辑　查看　帮助</span><span class="win-line">新对话</span><span class="win-line short">设置</span></span>
             <b>汉化版</b><small>界面中文 · 从「ChatGPT 汉化版」打开</small>
+            <span class="menu-sample" aria-hidden="true">文件　编辑　查看　帮助</span>
           </button>
           <button type="button" data-edition="en">
-            <span class="win" aria-hidden="true"><span class="win-bar"><i></i><i></i><i></i></span><span class="win-menu">File　Edit　View　Help</span><span class="win-line">New chat</span><span class="win-line short">Settings</span></span>
             <b>英文原版</b><small>界面英文 · 和官方一模一样</small>
+            <span class="menu-sample" aria-hidden="true">File　Edit　View　Help</span>
           </button>
         </div>
       </div>
@@ -216,22 +211,20 @@
             <button type="button" data-value="high">深</button>
           </div>
         </div>
-        <p class="panel-note">改了马上保存。Codex 开着的话，重新打开后生效。</p>
+        <p class="panel-note"><span class="dot"></span>改了马上保存。Codex 开着的话，重新打开后生效。</p>
       </div>
 
       <div class="panel" data-panel="restore" hidden>
         <div class="restore">
-          <div class="restore-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5"/></svg></div>
-          <div class="restore-body">
-            <h3>还原到安装前的样子</h3>
-            <ul class="restore-list">
-              <li>Codex 的配置放回安装前的样子</li>
-              <li>去掉汉化版的快捷方式</li>
-              <li>如果 Codex 是这次才装的，也一起卸载</li>
-              <li class="keep">你在 Codex 里的聊天记录不会删</li>
-            </ul>
-            <button class="btn danger" id="btn-restore" type="button">一键还原</button>
-          </div>
+          <div class="card-top"><span class="idx">RESTORE</span></div>
+          <h3>还原到安装前的样子</h3>
+          <ul class="restore-list">
+            <li>Codex 的配置放回安装前的样子</li>
+            <li>去掉汉化版的快捷方式</li>
+            <li>如果 Codex 是这次才装的，也一起卸载</li>
+            <li class="keep">你在 Codex 里的聊天记录不会删</li>
+          </ul>
+          <button class="btn ink" id="btn-restore" type="button">一键还原 <i class="arrow">→</i></button>
         </div>
       </div>
     </div>
@@ -239,35 +232,37 @@
 
   <!-- Task dialog: backup → test → save, one row per STEP line -->
   <div class="modal" id="task-modal" hidden>
-    <div class="modal-card">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="task-title">
+      <p class="label">CODEX 搭子 ▸ 正在处理</p>
       <h3 id="task-title">切换中</h3>
       <ol class="stages" id="task-stages" hidden>
-        <li data-stage="0"><span class="st-ico"><b>1</b><svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span class="st-txt">备份</span></li>
-        <li data-stage="1"><span class="st-ico"><b>2</b><svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span class="st-txt">测试连通</span></li>
-        <li data-stage="2"><span class="st-ico"><b>3</b><svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span class="st-txt">保存</span></li>
+        <li data-stage="0"><span class="st-ico"><b>01</b><svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span class="st-txt">备份</span></li>
+        <li data-stage="1"><span class="st-ico"><b>02</b><svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span class="st-txt">测试连通</span></li>
+        <li data-stage="2"><span class="st-ico"><b>03</b><svg class="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span class="st-txt">保存</span></li>
       </ol>
       <ul class="checklist small" id="task-list"></ul>
       <div class="task-result" id="task-result" hidden><span class="tr-ico" aria-hidden="true"></span><div><b id="task-result-title"></b><p id="task-result-text"></p></div></div>
       <div class="row" id="task-actions" hidden>
         <button class="btn ghost" id="task-copy-log" type="button" hidden>复制日志</button>
-        <button class="btn" id="task-close" type="button">好的</button>
+        <button class="btn primary" id="task-close" type="button">好的</button>
       </div>
     </div>
   </div>
 
   <!-- Confirm dialog -->
   <div class="modal" id="confirm-modal" hidden>
-    <div class="modal-card">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <p class="label">CODEX 搭子 ▸ 请确认</p>
       <h3 id="confirm-title"></h3>
       <p id="confirm-text"></p>
       <div class="row">
         <button class="btn ghost" id="confirm-no" type="button">先不了</button>
-        <button class="btn danger" id="confirm-yes" type="button">确定</button>
+        <button class="btn ink" id="confirm-yes" type="button">确定</button>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="toast" hidden></div>
+  <div class="toast" id="toast" aria-live="polite" hidden></div>
   <div class="preview-bar" id="preview-bar" hidden></div>
 
   <script src="build/backend.js"></script>
