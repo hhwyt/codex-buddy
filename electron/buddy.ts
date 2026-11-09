@@ -455,7 +455,7 @@ async function open(): Promise<Result> {
 function readLog(): Result {
   const files = fs.existsSync(logDir) ? fs.readdirSync(logDir) : [];
   const newest = (prefix: string) => files.filter(f => f.startsWith(prefix)).sort().pop();
-  let text = `Codex 搭子 日志  Windows ${os.release()}  ${new Date().toISOString()}\n`;
+  let text = `CodexBuddy 日志  Windows ${os.release()}  ${new Date().toISOString()}\n`;
   for (const name of [newest('codex-'), newest('buddy-')]) {
     if (name) text += `===== ${name} =====\n${fs.readFileSync(path.join(logDir, name), 'utf8')}\n`;
   }

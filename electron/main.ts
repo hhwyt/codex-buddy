@@ -1,4 +1,4 @@
-// Codex 搭子 main process. Three jobs:
+// CodexBuddy main process. Three jobs:
 // 1. run codex.ps1 (from codex-install-made-easy, unchanged apart from its STEP switch) for the install;
 // 2. read its output line by line and pass the STEP:<id>:<start|done|fail>:<text> lines to the page;
 // 3. read and write Codex's config for the manage page (buddy.ts).
@@ -83,7 +83,7 @@ function createWindow() {
   const area = screen.getPrimaryDisplay().workAreaSize;
   const hour = new Date().getHours();
   win = new BrowserWindow({
-    width: Math.min(980, area.width), height: Math.min(680, area.height - 40), useContentSize: true, resizable: false, maximizable: false, title: 'Codex 搭子',
+    width: Math.min(980, area.width), height: Math.min(680, area.height - 40), useContentSize: true, resizable: false, maximizable: false, title: 'CodexBuddy',
     // Same clock rule as ui/theme.ts (07:00–19:00 day), so the window doesn't flash the other theme's color before the page paints
     backgroundColor: hour >= 7 && hour < 19 ? '#f6f7f8' : '#0a0d12', autoHideMenuBar: true,
     // backgroundThrottling off: the stopwatch and the STEP updates keep their pace while the window is minimized

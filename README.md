@@ -58,7 +58,7 @@ scripts/preview.sh
 
 ## 构建
 
-产物是一个一键安装包 `Codex搭子-安装-<版本>.exe`（NSIS，双击就装、装完自动打开，不用点「下一步」），约 88 MB。推到 `main` 后 GitHub Actions 会在 Windows 上构建一份（见 [.github/workflows/build.yml](.github/workflows/build.yml)）；在 Mac 上也能直接打：
+产物是一个一键安装包 `CodexBuddy-Setup-<版本>.exe`（NSIS，双击就装、装完自动打开，不用点「下一步」），约 88 MB。推到 `main` 后 GitHub Actions 会在 Windows 上构建一份（见 [.github/workflows/build.yml](.github/workflows/build.yml)）；在 Mac 上也能直接打：
 
 ```bash
 npm install

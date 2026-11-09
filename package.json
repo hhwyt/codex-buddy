@@ -1,7 +1,7 @@
 {
   "name": "codex-buddy",
   "version": "0.1.0",
-  "description": "Codex 搭子：一键装好 Codex，免费用 AI",
+  "description": "CodexBuddy：一键装好 Codex，免费用 AI",
   "author": "hhwyt",
   "license": "MIT",
   "private": true,
@@ -20,8 +20,8 @@
   },
   "build": {
     "appId": "ai.humanslive.codexbuddy",
-    "productName": "Codex 搭子",
-    "executableName": "codex-buddy",
+    "productName": "CodexBuddy",
+    "executableName": "CodexBuddy",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -58,8 +58,8 @@
       "runAfterFinish": true,
       "createDesktopShortcut": false,
       "createStartMenuShortcut": true,
-      "shortcutName": "Codex 搭子",
-      "artifactName": "Codex搭子-安装-${version}.exe",
+      "shortcutName": "CodexBuddy",
+      "artifactName": "CodexBuddy-Setup-${version}.exe",
       "deleteAppDataOnUninstall": true
     }
   }
