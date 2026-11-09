@@ -8,14 +8,14 @@
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <!-- Machine world background: hairline grid + flow lines (welcome and done screens) -->
+  <!-- Background: hairline grid + flow lines (welcome and done screens) -->
   <div class="grid-bg" aria-hidden="true"></div>
   <canvas class="flow" id="flow" aria-hidden="true"></canvas>
 
   <header class="top">
     <div class="brand">
-      <!-- HumansLive logo, reverse version for the dark bar (design/humanslive/logo-v4/svg/a-icon-reverse.svg) -->
-      <svg class="logo" viewBox="0 0 256 256" aria-hidden="true"><rect x="11.5" y="11.5" width="233" height="233" rx="50.5" fill="none" stroke="#69737d" stroke-width="7"/><path d="M128 12V244" stroke="#5b93cf" stroke-width="5"/><rect x="72" y="96" width="24" height="24" fill="#d6dce2"/><circle cx="172" cy="108" r="13" fill="#d6dce2"/><path d="M72 160H128" stroke="#d6dce2" stroke-width="10"/><path d="M128 160H148A20 20 0 0 0 168 140" fill="none" stroke="#d6dce2" stroke-width="10" stroke-linecap="round"/><rect x="128" y="155.0" width="5.0" height="10" fill="#d6dce2"/></svg>
+      <!-- HumansLive logo (design/humanslive/logo-v4/svg/a-icon.svg / a-icon-reverse.svg): colours follow the theme -->
+      <svg class="logo" viewBox="0 0 256 256" aria-hidden="true"><rect class="frame" x="11.5" y="11.5" width="233" height="233" rx="50.5" stroke-width="7"/><path class="axis" d="M128 12V244" stroke-width="5"/><rect class="face" x="72" y="96" width="24" height="24" stroke-width="0"/><circle class="face" cx="172" cy="108" r="13" stroke-width="0"/><path class="face line" d="M72 160H128" stroke-width="10"/><path class="face line" d="M128 160H148A20 20 0 0 0 168 140" stroke-width="10" stroke-linecap="round"/><rect class="face" x="128" y="155.0" width="5.0" height="10" stroke-width="0"/></svg>
       <span class="wordmark">Humans<i></i>Live</span>
       <span class="app-tag">Codex 搭子</span>
     </div>
@@ -23,7 +23,7 @@
   </header>
 
   <!-- 1. Welcome -->
-  <section class="screen dark" id="screen-welcome" data-screen="welcome" hidden>
+  <section class="screen" id="screen-welcome" data-screen="welcome" hidden>
     <div class="welcome">
       <div class="welcome-text">
         <p class="kicker"><span class="sig"></span><span data-decode>HUMANSLIVE.AI ▸ CODEX</span></p>
@@ -56,7 +56,7 @@
   </section>
 
   <!-- 2. Scan -->
-  <section class="screen dark" id="screen-scan" data-screen="scan" hidden>
+  <section class="screen" id="screen-scan" data-screen="scan" hidden>
     <div class="scan">
       <div class="scan-text">
         <p class="kicker"><span class="sig"></span><span data-decode>STEP 01 ▸ 扫码登录</span></p>
@@ -78,7 +78,7 @@
   </section>
 
   <!-- 3. Auto progress -->
-  <section class="screen dark" id="screen-progress" data-screen="progress" hidden>
+  <section class="screen" id="screen-progress" data-screen="progress" hidden>
     <div class="progress">
       <p class="kicker"><span class="sig"></span><span data-decode>HUMANSLIVE.AI ▸ 正在安装</span><span class="progress-count" id="progress-count">0 / 5</span></p>
       <h2 id="progress-title">搭子正在帮你装，不用管它</h2>
@@ -98,7 +98,7 @@
   </section>
 
   <!-- 4. Done (this frame doubles as the video cover) -->
-  <section class="screen dark" id="screen-done" data-screen="done" hidden>
+  <section class="screen" id="screen-done" data-screen="done" hidden>
     <canvas class="burst" id="confetti" aria-hidden="true"></canvas>
     <div class="done-wrap">
       <p class="kicker center"><span class="sig on"></span><span data-decode>✓ ALL SYSTEMS GO · 全部完成</span></p>
@@ -117,8 +117,8 @@
     </div>
   </section>
 
-  <!-- Manage (human world: light, serif titles) -->
-  <section class="screen light" id="screen-manage" data-screen="manage" hidden>
+  <!-- Manage -->
+  <section class="screen" id="screen-manage" data-screen="manage" hidden>
     <div class="manage">
       <div class="manage-head">
         <div class="now">

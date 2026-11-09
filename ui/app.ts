@@ -31,11 +31,30 @@ const state = {
   finalSeconds: null as number | null,   // Frozen when STEP:all:done arrives
 };
 
-// Preview only: ?size=1090x570 renders the app frame at another window size
+// Preview only: ?size=1090x570 renders the app frame at another window size; ?theme=day|night pins the theme
 if (B.mock) {
-  const size = /^(\d+)x(\d+)$/.exec(new URLSearchParams(location.search).get('size') || '');
+  const params = new URLSearchParams(location.search);
+  const size = /^(\d+)x(\d+)$/.exec(params.get('size') || '');
   if (size) Object.assign(document.body.style, { width: `${size[1]}px`, height: `${size[2]}px` });
+  const theme = params.get('theme');
+  if (theme === 'day' || theme === 'night') document.documentElement.dataset.theme = theme;
 }
+
+// ---------------- Theme (day / night) ----------------
+// The main process sets <html data-theme="day|night"> by the clock. When it changes, every colour eases over .5s
+// (html.theme-anim in app.css) and the canvases pick up the new colours on their next frame.
+const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const themeColours = { accent: '', ink: '' };
+function readThemeColours() { themeColours.accent = css('--accent-rgb'); themeColours.ink = css('--ink-rgb'); }
+readThemeColours();
+let themeAnimTimer = 0;
+new MutationObserver(() => {
+  const html = document.documentElement;
+  html.classList.add('theme-anim');
+  clearTimeout(themeAnimTimer);
+  themeAnimTimer = window.setTimeout(() => html.classList.remove('theme-anim'), 600);
+  readThemeColours();
+}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 // ---------------- Screens ----------------
 function show(name) {
@@ -51,7 +70,7 @@ function show(name) {
   if (name === 'welcome' || name === 'done') startFlow(); else stopFlow();
 }
 
-// ---------------- Machine-world effects (same as humanslive.ai and the installer's terminal) ----------------
+// ---------------- Effects (same as humanslive.ai and the installer's terminal) ----------------
 // Text decodes out of noise, like the installer's "HUMANSLIVE.AI ▸" header: only ASCII is scrambled, CJK stays
 const DECODE_POOL = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 function decode(el) {
@@ -88,7 +107,7 @@ function startFlow() {
       const a = Math.sin(p.x * .0019 / dpr + t * .00012) * Math.cos(p.y * .0023 / dpr - t * .0001) * Math.PI * 2 + Math.sin((p.x + p.y) * .0008 / dpr);
       const nx = p.x + Math.cos(a) * .9 * dpr, ny = p.y + Math.sin(a) * .9 * dpr;
       const fade = Math.min(1, p.age / 30, (p.life - p.age) / 30);
-      ctx.strokeStyle = p.bright ? `rgba(214,220,226,${.32 * fade})` : `rgba(91,147,207,${.42 * fade})`;
+      ctx.strokeStyle = p.bright ? `rgba(${themeColours.ink},${.32 * fade})` : `rgba(${themeColours.accent},${.42 * fade})`;
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny); ctx.stroke();
       p.x = nx; p.y = ny;
       if (++p.age > p.life || p.x < 0 || p.x > w || p.y < 0 || p.y > h) spawn(p);
@@ -117,14 +136,14 @@ function signalBurst(canvas) {
     ctx.lineCap = 'round';
     for (const p of lines) {
       p.x += p.vx; p.y += p.vy; p.vx *= .955; p.vy *= .955;
-      ctx.strokeStyle = p.bright ? `rgba(214,220,226,${.8 * k})` : `rgba(91,147,207,${.9 * k})`;
+      ctx.strokeStyle = p.bright ? `rgba(${themeColours.ink},${.8 * k})` : `rgba(${themeColours.accent},${.9 * k})`;
       ctx.lineWidth = 1.2 * dpr;
       ctx.beginPath(); ctx.moveTo(p.x - p.vx * 3.5, p.y - p.vy * 3.5); ctx.lineTo(p.x, p.y); ctx.stroke();
     }
     for (let i = 0; i < 3; i++) {
       const rt = (t - i * 260) / 1600;
       if (rt <= 0 || rt >= 1) continue;
-      ctx.strokeStyle = `rgba(91,147,207,${.6 * (1 - rt)})`; ctx.lineWidth = dpr;
+      ctx.strokeStyle = `rgba(${themeColours.accent},${.6 * (1 - rt)})`; ctx.lineWidth = dpr;
       ctx.beginPath(); ctx.ellipse(cx, cy, (120 + rt * 420) * dpr, (70 + rt * 250) * dpr, 0, 0, Math.PI * 2); ctx.stroke();
     }
     if (t < life && !reducedMotion()) requestAnimationFrame(frame); else ctx.clearRect(0, 0, w, h);
