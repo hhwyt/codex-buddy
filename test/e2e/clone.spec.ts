@@ -67,10 +67,19 @@ test('C-03 分身和原来的 Codex 能同时开', async () => {
   await makeClone('kimi');
   await run.page.getByTestId(TID.models.cloneOpen('kimi')).click();
   await expect.poll(async () => { const e = await run.external(); return [...e.opened, ...e.revealed].join('\n').toLowerCase(); }).toContain('kimi');
-  // The original keeps running (nobody closed it) and the clone has its own identity, so both can be open
+  // Here only: nobody closed the original, and the clone has an identity of its own. That two real Codex windows run side
+  // by side is checked on a real machine only (spike d, docs/m1-behavior-check.md)
   expect(fs.existsSync(path.join(run.sandbox, 'fake-codex-running'))).toBe(true);
   const app = cloneEntry('Kimi')!;
   if (app.endsWith('.app')) expect(plistValue(plist(app), 'CFBundleIdentifier')).not.toBe('com.openai.codex');
+  else {
+    const lnks = [path.join(run.home, 'Desktop', 'Kimi.lnk'), path.join(run.home, 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Kimi.lnk')];
+    for (const lnk of lnks) {
+      const link = await run.app.evaluate(({ shell }, file) => shell.readShortcutLink(file), lnk);
+      expect(link.appUserModelId).toBe('CodexBuddy.Kimi');
+      expect(link.appUserModelId).not.toMatch(/^OpenAI\.Codex_/);
+    }
+  }
   await expect(run.page.getByTestId(TID.toast)).not.toContainText('关掉');
 });
 

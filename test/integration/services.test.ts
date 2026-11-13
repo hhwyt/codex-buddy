@@ -82,7 +82,7 @@ function fakeVendors(): Record<BuiltinVendorId, Vendor> {
   } satisfies Vendor])) as unknown as Record<BuiltinVendorId, Vendor>;
 }
 
-function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | 'win'; remoteUrls?: string[] } = {}) {
+function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | 'win'; remoteUrls?: string[]; balance?: Parameters<typeof createServices>[0]['balance'] } = {}) {
   const paths = sandboxPaths(root, 'mac');
   const base = createMacPlatform(paths);
   const platform = sandboxPlatform(base, { root, env: opts.env ?? env(), open: async t => { opened.push(t); }, reveal: async t => { opened.push(`reveal:${t}`); } });
@@ -102,6 +102,7 @@ function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | '
     connections: () => ({ app: [{ host: 'cdn.jsdelivr.net', allowed: true, at: 1 }], web: [] }),
     logoPng: v => `/logos/${v}.png`,
     runInstaller: async f => { installed.push(f); },
+    ...(opts.balance ? { balance: opts.balance } : {}),
   });
   return { svc, h: svc.handlers as Required<typeof svc.handlers>, paths, platform, browser, clone, upstreams };
 }
@@ -257,7 +258,18 @@ describe('switching', () => {
     expect((await b.h['wallet:get'](undefined as never)).active).toBe('deepseek');
   });
 
-  test('M-11 余额不够 / M-13 Key 不对 / M-14 被限速：各自给出 kind，限速记在卡上', async () => {
+  test('M-02 切换成功后画中画关掉：不留上一家的页面，不挡最上层卡的「换」；M-12 只剩赠送额度时充值页留在画中画', async () => {
+    const b = build({ balance: async p => (p.id === 'deepseek' ? { granted: 5, toppedUp: 0 } : null) });
+    await installed_(b);
+    expect((await b.h['switch:start']({ vendor: 'kimi' })).ok).toBe(true);
+    expect(b.browser.closed).toBe(1);
+    expect(b.browser.opens).toEqual([]);
+    expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: true, trial: true });
+    expect(b.browser.closed).toBe(1);
+    expect(b.browser.opens).toEqual([PROVIDERS.find(p => p.id === 'deepseek')!.rechargeUrl]);
+  });
+
+  test('M-13 余额不够 / M-10 Key 不对 / M-14 被限速：各自给出 kind，限速记在卡上', async () => {
     const b = build();
     await installed_(b);
     scenario('balance');
@@ -287,10 +299,12 @@ describe('switching', () => {
     keyOutcome.deepseek = { ok: false, reason: 'failed' };
     expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ reason: '没拿到 Key，再试一次' });
     expect(await b.h['key:paste']({ vendor: 'deepseek', key: '  ' })).toEqual({ ok: false, reason: 'Key 是空的' });
+    const closedBefore = b.browser.closed;
     expect((await b.h['key:paste']({ vendor: 'deepseek', key: 'sk-pasted-0000wxyz' })).ok).toBe(true);
+    expect(b.browser.closed).toBe(closedBefore + 1); // the switch succeeded: the Key page is closed
     expect((await b.h['wallet:get'](undefined as never)).cards.find(c => c.vendor === 'deepseek')!.keyTail).toBe('wxyz');
     await b.h['switch:cancel'](undefined as never);
-    expect(b.browser.closed).toBe(1);
+    expect(b.browser.closed).toBe(closedBefore + 2);
   });
 
   test('M-16 没装 Codex：返回 codex-missing；重新安装走 repair 步骤', async () => {
@@ -331,7 +345,7 @@ describe('switching', () => {
     expect(await b.h['recharge:open']({ vendor: 'custom-x' })).toMatchObject({ ok: false });
   });
 
-  test('M-20 其他厂商：填全了就切过去，测不通不留下', async () => {
+  test('M-19 其他厂商：填全了就切过去，测不通不留下', async () => {
     const b = build();
     await installed_(b);
     expect(await b.h['custom:add']({ name: '', baseUrl: 'x', model: '', apiKey: '' })).toMatchObject({ ok: false });
@@ -640,7 +654,7 @@ describe('security, help, update, restore', () => {
     expect(fs.readFileSync(path.join(b.paths.codexHome, 'auth.json'), 'utf8')).toBe(login);
   });
 
-  test('T-04 own-file checks: only a bare API key and our catalog shape count as ours', () => {
+  test('T-04 还原只认自己写的：只有单独一个 API Key 和我们的模型清单格式算我们的', () => {
     expect(onlyOurKey('{"OPENAI_API_KEY":"sk-1"}')).toBe(true);
     expect(onlyOurKey('{}')).toBe(true);
     expect(onlyOurKey('{"tokens":{}}')).toBe(false);

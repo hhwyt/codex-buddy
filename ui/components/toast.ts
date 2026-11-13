@@ -10,3 +10,8 @@ export function toast(text: string, opts: { error?: boolean; ms?: number; root?:
   setTimeout(() => el.remove(), opts.ms ?? 2600);
   return el;
 }
+
+/** Clears every toast: a message from one page must not linger on the next (W-02) */
+export function clearToasts(): void {
+  for (const el of document.querySelectorAll(`[data-testid="${TID.toast}"]`)) el.remove();
+}

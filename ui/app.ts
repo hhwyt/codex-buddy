@@ -4,6 +4,7 @@
 // (O-06), else onboarding. Switching pages never touches the right-side browser (B-04).
 import { windowApi, type BuddyApi } from './api.js';
 import { mountBrowser } from './components/pip.js';
+import { clearToasts } from './components/toast.js';
 import { h } from './dom.js';
 import { renderHelp } from './pages/help.js';
 import { renderModels } from './pages/models.js';
@@ -33,7 +34,7 @@ export async function createApp(root: HTMLElement, api: BuddyApi): Promise<App> 
   let cleanup: void | (() => void);
 
   const navButtons = NAV.map(n => h('button', {
-    class: 'nav-item', type: 'button', 'data-testid': n.testid, 'data-route': n.route, onclick: () => app.go(n.route),
+    class: 'nav-item', type: 'button', 'data-testid': n.testid, 'data-route': n.route, onclick: () => { clearToasts(); void app.go(n.route); },
   }, n.label));
   const side = h('aside', { class: 'side', 'data-testid': TID.shell.side }, h('nav', {}, ...navButtons));
   const page = h('section', { class: 'page', 'data-testid': TID.shell.main });

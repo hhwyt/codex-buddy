@@ -36,7 +36,12 @@ export function realProtectedPaths(home = os.homedir()): string[] {
   } catch { /* unreadable home: only ~/.codex */ }
   if (process.platform === 'win32') {
     const roaming = process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming');
-    list.push(path.join(roaming, 'Codex'), path.join(home, 'Desktop', 'ChatGPT 汉化版.lnk'));
+    list.push(path.join(roaming, 'Codex'), ...winShortcutDirs(home).map(dir => path.join(dir, 'ChatGPT 汉化版.lnk')));
+    // The Store Codex keeps its data in its package's virtualized AppData
+    const packages = path.join(process.env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local'), 'Packages');
+    try {
+      for (const n of fs.readdirSync(packages)) if (n.startsWith('OpenAI.Codex_')) list.push(path.join(packages, n, 'LocalCache', 'Roaming', 'Codex'));
+    } catch { /* no Packages folder */ }
   } else {
     list.push('/Applications/ChatGPT.app', '/Applications/ChatGPT 汉化版.app', path.join(home, 'Library', 'Application Support', 'Codex'));
   }
@@ -56,10 +61,15 @@ export const volatile = (rel: string) => !strictHashes() && VOLATILE.test(rel);
 
 export const hashAll = (paths: string[]): Record<string, string> => Object.fromEntries(paths.map(p => [p, hashTree(p, volatile)]));
 
-/** Names in /Applications: nothing may be installed there by tests */
+/** The desktop and the Start menu's Programs folder: where Windows shortcuts land */
+export const winShortcutDirs = (home = os.homedir()): string[] =>
+  [path.join(home, 'Desktop'), path.join(process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming'), 'Microsoft', 'Windows', 'Start Menu', 'Programs')];
+
+/** Names in /Applications (Mac) or the .lnk shortcuts on the desktop and in the Start menu (Windows): tests may add none */
 export const applicationsListing = (): string[] => {
-  if (process.platform === 'win32') return [];
-  try { return fs.readdirSync('/Applications').sort(); } catch { return []; }
+  const names = (dir: string) => { try { return fs.readdirSync(dir); } catch { return []; } };
+  if (process.platform === 'win32') return winShortcutDirs().flatMap(dir => names(dir).filter(n => n.toLowerCase().endsWith('.lnk')).map(n => path.join(dir, n))).sort();
+  return names('/Applications').sort();
 };
 
 export const SNAPSHOT_FILE = path.join(os.tmpdir(), 'codexbuddy-e2e-x01-before.json');

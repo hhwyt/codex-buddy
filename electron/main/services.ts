@@ -282,10 +282,13 @@ export function createServices(d: ServiceDeps) {
     const seconds = firstTime && st.startedAt ? Math.max(1, Math.round((d.now() - st.startedAt) / 1000)) : undefined;
     const running = await platform.isCodexRunning();
     d.emit('wallet', wallet());
-    // M-12: only gift credit left (never topped up) → 先用着, the recharge page waits in the small window
+    // M-12: only gift credit left (never topped up) → 先用着, the recharge page waits in the small window. Otherwise the
+    // login / Key page this switch used is done with: close it, so it neither shows the previous vendor's page nor covers
+    // the top card's 换 and 去充值 (site owner, 2026-11-13)
     const trial = await trialCredit(v);
     const rechargeUrl = providerOf(v)?.rechargeUrl;
     if (trial && rechargeUrl) await d.browser.open(rechargeUrl, { mode: 'pip' });
+    else d.browser.close();
     return { ok: true, firstTime, ...(seconds ? { seconds } : {}), running, ...(trial ? { trial: true } : {}) };
   };
 

@@ -62,7 +62,8 @@ async function main(): Promise<void> {
   const providers = PROVIDERS.map(p => withEndpoints(p, endpoints));
   const vendors = vendorsWith(endpoints);
   const upstreams: Record<string, string> = {};
-  const bridge = await startBridge(upstreams);
+  // Codex's traffic to the vendors goes through the whitelist and shows under 「CodexBuddy 连过的」 (S-04, S-05)
+  const bridge = await startBridge(upstreams, { fetch: ((url: string, init?: RequestInit) => guardedFetch(url, init)) as typeof fetch });
   const keyFile = path.join(platform.paths.buddyDir, 'data-key.bin');
   const wrap = sandbox || !safeStorage.isEncryptionAvailable() ? plainWrap : { encrypt: (b: Buffer) => safeStorage.encryptString(b.toString('base64')), decrypt: (b: Buffer) => Buffer.from(safeStorage.decryptString(b), 'base64') };
   const cipher = aesCipher(loadDataKey(platform.fs, keyFile, wrap));
@@ -115,7 +116,8 @@ async function main(): Promise<void> {
   });
 
   registerIpc({ ...services.handlers, ...browserHandlers(rb) });
-  installNetGuard(() => [...defaultAllowedHosts(providers), ...Object.values(endpoints.vendors).map(u => new URL(u!).host)],
+  // A vendor added under 「其他厂商」 (M-19) is allowed once its base URL is in use
+  installNetGuard(() => [...defaultAllowedHosts(providers), ...Object.values(endpoints.vendors).map(u => new URL(u!).host), ...Object.values(upstreams).map(u => new URL(u).host)],
     () => sendEvent(win, 'connections', connectionViews()));
 
   win = createMainWindow(os, { offscreen: testMode });

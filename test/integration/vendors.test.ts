@@ -167,7 +167,7 @@ describe('key ladder', () => {
     expect(await v.obtainKey(noKey)).toEqual({ ok: false, reason: 'cancelled' });
   });
 
-  test('M-08 OpenAI 官方账号不走 Key，在 Codex 里登录', async () => {
+  test('M-22 OpenAI 官方账号不走 Key，在 Codex 里登录', async () => {
     const r = await VENDORS.openai.obtainKey(rb);
     expect(r).toMatchObject({ ok: false, reason: 'failed' });
     expect(rb.state().open).toBe(false);

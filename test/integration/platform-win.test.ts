@@ -238,7 +238,7 @@ describe('real shell (stand-in executables)', () => {
     return f;
   }
 
-  test('O-01 PowerShell 隐藏运行：参数、环境变量、逐行输出和退出码', async () => {
+  test('PowerShell 隐藏运行：参数、环境变量、逐行输出和退出码', async () => {
     const dir = tmp();
     const ps = exe(dir, 'powershell', 'printf "%s|%s|%s|%s\\n" "$1" "$2" "$3" "$4"; echo "$5"; echo "env=$CB_X"; exit 3');
     const shell = createNodeWinShell({ powershell: ps, taskkill: 'nope' });
@@ -257,7 +257,7 @@ describe('real shell (stand-in executables)', () => {
     expect(() => shell.launch(path.join(tmp(), 'missing'), [])).not.toThrow();
   });
 
-  test('M-07 taskkill /F /T /PID 和分离启动', async () => {
+  test('taskkill /F /T /PID 和分离启动', async () => {
     const dir = tmp();
     const log = path.join(dir, 'log');
     const tk = exe(dir, 'taskkill', `echo "$*" > "${log}"`);

@@ -53,11 +53,15 @@ test('M-01 第一次进来所有卡都在且没有正在用的', async () => {
 
 test('M-02 点后面的卡抽到最上层并开始切换', async () => {
   await ready();
+  const events = await browserEvents();
   await card('kimi').click({ position: { x: 60, y: 20 } });
   await expect.poll(uiFront).toBe('kimi');
   await fakeScan(run.app, 'kimi');
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('kimi');
   expect(tomlValue(configToml(run.sandbox), 'model_provider')).toContain('kimi');
+  // Switched: the picture-in-picture with the login / Key page is closed and nothing covers the top card's 换
+  await expect.poll(async () => (await events()).at(-1)?.open ?? false).toBe(false);
+  await run.page.getByTestId(TID.models.changeKey('kimi')).click({ trial: true, timeout: 5_000 });
 });
 
 test('M-03 把后面的卡拖到最上层就切换', async () => {

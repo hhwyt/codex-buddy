@@ -271,10 +271,18 @@ const freePort = () => new Promise((resolve, reject) => {
   server.listen(0, '127.0.0.1', () => { const port = server.address().port; server.close(() => resolve(port)); });
 });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Already open: Mac, a process whose command line matches the pattern; Windows (a clone), a ChatGPT.exe whose command
+// line holds the clone's data dir
+const running = () => {
+  if (process.platform !== 'win32') return spawnSync('/usr/bin/pgrep', ['-f', config.runningPattern]).status === 0;
+  const query = "@(Get-CimInstance Win32_Process -Filter \\"Name='ChatGPT.exe'\\" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($env:CODEXBUDDY_RUNNING) }).Count";
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', query], { env: { ...process.env, CODEXBUDDY_RUNNING: config.runningPattern }, encoding: 'utf8', windowsHide: true });
+  return Number(String(r.stdout || '').trim()) > 0;
+};
 
 async function main() {
   if (fs.existsSync(disabled)) { log('patch off for ' + config.version + ': opening plainly'); start([]); return; }
-  if (spawnSync('/usr/bin/pgrep', ['-f', config.runningPattern]).status === 0) {
+  if (running()) {
     // Never close a running Codex: bring it forward as it is (CodexBuddy asks the user to reopen it, L-05)
     log('codex already running: bringing it forward'); start([]); return;
   }
