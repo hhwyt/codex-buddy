@@ -240,7 +240,7 @@ test('M1 drive: every step on the packaged app', async () => {
   const cloneApp = WIN ? path.join(winHome, 'AppData', 'Local', 'CodexBuddy', 'apps', 'deepseek') : path.join(sandboxApps(run.sandbox), 'DeepSeek.app');
   expect(fs.existsSync(cloneApp)).toBe(true);
   if (WIN) {
-    expect(readText(path.join(cloneApp, 'launch.vbs'))).toContain('.codex-deepseek');
+    expect(fs.readFileSync(path.join(cloneApp, 'launch.vbs')).subarray(2).toString('utf16le')).toContain('.codex-deepseek'); // UTF-16 with a BOM
     expect(fs.existsSync(path.join(winHome, 'Desktop', 'DeepSeek.lnk'))).toBe(true);
   } else expect(readText(path.join(cloneApp, 'Contents', 'Info.plist'))).toContain('local.codexbuddy.deepseek');
   const cloneMenu = (catalogOf(readText(path.join(cloneHome(run.sandbox, 'deepseek'), 'config.toml'))) ?? []).map(m => m.slug).sort();
