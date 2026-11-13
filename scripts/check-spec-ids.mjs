@@ -3,6 +3,7 @@
 // Ids come from design/approved-spec.md §3 (88 ids) plus any extra ids in the 11-13 build plan's tables.
 // Sources: SPEC_PATH / PLAN_PATH env, else design/approved-spec.md in this repo, else the main checkout.
 // Test names: test('<ID> …') / it('<ID> …') in test/**/*.ts|mjs. Exit 1 and list what is missing.
+// A test declared with .skip / .fixme / .todo does not count: it names the id but tests nothing.
 // --report: print the table and always exit 0 (used while the suite is still being written).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,7 +13,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const firstExisting = (...files) => files.find(f => f && fs.existsSync(f));
 const specPath = firstExisting(process.env.SPEC_PATH, path.join(root, 'design', 'approved-spec.md'), '/Users/hwy/dev/codex-buddy/design/approved-spec.md');
 const planPath = firstExisting(process.env.PLAN_PATH, '/Users/hwy/dev/codex-buddy-team/product/build-plan-2026-11-13.md');
-if (!specPath) { console.error('approved-spec.md not found (set SPEC_PATH)'); process.exit(1); }
+if (!specPath) { console.error('approved-spec.md not found: commit design/approved-spec.md or set SPEC_PATH'); process.exit(1); }
 
 const ID = /\b(?:UI|[A-Z])-\d{2}\b/g;
 /** Ids that open a table row: | O-01 | … */
@@ -47,7 +48,9 @@ const walk = dir => {
     if (e.isDirectory()) walk(p);
     else if (/\.(test|spec)\.(ts|mjs)$/.test(e.name)) {
       const src = fs.readFileSync(p, 'utf8');
-      for (const m of src.matchAll(/\b(?:test|it)(?:\.\w+)*\(\s*['"`]((?:UI|[A-Z])-\d{2})\b/g)) tested.add(m[1]);
+      for (const m of src.matchAll(/\b(?:test|it)((?:\.\w+)*)\(\s*['"`]((?:UI|[A-Z])-\d{2})\b/g)) {
+        if (!/\.(skip|fixme|todo)\b/.test(m[1])) tested.add(m[2]);
+      }
     }
   }
 };
