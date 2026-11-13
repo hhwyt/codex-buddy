@@ -22,9 +22,12 @@ const DEFAULT_TIMEOUTS = { loginMs: 10 * 60_000, createMs: 5 * 60_000 };
 const LOGIN_PATH = /login|sign[_-]?(in|up)|signin|passport|register/i;
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Hosts of the vendor's web console (key page, recharge page), not its API host */
+/** Hosts of the vendor's web console: the key and recharge pages' hosts, plus any other platform.* host the console
+ *  redirects to (platform.moonshot.cn → platform.kimi.com, platform.minimaxi.com → platform.minimax.cn). Never the API
+ *  host, and never sign-in hosts such as auth.openai.com. */
 export function consoleHosts(p: ProviderInfo): string[] {
-  return [...new Set([p.keysUrl, p.rechargeUrl].filter((u): u is string => !!u).map(u => new URL(u).host))];
+  const pages = [p.keysUrl, p.rechargeUrl].filter((u): u is string => !!u).map(u => new URL(u).host);
+  return [...new Set([...pages, ...p.hosts.filter(h => h.startsWith('platform.'))])];
 }
 
 export function defaultLoggedIn(p: ProviderInfo): (url: string) => boolean {

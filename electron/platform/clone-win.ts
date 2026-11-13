@@ -21,7 +21,7 @@ export type ShortcutWriter = (lnk: string, spec: ShortcutSpec) => void;
 const electronShortcut: ShortcutWriter = (lnk, spec) => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { shell } = require('electron') as typeof import('electron');
-  const ok = shell.writeShortcutLink(lnk, 'replace', {
+  const ok = shell.writeShortcutLink(lnk, 'create', { // 'create' overwrites; 'replace' fails when the .lnk does not exist yet
     target: spec.target, args: spec.args, icon: spec.icon, iconIndex: 0, appUserModelId: spec.appUserModelId, description: spec.description,
   });
   if (!ok) throw new Error('没能建好快捷方式');
@@ -109,7 +109,6 @@ export function createWinClone(platform: Platform, deps: WinCloneDeps = {}): Clo
   function write(meta: WinCloneMeta): void {
     const dir = dirOf(meta.slug);
     const vbs = path.join(dir, 'launch.vbs');
-    fs.writeText(path.join(dir, 'clone.json'), JSON.stringify(meta, null, 2));
     fs.writeText(vbs, launcherVbs(meta));
     const icon = path.join(dir, 'icon.ico');
     for (const lnk of lnksOf(meta.name)) {
@@ -119,6 +118,8 @@ export function createWinClone(platform: Platform, deps: WinCloneDeps = {}): Clo
         appUserModelId: appUserModelIdOf(meta.slug), description: meta.name,
       });
     }
+    // Written last: list() only shows a clone whose shortcuts were made
+    fs.writeText(path.join(dir, 'clone.json'), JSON.stringify(meta, null, 2));
   }
 
   return {

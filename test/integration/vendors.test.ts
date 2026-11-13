@@ -213,6 +213,14 @@ describe('vendor details', () => {
     expect(consoleHosts(providerOf('openai'))).toEqual(['platform.openai.com']);
   });
 
+  test('M-08 控制台跳到新域名也认得出登录成功（Kimi → platform.kimi.com，MiniMax → platform.minimax.cn）', () => {
+    expect(VENDORS.kimi.isLoggedIn('https://platform.kimi.com/console/api-keys')).toBe(true);
+    expect(VENDORS.kimi.isLoggedIn('https://platform.kimi.com/login')).toBe(false);
+    expect(VENDORS.minimax.isLoggedIn('https://platform.minimax.cn/user-center/basic-information/interface-key')).toBe(true);
+    expect(providerOf('minimax').loginUrl).toBe('https://platform.minimax.cn/login');
+    expect(consoleHosts(providerOf('kimi'))).not.toContain('api.moonshot.cn');
+  });
+
   test('M-08 从响应里认出没打码的 Key', () => {
     expect(extractKey('{"data":{"apiKey":"0123456789abcdef0123.ABCDEFGH"}}')).toBe('0123456789abcdef0123.ABCDEFGH');
     expect(extractKey('{"list":[{"key":"sk-****abcd"}]}')).toBeNull();

@@ -120,3 +120,14 @@ export function sandboxClone(base: Clone, open: (target: string) => Promise<void
     },
   };
 }
+
+/** 汉化 on Windows in a sandbox: codex.ps1 is never run (it would write the real desktop and Start menu); the
+ *  edition switch only writes stand-in shortcuts at the sandbox's desktop and Start menu paths */
+export function sandboxWinZhPs1(fs: Platform['fs'], paths: Platform['paths']): (env: Record<string, string>) => Promise<{ code: number; out: string }> {
+  return async env => {
+    if (env.CODEX_SETUP_ACTION === 'edition' && env.CODEX_SETUP_EDITION === 'zh') {
+      for (const dir of [paths.desktopDir, paths.startMenuDir]) fs.writeText(path.join(dir, 'ChatGPT 汉化版.lnk'), 'sandbox zh launcher');
+    }
+    return { code: 0, out: '' };
+  };
+}

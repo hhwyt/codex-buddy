@@ -48,6 +48,7 @@
       "scripts/vendor/codex.ps1"
     ],
     "asar": true,
+    "asarUnpack": ["scripts/vendor/codex.ps1"],
     "compression": "maximum",
     "electronLanguages": [
       "zh-CN",

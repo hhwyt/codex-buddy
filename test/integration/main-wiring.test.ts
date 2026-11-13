@@ -17,7 +17,7 @@ import { registerIpc, sendEvent } from '../../electron/main/ipc';
 import { CHANNELS } from '../../electron/main/ipc-contract';
 import { nodeFs } from '../../electron/platform/node-fs';
 import { createMacPlatform } from '../../electron/platform/mac';
-import { fakeCodexRunner, sandboxClone, sandboxPlatform, sandboxZh } from '../../electron/platform/sandbox-codex';
+import { fakeCodexRunner, sandboxClone, sandboxPlatform, sandboxWinZhPs1, sandboxZh } from '../../electron/platform/sandbox-codex';
 import { sandboxPaths } from '../../electron/platform/sandbox';
 import type { Clone, ZhLauncher } from '../../electron/platform/types';
 
@@ -125,5 +125,16 @@ describe('sandbox Codex', () => {
     await sandboxClone(base, async t => { opened.push(t); }).open('kimi');
     expect(opened).toEqual(['/A/Kimi.app']);
     await expect(sandboxClone(base, async () => {}).open('x')).rejects.toThrow('没有这个分身');
+  });
+
+  test('L-01 / G-01 Windows 沙盒的汉化版只在沙盒的桌面和开始菜单放快捷方式，不跑 codex.ps1', async () => {
+    const paths = sandboxPaths(root, 'win');
+    const run = sandboxWinZhPs1(nodeFs, paths);
+    expect((await run({ CODEX_SETUP_ACTION: 'edition', CODEX_SETUP_EDITION: 'en' })).code).toBe(0);
+    expect(fs.existsSync(paths.zhLauncherPath)).toBe(false);
+    expect(await run({ CODEX_SETUP_ACTION: 'edition', CODEX_SETUP_EDITION: 'zh' })).toEqual({ code: 0, out: '' });
+    expect(fs.existsSync(paths.zhLauncherPath)).toBe(true);
+    expect(fs.existsSync(path.join(paths.desktopDir, 'ChatGPT 汉化版.lnk'))).toBe(true);
+    expect(paths.zhLauncherPath.startsWith(root)).toBe(true);
   });
 });

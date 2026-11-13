@@ -23,17 +23,20 @@ export function windowOptions(os: 'mac' | 'win'): Electron.BrowserWindowConstruc
   };
 }
 
-export function createMainWindow(os: 'mac' | 'win'): BrowserWindow {
+/** offscreen: test runs (sandbox + fake servers) keep the window off every screen and never focus it, so automated
+ *  tests do not show up on, or take the mouse from, the person at the computer; screenshots still work */
+export function createMainWindow(os: 'mac' | 'win', { offscreen = false } = {}): BrowserWindow {
   const area = screen.getPrimaryDisplay().workAreaSize;
   const opts = windowOptions(os);
   opts.width = Math.min(opts.width!, area.width);
   opts.height = Math.min(opts.height!, area.height - 40);
+  if (offscreen) Object.assign(opts, { x: -30000, y: -30000, skipTaskbar: true });
   const win = new BrowserWindow(opts);
   win.removeMenu();
   // The page never navigates or opens windows; links go out through shell:open-external
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => (offscreen ? win.showInactive() : win.show()));
   win.loadFile(path.join(__dirname, '..', '..', 'ui', 'index.html'));
   return win;
 }

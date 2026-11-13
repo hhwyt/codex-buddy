@@ -8,6 +8,7 @@ vi.mock('electron', () => ({
   BrowserWindow: class {
     removeMenu = vi.fn();
     show = vi.fn();
+    showInactive = vi.fn();
     rec: (typeof made)[number];
     webContents: unknown;
     constructor(opts: Record<string, unknown>) {
@@ -65,5 +66,14 @@ describe('窗口（W-01）', () => {
     w.once['ready-to-show']();
     expect(w.show).toHaveBeenCalled();
     expect(w.loaded).toMatch(/ui[/\\]index\.html$/);
+  });
+
+  it('W-01 测试模式：窗口放在屏幕外、显示时不抢焦点、不进任务栏，正式运行照常显示', () => {
+    const win = createMainWindow('win', { offscreen: true }) as unknown as { showInactive: ReturnType<typeof vi.fn> };
+    const w = made[0];
+    expect(w.opts).toMatchObject({ x: -30000, y: -30000, skipTaskbar: true });
+    w.once['ready-to-show']();
+    expect(win.showInactive).toHaveBeenCalled();
+    expect(w.show).not.toHaveBeenCalled();
   });
 });

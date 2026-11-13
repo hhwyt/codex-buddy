@@ -26,7 +26,8 @@ const appsDir = () => process.platform === 'win32'
 /** The clone's app (Mac .app) or launcher (Windows) for a display name, or null */
 const cloneEntry = (name: string) => {
   const dir = appsDir();
-  const hit = fs.existsSync(dir) ? fs.readdirSync(dir).find(n => n === `${name}.app` || n.startsWith(`${name}.`) || n === name) : undefined;
+  // Windows launcher folders are named by slug (deepseek), Mac apps by display name (DeepSeek.app)
+  const hit = fs.existsSync(dir) ? fs.readdirSync(dir).find(n => n === `${name}.app` || n.startsWith(`${name}.`) || n.toLowerCase() === name.toLowerCase()) : undefined;
   return hit ? path.join(dir, hit) : null;
 };
 const plist = (app: string) => readText(path.join(app, 'Contents', 'Info.plist')) ?? '';
@@ -55,8 +56,8 @@ test('C-02 做好的卡显示打开，点了打开那个分身', async () => {
   await makeClone('deepseek');
   await expect(run.page.getByTestId(TID.models.cloneMake('deepseek'))).toHaveCount(0);
   await run.page.getByTestId(TID.models.cloneOpen('deepseek')).click();
-  await expect.poll(async () => { const e = await run.external(); return [...e.opened, ...e.revealed].join('\n'); }, { timeout: 10_000 })
-    .toContain('DeepSeek');
+  await expect.poll(async () => { const e = await run.external(); return [...e.opened, ...e.revealed].join('\n').toLowerCase(); }, { timeout: 10_000 })
+    .toContain('deepseek');
 });
 
 test('C-03 分身和原来的 Codex 能同时开', async () => {
@@ -65,7 +66,7 @@ test('C-03 分身和原来的 Codex 能同时开', async () => {
   await toCloneMode();
   await makeClone('kimi');
   await run.page.getByTestId(TID.models.cloneOpen('kimi')).click();
-  await expect.poll(async () => { const e = await run.external(); return [...e.opened, ...e.revealed].join('\n'); }).toContain('Kimi');
+  await expect.poll(async () => { const e = await run.external(); return [...e.opened, ...e.revealed].join('\n').toLowerCase(); }).toContain('kimi');
   // The original keeps running (nobody closed it) and the clone has its own identity, so both can be open
   expect(fs.existsSync(path.join(run.sandbox, 'fake-codex-running'))).toBe(true);
   const app = cloneEntry('Kimi')!;
@@ -88,7 +89,7 @@ test('C-05 分身的名字和图标是厂商自己的', async () => {
   await toCloneMode();
   await makeClone('deepseek');
   const app = cloneEntry('DeepSeek')!;
-  expect(path.basename(app)).toMatch(/^DeepSeek/);
+  expect(path.basename(app)).toMatch(/^DeepSeek/i);
   if (app.endsWith('.app')) {
     const xml = plist(app);
     expect(plistValue(xml, 'CFBundleName') ?? plistValue(xml, 'CFBundleDisplayName')).toBe('DeepSeek');

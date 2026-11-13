@@ -37,7 +37,7 @@ export const PROVIDERS: ProviderInfo[] = [
       { slug: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', free: false, reasoning: [] },
     ],
     loginUrl: 'https://platform.moonshot.cn/console', keysUrl: 'https://platform.moonshot.cn/console/api-keys',
-    rechargeUrl: 'https://platform.moonshot.cn/console/pay', hosts: ['api.moonshot.cn', 'platform.moonshot.cn'],
+    rechargeUrl: 'https://platform.moonshot.cn/console/pay', hosts: ['api.moonshot.cn', 'platform.moonshot.cn', 'platform.kimi.com'],
   },
   {
     id: 'qwen', name: 'Qwen',
@@ -56,8 +56,9 @@ export const PROVIDERS: ProviderInfo[] = [
     id: 'minimax', name: 'MiniMax',
     baseUrl: 'https://api.minimaxi.com/v1', wireApi: 'chat', defaultModel: 'MiniMax-M2',
     models: [{ slug: 'MiniMax-M2', name: 'MiniMax-M2', free: false, reasoning: [] }],
-    loginUrl: 'https://platform.minimaxi.com/login', keysUrl: 'https://platform.minimaxi.com/user-center/basic-information/interface-key',
-    rechargeUrl: 'https://platform.minimaxi.com/user-center/payment/balance', hosts: ['api.minimaxi.com', 'platform.minimaxi.com'],
+    // 2026-11-13: the console moved from platform.minimaxi.com to platform.minimax.cn (the API stays on api.minimaxi.com)
+    loginUrl: 'https://platform.minimax.cn/login', keysUrl: 'https://platform.minimax.cn/user-center/basic-information/interface-key',
+    rechargeUrl: 'https://platform.minimax.cn/user-center/payment/balance', hosts: ['api.minimaxi.com', 'platform.minimax.cn', 'platform.minimaxi.com'],
   },
   {
     id: 'hunyuan', name: '混元',

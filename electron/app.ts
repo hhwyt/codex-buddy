@@ -19,7 +19,7 @@ import { pickPlatform } from './platform';
 import { createMacClone, runCommand } from './platform/clone-mac';
 import { createWinClone } from './platform/clone-win';
 import { sandboxRoot } from './platform/sandbox';
-import { sandboxClone, sandboxPlatform, sandboxZh } from './platform/sandbox-codex';
+import { sandboxClone, sandboxPlatform, sandboxWinZhPs1, sandboxZh } from './platform/sandbox-codex';
 import { createMacZh } from './platform/zh-mac';
 import { createWinZh } from './platform/zh-win';
 import type { Clone, Platform, ZhLauncher } from './platform/types';
@@ -31,6 +31,10 @@ let win: BrowserWindow | null = null;
 
 // Keep Electron's own profile inside the sandbox too
 if (sandbox) app.setPath('userData', path.join(sandbox, 'electron-user-data'));
+// Test runs (sandbox + fake servers): the window stays off screen (m1-decisions 2026-11-13); on Windows an off-screen
+// window counts as hidden and would stop painting, which screenshots need
+const testMode = !!sandbox && !!process.env.CODEXBUDDY_ENDPOINTS;
+if (testMode) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 // In a sandbox nothing is ever opened or launched: every open / reveal / external link goes to <sandbox>/opened.log
 const record = (kind: 'open' | 'reveal' | 'external', target: string) =>
@@ -44,8 +48,10 @@ function buildPlatform(): { platform: Platform; clone: Clone; zh: ZhLauncher } {
   const platform = sandbox ? sandboxPlatform(base, { root: sandbox, env: process.env, open, reveal }) : base;
   // In a sandbox nothing is registered with LaunchServices
   const run = sandbox ? (cmd: string, args: string[]) => (cmd.endsWith('lsregister') ? Promise.resolve('') : runCommand(cmd, args)) : runCommand;
-  let clone = os === 'mac' ? createMacClone(platform, { run }) : createWinClone(platform);
-  let zh = os === 'mac' ? createMacZh(platform) : createWinZh(platform);
+  // Windows sandbox: clone data dirs under the sandbox's AppData, and codex.ps1 never runs
+  const winAppData = path.join(platform.paths.home, 'AppData', 'Roaming');
+  let clone = os === 'mac' ? createMacClone(platform, { run }) : createWinClone(platform, sandbox ? { appData: winAppData } : {});
+  let zh = os === 'mac' ? createMacZh(platform) : createWinZh(platform, sandbox ? { runPs1: sandboxWinZhPs1(platform.fs, platform.paths) } : {});
   if (sandbox) { clone = sandboxClone(clone, open); zh = sandboxZh(zh, process.env); }
   return { platform, clone, zh };
 }
@@ -112,7 +118,7 @@ async function main(): Promise<void> {
   installNetGuard(() => [...defaultAllowedHosts(providers), ...Object.values(endpoints.vendors).map(u => new URL(u!).host)],
     () => sendEvent(win, 'connections', connectionViews()));
 
-  win = createMainWindow(os);
+  win = createMainWindow(os, { offscreen: testMode });
   win.on('closed', () => { win = null; });
   win.webContents.once('did-finish-load', () => { void services.startup().catch(() => undefined); });
   const poll = setInterval(() => services.pollModel(), 2000);

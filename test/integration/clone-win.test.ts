@@ -135,9 +135,10 @@ describe('分身 Windows', () => {
     expect(fs.existsSync(path.join(missing.appPath, 'icon.ico'))).toBe(false);
   });
 
-  test('快捷方式建不成时报错（Electron 之外没有 shell）', async () => {
+  test('C-01 快捷方式建不成时报错，也不算做好了分身（Electron 之外没有 shell）', async () => {
     const clone = createWinClone(platform, { run, codexLocation: async () => location });
     await expect(clone.make(spec())).rejects.toThrow();
+    expect(await clone.list()).toEqual([]);
   });
 
   test('pngToIco：大图标记 0，非 PNG 返回空；VBS 字符串转义引号', () => {

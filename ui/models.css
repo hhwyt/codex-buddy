@@ -12,7 +12,7 @@
 
 .card {
   position: absolute; left: 50%; top: 0; width: 380px; height: 240px; border-radius: var(--r-lg); padding: 18px 20px;
-  display: flex; flex-direction: column; color: var(--face-ink); user-select: none; touch-action: none; transform-origin: 0 0;
+  display: flex; flex-direction: column; align-items: stretch; text-align: left; font: inherit; color: var(--face-ink); user-select: none; touch-action: none; transform-origin: 0 0;
   transition: transform .5s cubic-bezier(.2, .8, .2, 1), box-shadow .35s; box-shadow: 0 -4px 14px var(--shadow); cursor: grab; outline: none;
 }
 .card:focus-visible { box-shadow: 0 0 0 2px var(--blue); }
@@ -28,6 +28,7 @@
 .face-openai { background: var(--face-openai); }
 .face-custom { background: var(--face-custom); }
 
+.card .name { white-space: nowrap; }
 .card .top { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; position: relative; }
 .card .logo { width: 34px; height: 34px; border-radius: 9px; overflow: hidden; flex: none; background: var(--bg); padding: 3px; display: grid; place-items: center; }
 .card .logo img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
@@ -35,6 +36,8 @@
 .card .st-wrap { margin-left: auto; }
 .card .st { font-size: 13px; font-weight: 500; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .card .st.quiet { opacity: .75; font-weight: 400; }
+.card .st.ok { color: var(--face-ink); font-weight: 500; } /* white on a brand face, as in model-page-final.html */
+.face-zhipu .st.ok, .face-kimi .st.ok { color: var(--face-ok-dark); }
 .card.light .st.ok { color: var(--blue); }
 .card .num { margin-top: auto; font: 500 18px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .14em; display: flex; align-items: center; gap: 12px; }
 .card .bot { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 14px; }

@@ -1,7 +1,9 @@
 // M1 drive (build-plan §4 「代理自己驱动 App 核对行为」): the packaged CodexBuddy.app, sandboxed, every external
 // address pointed at fake servers. Walks every step the site owner named and saves a screenshot per step to
 // docs/screenshots/m1-*.png; docs/m1-behavior-check.md compares them with the plan and the final prototypes.
-// Run: npm run dist:mac && CODEXBUDDY_E2E_EXECUTABLE=release/mac-arm64/CodexBuddy.app/Contents/MacOS/CodexBuddy \
+// Run (Windows): npm run build && npx electron-builder --win dir && set CODEXBUDDY_E2E_EXECUTABLE=release\\win-unpacked\\CodexBuddy.exe &&
+//        npx playwright test -c playwright.drive.config.ts   (screenshots: docs/screenshots/win-*.png)
+// Run (Mac): npm run dist:mac && CODEXBUDDY_E2E_EXECUTABLE=release/mac-arm64/CodexBuddy.app/Contents/MacOS/CodexBuddy \
 //        npx playwright test -c playwright.drive.config.ts
 // Safety: CODEXBUDDY_SANDBOX is a fresh temp dir; Codex is a Test-ChatGPT.app installed from a fake dmg into the
 // sandbox; the app records every open / reveal / link in <sandbox>/opened.log instead of opening anything.
@@ -22,6 +24,9 @@ import {
 
 const SHOTS = path.join(REPO, 'docs', 'screenshots');
 const REMOTE = JSON.parse(fs.readFileSync(path.join(REPO, 'remote', 'config.json'), 'utf8'));
+const WIN = process.platform === 'win32';
+/** Screenshot prefix: docs/screenshots/win-*.png from the Windows drive, m1-*.png from the Mac one */
+const PREFIX = WIN ? 'win' : 'm1';
 const THIRD_PARTY = ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan'] as const;
 /** What the drive saw at each step; written next to the screenshots for docs/m1-behavior-check.md */
 const seen: { step: string; shot: string; note: string }[] = [];
@@ -47,17 +52,36 @@ function buildDmg(dir: string): string {
   return dmg;
 }
 
-/** The whole window as the user sees it, the native right-side browser included (screencapture of its CGWindowID) */
+/** The whole window as the user sees it, the native right-side browser included: the page and every visible child
+ *  view are captured by Electron and laid out at their bounds (no screen capture, works without a visible desktop) */
 async function shot(page: Page, name: string, note: string): Promise<void> {
-  const file = path.join(SHOTS, `m1-${name}.png`);
-  const id = await run.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getMediaSourceId() ?? '');
-  const cg = /^window:(\d+):/.exec(id)?.[1];
-  let ok = false;
-  if (cg) {
-    try { execFileSync('/usr/sbin/screencapture', ['-x', '-o', '-l', cg, file]); ok = fs.existsSync(file) && fs.statSync(file).size > 10_000; } catch { ok = false; }
-  }
-  if (!ok) await page.screenshot({ path: file }); // fallback: the page only (no native browser view)
-  seen.push({ step: name, shot: path.relative(REPO, file), note });
+  const file = path.join(SHOTS, `${PREFIX}-${name}.png`);
+  // A window nobody looks at may hand back its last painted frame: ask for a fresh paint and wait two frames
+  await run.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.invalidate());
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
+  await page.waitForTimeout(120);
+  const parts = await run.app.evaluate(async ({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows()[0];
+    const base = await w.webContents.capturePage();
+    const scale = base.getSize().width / Math.max(1, w.getContentBounds().width);
+    const out = [{ x: 0, y: 0, url: base.toDataURL() }];
+    for (const v of w.contentView.children as unknown as { webContents?: Electron.WebContents; getVisible(): boolean; getBounds(): Electron.Rectangle }[]) {
+      if (!v.webContents || v.webContents.id === w.webContents.id || !v.getVisible()) continue;
+      const b = v.getBounds();
+      if (b.width > 0 && b.height > 0) out.push({ x: b.x * scale, y: b.y * scale, url: (await v.webContents.capturePage()).toDataURL() });
+    }
+    return out;
+  });
+  const png = await page.evaluate(async list => {
+    const imgs = await Promise.all(list.map(p => new Promise<HTMLImageElement>(r => { const i = new Image(); i.onload = () => r(i); i.src = p.url; })));
+    const c = document.createElement('canvas');
+    c.width = imgs[0].naturalWidth; c.height = imgs[0].naturalHeight;
+    const g = c.getContext('2d')!;
+    imgs.forEach((img, i) => g.drawImage(img, list[i].x, list[i].y));
+    return c.toDataURL('image/png').split(',')[1];
+  }, parts);
+  fs.writeFileSync(file, Buffer.from(png, 'base64'));
+  seen.push({ step: name, shot: path.relative(REPO, file).split(path.sep).join('/'), note });
 }
 
 const models = () => (catalogOf(configToml(run.sandbox)) ?? []).map(m => m.slug).sort();
@@ -65,23 +89,28 @@ const remoteSlugs = (v: string) => (REMOTE.models[v] as { slug: string }[]).map(
 
 test.beforeAll(() => {
   fs.mkdirSync(SHOTS, { recursive: true });
-  for (const f of fs.readdirSync(SHOTS)) if (/^m1-\d/.test(f)) fs.rmSync(path.join(SHOTS, f));
+  for (const f of fs.readdirSync(SHOTS)) if (f.startsWith(`${PREFIX}-`) && /-\d/.test(f)) fs.rmSync(path.join(SHOTS, f));
 });
 test.afterAll(async () => {
-  fs.writeFileSync(path.join(SHOTS, 'm1-drive-log.json'), JSON.stringify(seen, null, 2) + '\n');
+  fs.writeFileSync(path.join(SHOTS, `${PREFIX}-drive-log.json`), JSON.stringify(seen, null, 2) + '\n');
   await run?.close();
   dmgServer?.close();
 });
 
 test('M1 drive: every step on the packaged app', async () => {
   test.setTimeout(20 * 60_000);
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'codexbuddy-dmg-'));
-  const bytes = fs.readFileSync(buildDmg(tmp));
-  dmgServer = http.createServer((_q, r) => { r.writeHead(200, { 'Content-Length': bytes.length }); r.end(bytes); });
-  await new Promise<void>(r => dmgServer.listen(0, '127.0.0.1', r));
-  dmgUrl = `http://127.0.0.1:${(dmgServer.address() as AddressInfo).port}/Codex.dmg`;
-
-  run = await launch({ env: { CODEXBUDDY_FAKE_INSTALL: 'dmg' }, endpoints: { codexDownload: dmgUrl }, seed: s => seedUserData(s) });
+  if (WIN) {
+    // Windows: the sandbox installer stand-in (CODEXBUDDY_FAKE_INSTALL=ok) writes Test-ChatGPT.app into the sandbox; the
+    // real Windows installer (codex.ps1 / Store) never runs in a sandbox
+    run = await launch({ env: { CODEXBUDDY_FAKE_INSTALL: 'ok' }, seed: s => seedUserData(s) });
+  } else {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'codexbuddy-dmg-'));
+    const bytes = fs.readFileSync(buildDmg(tmp));
+    dmgServer = http.createServer((_q, r) => { r.writeHead(200, { 'Content-Length': bytes.length }); r.end(bytes); });
+    await new Promise<void>(r => dmgServer.listen(0, '127.0.0.1', r));
+    dmgUrl = `http://127.0.0.1:${(dmgServer.address() as AddressInfo).port}/Codex.dmg`;
+    run = await launch({ env: { CODEXBUDDY_FAKE_INSTALL: 'dmg' }, endpoints: { codexDownload: dmgUrl }, seed: s => seedUserData(s) });
+  }
   const { page } = run;
   const userData = () => hashTree(codexHome(run.sandbox)) + hashTree(codexDataDir(run.sandbox));
 
@@ -207,22 +236,27 @@ test('M1 drive: every step on the packaged app', async () => {
   await page.waitForTimeout(700);
   await shot(page, '23-clone-spread', '切到分身：卡片摊开，OpenAI 卡是「原来的」，其余「做成分身」');
   await makeCloneOf(run.app, page, 'deepseek');
-  const cloneApp = path.join(sandboxApps(run.sandbox), 'DeepSeek.app');
+  const winHome = path.join(run.sandbox, 'home');
+  const cloneApp = WIN ? path.join(winHome, 'AppData', 'Local', 'CodexBuddy', 'apps', 'deepseek') : path.join(sandboxApps(run.sandbox), 'DeepSeek.app');
   expect(fs.existsSync(cloneApp)).toBe(true);
-  expect(readText(path.join(cloneApp, 'Contents', 'Info.plist'))).toContain('local.codexbuddy.deepseek');
+  if (WIN) {
+    expect(readText(path.join(cloneApp, 'launch.vbs'))).toContain('.codex-deepseek');
+    expect(fs.existsSync(path.join(winHome, 'Desktop', 'DeepSeek.lnk'))).toBe(true);
+  } else expect(readText(path.join(cloneApp, 'Contents', 'Info.plist'))).toContain('local.codexbuddy.deepseek');
   const cloneMenu = (catalogOf(readText(path.join(cloneHome(run.sandbox, 'deepseek'), 'config.toml'))) ?? []).map(m => m.slug).sort();
   expect(cloneMenu).toEqual(remoteSlugs('deepseek'));
   await shot(page, '24-clone-made', '做成分身：DeepSeek 卡显示「打开」，分身菜单只有 DeepSeek 的模型');
   await page.getByTestId(TID.models.cloneOpen('deepseek')).click();
-  await expect.poll(async () => (await run.external()).revealed.join('\n')).toContain('DeepSeek.app');
+  await expect.poll(async () => (await run.external()).revealed.join('\n')).toContain(WIN ? cloneApp : 'DeepSeek.app');
   const cloneData = hashTree(cloneHome(run.sandbox, 'deepseek'));
   await page.getByTestId(TID.models.cloneRemove('deepseek')).click();
   await shot(page, '25-clone-remove-confirm', '删除分身先确认，写明聊天记录留着');
   await page.getByTestId(TID.dialog.confirm).click();
   await expect(page.getByTestId(TID.models.cloneMake('deepseek'))).toBeVisible({ timeout: 20_000 });
   expect(fs.existsSync(cloneApp)).toBe(false);
+  if (WIN) expect(fs.existsSync(path.join(winHome, 'Desktop', 'DeepSeek.lnk'))).toBe(false);
   expect(hashTree(cloneHome(run.sandbox, 'deepseek'))).toBe(cloneData);
-  await shot(page, '26-clone-removed', '删掉分身：只删 DeepSeek.app，~/.codex-deepseek 哈希不变');
+  await shot(page, '26-clone-removed', `删掉分身：只删 ${WIN ? '启动器和 DeepSeek.lnk' : 'DeepSeek.app'}，~/.codex-deepseek 哈希不变`);
   await page.getByTestId(TID.models.modeSwitch).click();
   await page.waitForTimeout(700);
   await shot(page, '27-back-to-switch', '切回切换模式：卡片叠回去');
@@ -237,7 +271,9 @@ test('M1 drive: every step on the packaged app', async () => {
   await page.waitForTimeout(650);
   await shot(page, '29-zh-midway', '切汉化版：预览图里的字从上往下一行行变中文（中途）');
   await settled();
-  const launcher = path.join(sandboxApps(run.sandbox), 'ChatGPT 汉化版.app');
+  const launcher = WIN
+    ? path.join(run.sandbox, 'home', 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'ChatGPT 汉化版.lnk')
+    : path.join(sandboxApps(run.sandbox), 'ChatGPT 汉化版.app');
   expect(fs.existsSync(launcher)).toBe(true);
   await shot(page, '30-zh-on', '汉化版：加上「ChatGPT 汉化版」，预览框右下角出现红色垃圾桶');
   await page.getByTestId(TID.settings.enCard).click();

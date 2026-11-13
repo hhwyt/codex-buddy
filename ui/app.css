@@ -34,6 +34,10 @@ button { font: inherit; letter-spacing: inherit; color: inherit; cursor: pointer
 .btn.primary { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
 .btn:disabled { color: var(--ink-3); cursor: default; }
 
+/* Keyboard focus: one thin ring in the app's own blue, not the system accent colour */
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.card:focus-visible { outline: none; }
+
 /* Dialog */
 .scrim { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 50; }
 .dialog { background: var(--bg); border-radius: var(--r-lg); padding: 24px; width: 400px; max-width: calc(100% - 32px); box-shadow: 0 12px 40px var(--shadow); }
