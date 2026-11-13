@@ -13,7 +13,6 @@ export interface Progress {
 const MARK: Record<StepView['state'], string> = { start: '', done: '✓', fail: '✕' };
 
 export function createProgress(): Progress {
-  useStyle('progress.css');
   const el = h('ol', { class: 'progress' });
   const rows = new Map<string, { row: HTMLElement; mark: HTMLElement; text: HTMLElement }>();
   return {
@@ -33,10 +32,4 @@ export function createProgress(): Progress {
       r.text.textContent = step.text;
     },
   };
-}
-
-/** Links a stylesheet once (CSP allows 'self' stylesheets only, no inline <style>). href is relative to index.html. */
-export function useStyle(href: string): void {
-  if (document.head.querySelector(`link[data-style="${href}"]`)) return;
-  document.head.append(h('link', { rel: 'stylesheet', href, 'data-style': href }));
 }

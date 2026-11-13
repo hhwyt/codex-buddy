@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// @vitest-environment-options {"settings":{"handleDisabledFileLoadingAsSuccess":true}}
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { mountBrowser } from '../../ui/components/pip';
 import { byTestId } from '../../ui/dom';
@@ -23,9 +23,7 @@ describe('right-side browser', () => {
     setup();
     expect(get(TID.browser.pip)).toBeNull();
     expect(get(TID.browser.address)).toBeNull();
-    expect(document.head.querySelectorAll('link[href="pip.css"]')).toHaveLength(1);
-    mountBrowser(fakeApi().api, document.createElement('div'));
-    expect(document.head.querySelectorAll('link[href="pip.css"]')).toHaveLength(1);
+    expect(readFileSync('ui/index.html', 'utf8')).toContain('href="pip.css"');
   });
 
   test('B-01 后台自动操作时显示画中画（右下角），角上小点在闪，显示网站', () => {

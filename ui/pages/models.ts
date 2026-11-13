@@ -23,14 +23,7 @@ const SPREAD_GAP = 18;
 const SPREAD_COLS = 3;
 const SHAKE_MS = 400;
 
-/** model page styles live in ui/models.css; index.html is Base's, so the page links its sheet itself */
-function ensureStyles(): void {
-  if (document.querySelector('link[data-models-css]')) return;
-  document.head.append(h('link', { rel: 'stylesheet', href: 'models.css', 'data-models-css': '' }));
-}
-
 export const renderModels: Page = async ({ api, root }) => {
-  ensureStyles();
   const view = await api.invoke('wallet:get');
   return mountModels(api, root, view);
 };

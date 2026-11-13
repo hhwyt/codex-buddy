@@ -47,4 +47,7 @@ describe('guard (Windows data dirs)', () => {
   test('G-01 Windows 上快捷方式可以删', () => {
     expect(protectedHit('C:\\Users\\U\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\ChatGPT 汉化版.lnk', win)).toBeNull();
   });
+  test('G-01 Windows 上 CodexBuddy 自己的分身启动器文件夹可以删', () => {
+    expect(protectedHit('C:\\Users\\U\\AppData\\Local\\CodexBuddy\\apps\\deepseek', win)).toBeNull();
+  });
 });

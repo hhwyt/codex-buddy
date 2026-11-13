@@ -5,7 +5,7 @@
 // 已经配过模型 → 跳过引导 O-06：app.ts 按 app:state.configured 直接进模型页，不进这里
 import type { StepView } from '../../electron/main/ipc-contract.js';
 import { dialog } from '../components/dialog.js';
-import { createProgress, useStyle } from '../components/progress.js';
+import { createProgress } from '../components/progress.js';
 import { toast } from '../components/toast.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
@@ -23,7 +23,6 @@ export function maskKeys(text: string): string {
 }
 
 export const renderOnboarding: Page = ({ api, root, go }) => {
-  useStyle('onboarding.css');
   const view = h('div', { class: 'onb', 'data-testid': TID.onboarding.root });
   root.replaceChildren(view);
   const progress = createProgress();

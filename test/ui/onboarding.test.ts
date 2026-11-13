@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// @vitest-environment-options {"settings":{"handleDisabledFileLoadingAsSuccess":true}}
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Outcome, StepView } from '../../electron/main/ipc-contract';
 import { maskKeys, renderOnboarding } from '../../ui/pages/onboarding';
@@ -27,7 +27,7 @@ describe('onboarding', () => {
     const view = get(TID.onboarding.root);
     expect(view.textContent).toBe('Codex 免费助手国产大模型开始安装');
     expect(get(TID.onboarding.start).className).toContain('primary');
-    expect(document.head.querySelector('link[href="onboarding.css"]')).not.toBeNull();
+    expect(readFileSync('ui/index.html', 'utf8')).toContain('href="onboarding.css"');
   });
 
   test('O-01 点「开始安装」→ 进度依次打勾 → 进模型页', async () => {

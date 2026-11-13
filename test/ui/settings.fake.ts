@@ -18,7 +18,7 @@ export function fakeApi(answers: Partial<Record<Channel, Answer>> = {}) {
   const api: BuddyApi = {
     invoke: (async (channel: Channel, args?: unknown) => {
       calls.push({ channel, args });
-      const a = channel in answers ? answers[channel] : channel === 'app:state' ? appState() : { ok: true };
+      const a = channel in answers ? answers[channel] : channel === 'app:state' ? appState() : channel === 'wallet:get' ? { order: [], active: null, cards: [], mode: 'switch' } : { ok: true };
       return typeof a === 'function' ? (a as (x: unknown) => unknown)(args) : a;
     }) as BuddyApi['invoke'],
     on: ((event: EventName, fn: (p: unknown) => void) => {

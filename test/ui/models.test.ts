@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 // Model page (L3): 叠卡切换 M-*、摊开分身 C-* 的界面部分. Owner: A5.
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderModels, mountModels } from '../../ui/pages/models';
 import { TID } from '../../ui/testids';
@@ -42,7 +43,7 @@ describe('叠卡', () => {
     expect(card('zhipu').style.transform).toContain('250px');
     expect(q(TID.models.changeKey('deepseek'))).toBeNull();
     expect(q(TID.models.addVendor)?.textContent).toBe('＋ 其他厂商');
-    expect(document.querySelector('link[data-models-css]')).toBeTruthy();
+    expect(readFileSync('ui/index.html', 'utf8')).toContain('href="models.css"');
   });
 
   it('M-02 点后面的卡 → 抽到最上层 → 开始切换', async () => {

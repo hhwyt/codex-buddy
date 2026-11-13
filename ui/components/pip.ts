@@ -7,12 +7,10 @@
 import type { BuddyApi, IpcEvents } from '../../electron/main/ipc-contract.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
-import { useStyle } from './progress.js';
 
 export type BrowserState = IpcEvents['browser'];
 
 export function mountBrowser(api: BuddyApi, root: HTMLElement): () => void {
-  useStyle('pip.css');
   const host = h('div', { class: 'browser-host' });
   root.append(host);
 
