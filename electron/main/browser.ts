@@ -19,6 +19,14 @@ export const CHROME_BAR_HEIGHT = 53;
 export const PIP = { width: 318, height: 208, margin: 17, bar: 31 };
 
 export const WEBRTC_POLICY = 'disable_non_proxied_udp';
+/** Official login pages hide the WeChat QR code under ~800px (智谱, MiniMax, measured 2026-11-13): the page always lays out
+ *  at least this wide and is zoomed down to fit the view, so the QR code is there in PiP and expanded alike */
+export const MIN_PAGE_WIDTH = 820;
+
+/** Zoom that fits a MIN_PAGE_WIDTH-wide page into a view this wide; 1 for a wide enough view */
+export function pageZoom(viewWidth: number): number {
+  return Math.min(1, viewWidth / MIN_PAGE_WIDTH);
+}
 
 export type BrowserMode = 'pip' | 'expanded';
 export interface Bounds { x: number; y: number; width: number; height: number }
@@ -61,6 +69,8 @@ export interface ViewHost {
   reload(): void;
   exec<T>(script: string): Promise<T>;
   setBounds(b: Bounds): void;
+  /** Page zoom factor (see pageZoom); kept across navigations */
+  setZoom(factor: number): void;
   contentSize(): Size;
   setContentWidth(width: number): void;
   screenWidth(): number;
@@ -100,7 +110,12 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
     open: !!host, mode, url: host?.currentUrl() ?? '', canGoBack: host?.canGoBack() ?? false,
   });
   const emit = () => onState(state());
-  const place = () => { if (host) host.setBounds(viewBounds(mode, host.contentSize(), widenedBy > 0)); };
+  const place = () => {
+    if (!host) return;
+    const b = viewBounds(mode, host.contentSize(), widenedBy > 0);
+    host.setBounds(b);
+    host.setZoom(pageZoom(b.width));
+  };
 
   const checkUrl = (url: string) => {
     for (const w of [...urlWaiters]) if (w.pred(url)) { urlWaiters.delete(w); w.done(true); }
@@ -208,7 +223,9 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   const navCbs: ((url: string) => void)[] = [];
   const respCbs: ((url: string, body: () => Promise<string>) => void)[] = [];
   const resizeCbs: (() => void)[] = [];
-  const fireNav = () => { for (const cb of navCbs) cb(wc.getURL()); };
+  let zoom = 1;
+  // Chromium keeps zoom per site: a navigation to another site would drop back to 100%
+  const fireNav = () => { wc.setZoomFactor(zoom); for (const cb of navCbs) cb(wc.getURL()); };
   wc.on('did-navigate', fireNav);
   wc.on('did-navigate-in-page', fireNav);
   const onResize = () => { for (const cb of resizeCbs) cb(); };
@@ -245,6 +262,7 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
     reload: () => wc.reload(),
     exec: <T>(script: string) => wc.executeJavaScript(script, true) as Promise<T>,
     setBounds: b => view.setBounds(b),
+    setZoom: f => { zoom = f; wc.setZoomFactor(f); },
     contentSize: () => { const [width, height] = win.getContentSize(); return { width, height }; },
     setContentWidth: width => {
       const [oldWidth, height] = win.getContentSize();
@@ -277,7 +295,7 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
 export function openLoginWindows(targets: { url: string; name: string }[], onUrl: (index: number, url: string) => void = () => {}): BrowserWindow[] {
   return targets.map(({ url, name }, i) => {
     const w = new BrowserWindow({
-      width: 480, height: 720, x: 40 + i * 30, y: 40 + i * 30, title: `CodexBuddy 登录：${name}`,
+      width: 900, height: 760, x: 40 + i * 30, y: 40 + i * 30, title: `CodexBuddy 登录：${name}`,
       webPreferences: { partition: BROWSER_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false },
     });
     w.removeMenu();

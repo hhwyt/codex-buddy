@@ -17,6 +17,8 @@ vi.mock('electron', async () => {
     reloads = 0;
     webrtc = '';
     setWebRTCIPHandlingPolicy(p: string) { this.webrtc = p; }
+    zoom = 1;
+    setZoomFactor(f: number) { this.zoom = f; }
     debugger = Object.assign(new EE(), {
       attached: false,
       attach: () => { if (fx.attachThrows) throw new Error('already attached'); (this.debugger as any).attached = true; },
@@ -67,7 +69,7 @@ vi.mock('electron', async () => {
 import { BrowserWindow } from 'electron';
 import {
   BROWSER_PARTITION, BrowserClosed, browserHandlers, createRightBrowser, electronViewHost, keepOnScreen, openLoginWindows,
-  viewBounds, widenBy, type BrowserState, type RightBrowser,
+  MIN_PAGE_WIDTH, pageZoom, viewBounds, widenBy, type BrowserState, type RightBrowser,
 } from '../../electron/main/browser';
 import { fakeHost, type FakeHost } from './browser-fake-host';
 
@@ -142,6 +144,20 @@ describe('right-side browser', () => {
     expect(host.size.width).toBe(980);
     expect(host.bounds).toEqual({ x: 490, y: 53, width: 490, height: 627 });
     expect(viewBounds('expanded', { width: 981, height: 600 }, false)).toEqual({ x: 490, y: 53, width: 491, height: 547 });
+  });
+
+  test('B-08 官网按至少 820px 宽排版再缩到视图里，窄视图也有微信扫码（智谱、MiniMax 窄了会藏二维码）', async () => {
+    expect(MIN_PAGE_WIDTH).toBe(820);
+    expect(pageZoom(820)).toBe(1);
+    expect(pageZoom(1200)).toBe(1);
+    expect(pageZoom(410)).toBe(0.5);
+    await rb.open('https://bigmodel.cn/login', { mode: 'expanded' });
+    expect(host.zoom).toBeCloseTo(480 / 820);
+    rb.show('pip');
+    expect(host.zoom).toBeCloseTo(318 / 820);
+    host.screen = 1280;
+    rb.show('expanded');
+    expect(host.zoom).toBeCloseTo(490 / 820);
   });
 
   test('B-03 点画中画或 🌐 → 放大；放大后能缩回画中画', async () => {
@@ -256,6 +272,11 @@ describe('electron view host', () => {
     b.setMode('pip');
     expect(w.size).toEqual([980, 680]);
     expect(w.pos).toEqual([230, 100]);
+    expect(fx.views.at(-1).webContents.zoom).toBeCloseTo(318 / 820);
+    // Chromium zooms per site: another site would open at 100% without this
+    fx.views.at(-1).webContents.zoom = 1;
+    fx.views.at(-1).webContents.emit('did-navigate');
+    expect(fx.views.at(-1).webContents.zoom).toBeCloseTo(318 / 820);
     b.close();
     const off = win();
     off.pos = [-30000, -30000];
@@ -337,6 +358,8 @@ describe('electron view host', () => {
     expect(ws).toHaveLength(2);
     for (const w of ws) expect(w.opts.webPreferences.partition).toBe(BROWSER_PARTITION);
     expect(ws.map(w => w.opts.title)).toEqual(['CodexBuddy 登录：智谱', 'CodexBuddy 登录：Kimi']);
+    // Under ~800px 智谱 and MiniMax hide the WeChat QR code
+    for (const w of ws) expect(w.opts.width).toBeGreaterThanOrEqual(MIN_PAGE_WIDTH);
     expect(ws.every(w => w.menuRemoved && w.webContents.webrtc === 'disable_non_proxied_udp')).toBe(true);
     await Promise.resolve();
     expect(ws[0].webContents.url).toBe('https://a.example/login');

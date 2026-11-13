@@ -4,6 +4,7 @@ import type { Bounds, Size, ViewHost } from '../../electron/main/browser';
 
 export interface FakeHost extends ViewHost {
   bounds: Bounds | null;
+  zoom: number;
   size: Size;
   screen: number;
   destroyed: boolean;
@@ -35,6 +36,7 @@ export function fakeHost(opts: { width?: number; height?: number; screen?: numbe
   const go = (url: string) => { current = url; host.history.push(url); for (const cb of nav) cb(url); };
   const host: FakeHost = {
     bounds: null,
+    zoom: 1,
     size: { width: opts.width ?? 980, height: opts.height ?? 680 },
     screen: opts.screen ?? 1920,
     destroyed: false,
@@ -50,6 +52,7 @@ export function fakeHost(opts: { width?: number; height?: number; screen?: numbe
       return new Function('fetch', `return ${script}`)(pageFetch) as Promise<T>;
     },
     setBounds(b) { host.bounds = b; },
+    setZoom(f) { host.zoom = f; },
     contentSize: () => ({ ...host.size }),
     setContentWidth(w) { host.size.width = w; },
     screenWidth: () => host.screen,
