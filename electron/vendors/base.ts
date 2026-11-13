@@ -15,10 +15,10 @@ export interface VendorDetails {
   /** Level 2: response URL pattern that may carry a freshly created key; default: key-ish paths on console hosts */
   keyResponse?: RegExp;
   /** How long to wait for the user (login scan, clicking「创建」) */
-  timeouts?: { loginMs: number; createMs: number };
+  timeouts?: { loginMs: number; createMs: number; settleMs?: number };
 }
 
-const DEFAULT_TIMEOUTS = { loginMs: 10 * 60_000, createMs: 5 * 60_000 };
+const DEFAULT_TIMEOUTS = { loginMs: 10 * 60_000, createMs: 5 * 60_000, settleMs: 1500 };
 const LOGIN_PATH = /login|sign[_-]?(in|up)|signin|passport|register/i;
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -81,6 +81,19 @@ export function createKeyScript(url: string): string {
 
 const isClosed = (e: unknown) => (e as Error)?.name === 'BrowserClosed';
 
+/** Waits until the page sits on a logged-in URL for settleMs: a console that sends a logged-out visitor to its login
+ *  page from its own script (Kimi's /console) first shows the console URL for a moment */
+async function waitLoggedIn(browser: BrowserDriver, isLoggedIn: (url: string) => boolean, ms: number, settleMs: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    const left = deadline - Date.now();
+    if (left <= 0 || !(await browser.waitForUrl(isLoggedIn, left))) return false;
+    if (settleMs <= 0) return true;
+    await new Promise(r => setTimeout(r, settleMs));
+    if (isLoggedIn(browser.url())) return true;
+  }
+}
+
 type Level1 = { ok: true; key: string } | { ok: false; fallthrough: boolean; detail?: string };
 
 async function level1(browser: BrowserDriver, url: string): Promise<Level1> {
@@ -133,7 +146,7 @@ export function makeVendor(provider: ProviderInfo, details: VendorDetails = {}):
         if (!isLoggedIn(browser.url())) {
           // M-08: login page expanded so the user can scan; closing the browser = cancel (M-09)
           await browser.open(provider.loginUrl, { mode: 'expanded' });
-          if (!(await browser.waitForUrl(isLoggedIn, timeouts.loginMs))) return { ok: false, reason: 'cancelled' };
+          if (!(await waitLoggedIn(browser, isLoggedIn, timeouts.loginMs, timeouts.settleMs ?? 0))) return { ok: false, reason: 'cancelled' };
         }
         browser.setMode('pip');
         if (details.createKeyUrl) {

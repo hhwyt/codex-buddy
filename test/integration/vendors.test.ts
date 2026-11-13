@@ -72,6 +72,28 @@ describe('key ladder', () => {
     expect(await v.obtainKey(rb)).toEqual({ ok: false, reason: 'cancelled' });
   });
 
+  test('M-08 控制台先露一下再自己跳到登录页（Kimi 的 /console）：不算登录好，等真登录', async () => {
+    let url = '';
+    const waits: string[] = [];
+    const driver: BrowserDriver = {
+      open: async u => { url = u; },
+      url: () => url,
+      evaluate: async () => { throw new Error('no level 1'); },
+      waitForResponse: async () => '{"key":"sk-settledsettledsettled"}',
+      waitForUrl: async pred => {
+        // 1st: the console flashes, then its script goes to /login; 2nd: the user really logs in
+        url = waits.length === 0 ? 'https://platform.kimi.com/console' : 'https://platform.kimi.com/console/api-keys';
+        waits.push(url);
+        if (waits.length === 1) setTimeout(() => { url = 'https://platform.kimi.com/login'; }, 5);
+        return pred(url);
+      },
+      setMode: () => {},
+    };
+    const v = makeVendor(providerOf('kimi'), { timeouts: { loginMs: 2000, createMs: 400, settleMs: 30 } });
+    expect(await v.obtainKey(driver)).toEqual({ ok: true, key: 'sk-settledsettledsettled', level: 2 });
+    expect(waits).toHaveLength(2);
+  });
+
   test('M-10 建 Key 失败 → 返回原因 → 再试一次能成', async () => {
     const kimi = vendorsWith(endpoints()).kimi;
     server.setScenario('keyfail', 'kimi');

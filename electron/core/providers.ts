@@ -36,8 +36,10 @@ export const PROVIDERS: ProviderInfo[] = [
       { slug: 'kimi-k2-turbo-preview', name: 'Kimi K2 Turbo', free: false, reasoning: [] },
       { slug: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', free: false, reasoning: [] },
     ],
-    loginUrl: 'https://platform.moonshot.cn/console', keysUrl: 'https://platform.moonshot.cn/console/api-keys',
-    rechargeUrl: 'https://platform.moonshot.cn/console/pay', hosts: ['api.moonshot.cn', 'platform.moonshot.cn', 'platform.kimi.com'],
+    // 2026-11-13: the console moved to platform.kimi.com (platform.moonshot.cn redirects there); its /console sends a
+    // logged-out visitor to /login from its own script, so the login page is opened directly
+    loginUrl: 'https://platform.kimi.com/login', keysUrl: 'https://platform.kimi.com/console/api-keys',
+    rechargeUrl: 'https://platform.kimi.com/console/pay', hosts: ['api.moonshot.cn', 'platform.moonshot.cn', 'platform.kimi.com'],
   },
   {
     id: 'qwen', name: 'Qwen',
