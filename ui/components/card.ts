@@ -111,7 +111,7 @@ function logo(c: CardView): HTMLElement {
 function cloneRow(c: CardView, o: FaceOptions): HTMLElement {
   const a = o.actions;
   let right: HTMLElement;
-  if (o.cloneState === 'orig') right = btn('打开', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'clbtn');
+  if (o.cloneState === 'orig') right = btn('打开 ChatGPT', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'clbtn');
   else if (o.cloneState === 'made') right = btn('打开', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'clbtn');
   else if (o.cloneState === 'making') right = h('span', { class: 'clbtn make' }, spin(), '正在复制');
   else right = btn('做成分身', TID.models.cloneMake(c.vendor), a.cloneMake, 'clbtn make');

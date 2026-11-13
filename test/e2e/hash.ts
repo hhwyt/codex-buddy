@@ -49,7 +49,9 @@ export function realProtectedPaths(home = os.homedir()): string[] {
  * forces the strict mode). CodexBuddy never writes them, so skipping them cannot hide a CodexBuddy write.
  */
 export const strictHashes = () => !!process.env.CI || process.env.CODEXBUDDY_X01_STRICT === '1';
-const VOLATILE = /(^|\/)(sessions|archived_sessions|log|logs|shell_snapshots|tmp|\.tmp|cache|Cache|Code Cache|GPUCache|DawnCache|Crashpad|Session Storage|Local Storage|IndexedDB|blob_storage|Network|Shared Dictionary|WebStorage|Service Worker|plugins\/cache|thread-writer-locks|sentry|GraphiteDawnCache|DawnGraphiteCache|DawnWebGPUCache|Default\/DawnWebGPUCache|Default\/DawnGraphiteCache)(\/|$)|(^|\/)(history\.jsonl|[^/]*\.sqlite[^/]*|[^/]*\.log|LOCK|Cookies[^/]*|Preferences|TransportSecurity|Trust Tokens[^/]*|Reporting and NEL[^/]*|DIPS[^/]*|models_cache\.json|\.codex-global-state\.json[^/]*|[^/]*-(wal|shm|journal))$/;
+// Also Codex's own start-up files (seen 2026-11-13 when the site owner's Codex started on hwy-pc mid-run): .tmp/,
+// vendor_imports/, .sandbox/, .codex-provisioning-*.guard
+const VOLATILE = /(^|\/)(\.sandbox|vendor_imports|sessions|archived_sessions|log|logs|shell_snapshots|tmp|\.tmp|cache|Cache|Code Cache|GPUCache|DawnCache|Crashpad|Session Storage|Local Storage|IndexedDB|blob_storage|Network|Shared Dictionary|WebStorage|Service Worker|plugins\/cache|thread-writer-locks|sentry|GraphiteDawnCache|DawnGraphiteCache|DawnWebGPUCache|Default\/DawnWebGPUCache|Default\/DawnGraphiteCache)(\/|$)|(^|\/)(history\.jsonl|[^/]*\.sqlite[^/]*|[^/]*\.log|LOCK|Cookies[^/]*|Preferences|TransportSecurity|Trust Tokens[^/]*|Reporting and NEL[^/]*|DIPS[^/]*|models_cache\.json|\.codex-provisioning-[^/]*\.guard|\.codex-global-state\.json[^/]*|[^/]*-(wal|shm|journal))$/;
 export const volatile = (rel: string) => !strictHashes() && VOLATILE.test(rel);
 
 export const hashAll = (paths: string[]): Record<string, string> => Object.fromEntries(paths.map(p => [p, hashTree(p, volatile)]));

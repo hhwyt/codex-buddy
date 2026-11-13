@@ -576,7 +576,7 @@ describe('分身', () => {
   it('C-09 上次停在分身模式，进来就是摊开的', async () => {
     await mount(walletOf({ mode: 'clone' }));
     expect(q(TID.models.root)!.dataset.mode).toBe('clone');
-    expect(q(TID.models.cloneOpen('openai'))?.textContent).toBe('打开');
+    expect(q(TID.models.cloneOpen('openai'))?.textContent).toBe('打开 ChatGPT') // model-page-final.html: the original card says which app it opens;
     expect(text('openai')).toContain('原来的');
   });
 

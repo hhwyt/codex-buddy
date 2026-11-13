@@ -320,4 +320,12 @@ describe('一键还原出错时（T-03）', () => {
     await settle();
     expect($(TID.dialog.root)!.textContent).toContain('聊天记录会留着');
   });
+
+  it('T-03 清单里已经写了聊天记录留着，就不再多写一行', async () => {
+    await mount(fakeApi({ 'restore:plan': { lines: ['卸掉 CodexBuddy 装的 Codex', '聊天记录和分身的聊天记录都留着'] } }));
+    click($(TID.settings.restore));
+    await settle();
+    const ps = [...$(TID.dialog.root)!.querySelectorAll('p')].map(p => p.textContent);
+    expect(ps).toEqual(['卸掉 CodexBuddy 装的 Codex', '聊天记录和分身的聊天记录都留着']);
+  });
 });

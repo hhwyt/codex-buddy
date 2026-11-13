@@ -173,9 +173,16 @@ test('T-01 汉化版和英文原版切换，失败时提示', async () => {
   await settled();
   // failure path: the 汉化版 entry cannot be added (its folder is a file), the page says so and stays English
   fs.rmSync(zhLauncher(), { recursive: true, force: true });
-  fs.mkdirSync(path.dirname(zhLauncher()), { recursive: true });
-  if (process.platform === 'win32') fs.mkdirSync(zhLauncher()); // Windows: a folder where the .lnk goes (a read-only file can still be replaced)
-  else { fs.writeFileSync(zhLauncher(), 'occupied'); fs.chmodSync(zhLauncher(), 0o444); }
+  if (process.platform === 'win32') {
+    // Windows: no shortcut anywhere, and the Start menu folder it goes into is a file
+    fs.rmSync(path.join(run.home, 'Desktop', 'ChatGPT 汉化版.lnk'), { force: true });
+    fs.rmSync(path.dirname(zhLauncher()), { recursive: true, force: true });
+    fs.writeFileSync(path.dirname(zhLauncher()), 'occupied');
+  } else {
+    fs.mkdirSync(path.dirname(zhLauncher()), { recursive: true });
+    fs.writeFileSync(zhLauncher(), 'occupied');
+    fs.chmodSync(zhLauncher(), 0o444);
+  }
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect(langMsg()).toContainText('✗', { timeout: 10_000 });
   expect(await zhOn()).toBe(false);

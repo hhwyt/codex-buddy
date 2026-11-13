@@ -177,7 +177,10 @@ export const renderSettings: Page = async ({ api, root, go }) => {
 
   async function restore(): Promise<void> { // T-03, T-04
     const plan = await api.invoke('restore:plan');
-    const yes = await dialog({ title: '一键还原', lines: [...(plan.lines ?? []), '聊天记录会留着'], confirm: '一键还原', cancel: '先不了', danger: true });
+    // The plan's own last line already says chat history stays; add ours only when it does not (no line said twice)
+    const planned = plan.lines ?? [];
+    const lines = planned.some(l => l.includes('聊天记录')) ? planned : [...planned, '聊天记录会留着'];
+    const yes = await dialog({ title: '一键还原', lines, confirm: '一键还原', cancel: '先不了', danger: true });
     if (!yes) return;
     const res = await api.invoke('restore:run');
     if (res.ok) go('onboarding');

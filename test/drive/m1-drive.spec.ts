@@ -298,7 +298,7 @@ test('M1 drive: every step on the packaged app', async () => {
   await page.getByTestId(TID.shell.security).click();
   await expect(page.getByTestId(TID.security.root)).toBeVisible();
   await page.waitForTimeout(300);
-  await shot(page, '36-security', '安全面板：Key 只显示后 4 位、在访达里显示、去官网管理、两块连过的网站');
+  await shot(page, '36-security', `安全面板：Key 只显示后 4 位、${WIN ? '在文件夹里显示' : '在访达里显示'}、去官网管理、两块连过的网站`);
   const text = await page.evaluate(() => document.body.innerText);
   for (const k of Object.values(vendorState(run.vendors).keys).flat()) expect(text).not.toContain(k);
   await page.keyboard.press('Escape');
@@ -314,7 +314,7 @@ test('M1 drive: every step on the packaged app', async () => {
   // 13. 一键还原: lists what it will do, keeps chat history, returns to onboarding
   await clickClear(page.getByTestId(TID.settings.restore));
   await expect(page.getByTestId(TID.dialog.root)).toBeVisible();
-  await shot(page, '38-restore-confirm', '一键还原：先列出会做的事，最后一行「聊天记录会留着」');
+  await shot(page, '38-restore-confirm', '一键还原：先列出会做的事，最后一行写聊天记录留着（不重复）');
   const sessions = hashTree(path.join(codexHome(run.sandbox), 'sessions'));
   await page.getByTestId(TID.dialog.confirm).click();
   await expect(page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
