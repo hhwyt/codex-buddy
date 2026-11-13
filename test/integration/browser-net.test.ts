@@ -1,0 +1,104 @@
+// L2: CodexBuddy's own network whitelist and the two connection lists (S-04, S-05). Owner: A4.
+import * as http from 'node:http';
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
+
+const fx = vi.hoisted(() => ({ partitions: [] as string[] }));
+vi.mock('electron', () => {
+  const sessions: Record<string, any> = {};
+  const get = (name: string) => {
+    const s: any = sessions[name] ??= { handler: null, webRequest: { onBeforeRequest: (h: any) => { s.handler = h; } } };
+    return s;
+  };
+  return { session: { get defaultSession() { return get('default'); }, fromPartition: (p: string) => { fx.partitions.push(p); return get(p); } } };
+});
+
+import { session } from 'electron';
+import { PROVIDERS } from '../../electron/core/providers';
+import type { ConnectionRecord } from '../../electron/core/whitelist';
+import { BROWSER_PARTITION } from '../../electron/main/browser';
+import {
+  checkRequest, connections, defaultAllowedHosts, guardedFetch, hostAllowed, installNetGuard, record, resetConnections,
+} from '../../electron/main/net';
+
+const allowed = defaultAllowedHosts(PROVIDERS);
+let recs: ConnectionRecord[];
+let server: http.Server;
+let base: string;
+
+beforeAll(async () => {
+  server = http.createServer((_q, r) => r.end('ok'));
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', () => r()));
+  base = `http://127.0.0.1:${(server.address() as any).port}`;
+});
+afterAll(() => new Promise<void>(r => server.close(() => r())));
+beforeEach(() => {
+  resetConnections();
+  recs = [];
+  installNetGuard(() => allowed, r => recs.push(r));
+});
+
+const run = (s: any, url: string) => new Promise<any>(r => s.handler({ url }, r));
+
+describe('whitelist', () => {
+  test('S-05 白名单含 GitHub、jsDelivr 和 7 家域名', () => {
+    for (const h of ['github.com', 'objects.githubusercontent.com', 'cdn.jsdelivr.net', 'open.bigmodel.cn', 'api.deepseek.com',
+      'api.moonshot.cn', 'dashscope.aliyuncs.com', 'api.minimaxi.com', 'api.hunyuan.cloud.tencent.com', 'api.openai.com']) {
+      expect(hostAllowed(h, allowed)).toBe(true);
+    }
+    expect(hostAllowed('sub.github.com', allowed)).toBe(true);
+    expect(hostAllowed('evilgithub.com', allowed)).toBe(false);
+    expect(hostAllowed('github.com.evil.example', allowed)).toBe(false);
+    expect(hostAllowed('127.0.0.1:5678', [])).toBe(true);
+    expect(hostAllowed('[::1]:80', [])).toBe(true);
+    expect(hostAllowed('localhost', [])).toBe(true);
+    expect(hostAllowed('example.com:8443', ['example.com:8443'])).toBe(true);
+    expect(allowed.join(' ')).not.toMatch(/humanslive/i);
+  });
+
+  test('S-05 白名单外的请求被拦掉，并且记录下来', async () => {
+    const app = session.defaultSession as any;
+    expect(await run(app, 'https://evil.example/steal')).toEqual({ cancel: true });
+    expect(await run(app, 'https://cdn.jsdelivr.net/gh/x/config.json')).toEqual({ cancel: false });
+    expect(await run(app, 'file:///Applications/ui/index.html')).toEqual({ cancel: false });
+    expect(await run(app, 'devtools://devtools/x')).toEqual({ cancel: false });
+    expect(connections().app.map(r => [r.host, r.allowed])).toEqual(expect.arrayContaining([['evil.example', false], ['cdn.jsdelivr.net', true]]));
+    expect(connections().app).toHaveLength(2);
+    expect(recs.find(r => r.host === 'evil.example')).toMatchObject({ source: 'app', allowed: false });
+  });
+
+  test('S-05 主进程自己的请求也过白名单', async () => {
+    await expect(guardedFetch('https://evil.example/x')).rejects.toThrow('不在白名单里，没有连 evil.example');
+    const r = await guardedFetch(`${base}/cfg`);
+    expect(await r.text()).toBe('ok');
+    expect(connections().app.map(c => c.host)).toContain('evil.example');
+  });
+
+  test('S-04 连过的网站实时更新，分「CodexBuddy 连过的」和「网页里连过的」', async () => {
+    expect(fx.partitions).toContain(BROWSER_PARTITION);
+    const web = session.fromPartition(BROWSER_PARTITION) as any;
+    // The browser is never filtered, only logged
+    expect(await run(web, 'https://some-cdn.example/qr.png')).toEqual({});
+    expect(await run(web, 'https://some-cdn.example/qr2.png')).toEqual({});
+    expect(await run(web, 'blob:https://x/1')).toEqual({});
+    await run(session.defaultSession, 'https://github.com/hhwyt');
+    const c = connections();
+    expect(c.web.map(r => r.host)).toEqual(['some-cdn.example']);
+    expect(c.app.map(r => r.host)).toEqual(['github.com']);
+    // One live update per new host, not per request
+    expect(recs.map(r => `${r.source}:${r.host}`)).toEqual(['browser:some-cdn.example', 'app:github.com']);
+    record('app', 'github.com', false);
+    expect(recs).toHaveLength(3);
+    expect(checkRequest('app', 'not a url')).toBe(true);
+  });
+
+  test('S-04 列表按时间新的在前', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(1000); record('browser', 'a.example', true);
+      vi.setSystemTime(2000); record('browser', 'b.example', true);
+      expect(connections().web.map(r => r.host)).toEqual(['b.example', 'a.example']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
