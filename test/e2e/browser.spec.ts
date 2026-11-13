@@ -27,7 +27,7 @@ const screenWidth = () => run.app.evaluate(({ screen }) => screen.getPrimaryDisp
 
 test('B-01 后台自动操作时显示画中画在右下角', async () => {
   await ready();
-  await run.page.getByTestId(TID.models.card('zhipu')).click();
+  await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'zhipu'); // after the scan the key is made in the background
   await expect.poll(async () => (await events()).some(e => e.open && e.mode === 'pip'), { timeout: 30_000 }).toBe(true);
   const pip = run.page.getByTestId(TID.browser.pip);
@@ -41,7 +41,7 @@ test('B-01 后台自动操作时显示画中画在右下角', async () => {
 test('B-02 要扫码时自动放大，窗口加宽约 480px，屏幕不够宽时盖住右半边', async () => {
   await ready();
   const before = await windowWidth();
-  await run.page.getByTestId(TID.models.card('kimi')).click();
+  await run.page.getByTestId(TID.models.card('kimi')).click({ position: { x: 60, y: 20 } });
   await expect.poll(async () => (await last())?.mode, { timeout: 20_000 }).toBe('expanded');
   const after = await windowWidth();
   if (before + 480 <= await screenWidth()) {
@@ -79,7 +79,7 @@ test('B-04 只有点关闭才关，在模型设置帮助之间切换时不动', 
 
 test('B-05 地址栏只读，后退和刷新可用', async () => {
   await ready();
-  await run.page.getByTestId(TID.models.card('zhipu')).click();
+  await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 20 } });
   await inWebContents(run.app, '/zhipu/login', 'true');
   const address = run.page.getByTestId(TID.browser.address);
   await expect.poll(() => address.evaluate(el => (el as HTMLInputElement).value ?? el.textContent ?? '')).toContain('/zhipu/login');
@@ -108,7 +108,7 @@ test('B-06 App 启动时浏览器是关着的，不记住上次的状态', async
 
 test('B-07 浏览器的登录数据单独存，不碰用户的 Chrome', async () => {
   await ready();
-  await run.page.getByTestId(TID.models.card('zhipu')).click();
+  await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 20 } });
   await inWebContents(run.app, '/zhipu/login', 'true');
   const info = await run.app.evaluate(({ webContents, session }) => {
     const wc = webContents.getAllWebContents().find(w => w.getURL().includes('/zhipu/login'))!;

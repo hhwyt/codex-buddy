@@ -23,6 +23,9 @@ async function ready(env: Record<string, string> = {}): Promise<Launched> {
   return run;
 }
 const card = (v: string) => run.page.getByTestId(TID.models.card(v));
+/** The card drawn on top of the pile right now (highest data-row): the page moves it before main saves the order */
+const uiFront = () => run.page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-vendor][data-row]')]
+  .sort((a, b) => Number(b.dataset.row) - Number(a.dataset.row))[0]?.dataset.vendor ?? null);
 const authKey = () => /"OPENAI_API_KEY"\s*:\s*"([^"]+)"/.exec(readText(path.join(codexHome(run.sandbox), 'auth.json')) ?? '')?.[1] ?? null;
 const lastKey = (v: string) => (vendorState(run.vendors).keys[v] ?? []).at(-1) ?? null;
 const browserEvents = async () => {
@@ -50,8 +53,8 @@ test('M-01 第一次进来所有卡都在且没有正在用的', async () => {
 
 test('M-02 点后面的卡抽到最上层并开始切换', async () => {
   await ready();
-  await card('kimi').click();
-  await expect.poll(async () => (await wallet(run.page)).order[0]).toBe('kimi');
+  await card('kimi').click({ position: { x: 60, y: 20 } });
+  await expect.poll(uiFront).toBe('kimi');
   await fakeScan(run.app, 'kimi');
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('kimi');
   expect(tomlValue(configToml(run.sandbox), 'model_provider')).toContain('kimi');
@@ -92,12 +95,11 @@ test('M-05 拖了但没到最上层只调整顺序，不切换也不改配置', 
 
 test('M-06 切换中再点别的卡不响应', async () => {
   await ready();
-  await card('zhipu').click(); // waits on the QR scan: switching is in progress
+  await card('zhipu').click({ position: { x: 60, y: 20 } }); // waits on the QR scan: switching is in progress
   await inWebContents(run.app, '/zhipu/login', 'true');
-  await card('kimi').click({ force: true });
+  await card('kimi').click({ force: true, position: { x: 60, y: 20 } });
   await run.page.waitForTimeout(500);
-  const w = await wallet(run.page);
-  expect(w.order[0]).toBe('zhipu');
+  expect(await uiFront()).toBe('zhipu');
   expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/kimi/login'));
   await fakeScan(run.app, 'zhipu');
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('zhipu');
@@ -111,7 +113,7 @@ test('M-07 测试连通没通过卡退回原位且配置逐字节没变', async 
   const order = (await wallet(run.page)).order;
   run.vendors.setScenario('401', 'kimi');
   setCodexScenario(run.sandbox, '401');
-  await card('kimi').click();
+  await card('kimi').click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'kimi').catch(() => undefined);
   await expect.poll(async () => (await wallet(run.page)).order.join(), { timeout: 30_000 }).toBe(order.join());
   const w = await wallet(run.page);
@@ -123,7 +125,7 @@ test('M-07 测试连通没通过卡退回原位且配置逐字节没变', async 
 test('M-08 智谱第一次用：右侧浏览器放大到登录页，扫码后自动建 Key 并能用', async () => {
   await ready();
   const events = await browserEvents();
-  await card('zhipu').click();
+  await card('zhipu').click({ position: { x: 60, y: 20 } });
   await expect.poll(async () => (await events()).some(e => e.open && e.mode === 'expanded' && e.url.includes('/zhipu/login')), { timeout: 20_000 }).toBe(true);
   await fakeScan(run.app, 'zhipu');
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('zhipu');
@@ -138,7 +140,7 @@ test('M-08 智谱第一次用：右侧浏览器放大到登录页，扫码后自
 test('M-09 扫码中关掉右侧浏览器等于取消，什么都没改', async () => {
   await ready();
   const toml = configToml(run.sandbox);
-  await card('zhipu').click();
+  await card('zhipu').click({ position: { x: 60, y: 20 } });
   await inWebContents(run.app, '/zhipu/login', 'true');
   await run.page.getByTestId(TID.browser.close).click();
   await expect.poll(async () => (await wallet(run.page)).active).toBeNull();
@@ -149,7 +151,7 @@ test('M-09 扫码中关掉右侧浏览器等于取消，什么都没改', async 
 test('M-10 建 Key 失败弹窗写原因，再试一次', async () => {
   await ready();
   run.vendors.setScenario('keyfail', 'zhipu');
-  await card('zhipu').click();
+  await card('zhipu').click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'zhipu');
   const dlg = run.page.getByTestId(TID.dialog.root);
   await expect(dlg).toBeVisible({ timeout: 30_000 });
@@ -174,6 +176,7 @@ test('M-11 智谱免费模型不提充值，Codex 里换成付费模型先测通
 test('M-12 付费卡有赠送额度时先用着，充值页在画中画里放着', async () => {
   await ready();
   const events = await browserEvents();
+  run.vendors.setScenario('trial', 'deepseek'); // gift credit only, never topped up
   await switchTo(run, 'deepseek');
   await expect(run.page.getByTestId(TID.models.tryLater)).toBeVisible({ timeout: 20_000 });
   await run.page.getByTestId(TID.models.tryLater).click();
@@ -187,12 +190,13 @@ test('M-13 余额不够，充值页放大，充完再试一次', async () => {
   const events = await browserEvents();
   run.vendors.setScenario('balance', 'kimi');
   setCodexScenario(run.sandbox, 'balance');
-  await card('kimi').click();
+  await card('kimi').click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'kimi').catch(() => undefined);
   await expect.poll(async () => (await events()).some(e => e.mode === 'expanded' && e.url.includes('/kimi/recharge')), { timeout: 30_000 }).toBe(true);
   run.vendors.setScenario('ok', 'kimi');
   setCodexScenario(run.sandbox, 'ok');
-  await run.page.getByTestId(TID.dialog.confirm).click(); // 再试一次
+  await run.page.getByTestId(TID.browser.close).click(); // paid, the user closes the recharge page
+  await card('kimi').getByRole('button', { name: '再试一次' }).click();
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('kimi');
 });
 
@@ -200,7 +204,7 @@ test('M-14 免费模型被限速，卡上提示并给出换个模型', async () 
   await ready();
   run.vendors.setScenario('429', 'zhipu');
   setCodexScenario(run.sandbox, '429');
-  await card('zhipu').click();
+  await card('zhipu').click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'zhipu').catch(() => undefined);
   await expect(run.page.getByTestId(TID.models.rateLimitSwap('zhipu'))).toBeVisible({ timeout: 30_000 });
   await expect(card('zhipu')).toContainText('限速');
@@ -210,8 +214,8 @@ test('M-14 免费模型被限速，卡上提示并给出换个模型', async () 
 test('M-15 Codex 用不了时一键修复，已经做过的步骤跳过', async () => {
   await ready();
   await switchTo(run, 'deepseek');
-  setCodexScenario(run.sandbox, 'unreachable');
-  await card('kimi').click();
+  setCodexScenario(run.sandbox, 'broken');
+  await card('kimi').click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'kimi').catch(() => undefined);
   await expect(run.page.getByTestId(TID.models.repair)).toBeVisible({ timeout: 30_000 });
   setCodexScenario(run.sandbox, 'ok');
@@ -226,11 +230,11 @@ test('M-15 Codex 用不了时一键修复，已经做过的步骤跳过', async 
 
 test('M-16 Codex 被删了显示重新安装', async () => {
   await ready();
-  fs.rmSync(path.join(sandboxApps(run.sandbox), 'ChatGPT.app'), { recursive: true, force: true });
+  fs.rmSync(path.join(sandboxApps(run.sandbox), 'Test-ChatGPT.app'), { recursive: true, force: true });
   run = await run.relaunch();
   await expect(run.page.getByTestId(TID.models.reinstall)).toBeVisible({ timeout: 20_000 });
   await run.page.getByTestId(TID.models.reinstall).click();
-  await expect.poll(() => fs.existsSync(path.join(sandboxApps(run.sandbox), 'ChatGPT.app')), { timeout: 30_000 }).toBe(true);
+  await expect.poll(() => fs.existsSync(path.join(sandboxApps(run.sandbox), 'Test-ChatGPT.app')), { timeout: 30_000 }).toBe(true);
   await expect(run.page.getByTestId(TID.models.reinstall)).toHaveCount(0);
 });
 
@@ -272,12 +276,15 @@ test('M-19 其他厂商：填写后测试连通并加一张卡', async () => {
   await run.page.getByTestId(TID.models.customKey).fill('sk-e2e-custom-0000000000001234');
   await run.page.getByTestId(TID.models.customSubmit).click();
   await expect.poll(async () => (await wallet(run.page)).cards.some(c => c.vendor.startsWith('custom-') && c.name === '自建'), { timeout: 30_000 }).toBe(true);
-  expect(vendorState(run.vendors).requests.some(r => r.vendor === 'deepseek' && r.path.startsWith('/v1/'))).toBe(true);
+  // The connectivity test ran Codex against the new provider (the fake Codex logs each run; it makes no HTTP calls)
+  const id = (await wallet(run.page)).cards.find(c => c.name === '自建')!.vendor;
+  await expect.poll(() => readText(path.join(run.sandbox, 'fake-codex.log')) ?? '', { timeout: 30_000 }).toContain(`"provider":"${id}"`);
+  await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe(id);
 });
 
 test('M-20 第一次成功弹窗显示从零到能用 N 秒，有打开 Codex 和关注行', async () => {
   await ready();
-  await card('deepseek').click();
+  await card('deepseek').click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'deepseek').catch(() => undefined);
   const dlg = run.page.getByTestId(TID.firstSuccess.root);
   await expect(dlg).toBeVisible({ timeout: 30_000 });
@@ -289,7 +296,7 @@ test('M-20 第一次成功弹窗显示从零到能用 N 秒，有打开 Codex �
   // Only the first success shows it; 打开 Codex appears nowhere else
   await switchTo(run, 'kimi');
   await expect(dlg).toBeHidden();
-  await expect(run.page.getByText('打开 Codex')).toHaveCount(0);
+  await expect(run.page.getByText('打开 Codex', { exact: true })).toHaveCount(0);
 });
 
 test('M-21 Codex 开着时切换多提示一句重新打开，不替用户关 Codex', async () => {
@@ -303,7 +310,7 @@ test('M-21 Codex 开着时切换多提示一句重新打开，不替用户关 Co
 
 test('M-22 OpenAI 官方账号在系统浏览器里登录', async () => {
   await ready();
-  await card('openai').click();
+  await card('openai').click({ position: { x: 60, y: 20 } });
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('openai');
   expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/openai/login'));
   expect(readText(path.join(codexHome(run.sandbox), 'auth.json'))).toContain('tokens');

@@ -10,7 +10,7 @@ import { validateRemote } from '../../electron/core/remote';
 import type { BuiltinVendorId, RemoteConfig } from '../../electron/core/types';
 import { aesCipher } from '../../electron/main/cipher';
 import type { EventName } from '../../electron/main/ipc-contract';
-import { createServices, explain, SOURCE_URL, type ServiceDeps } from '../../electron/main/services';
+import { createServices, explain, isOurCatalog, onlyOurKey, SOURCE_URL, type ServiceDeps } from '../../electron/main/services';
 import { createMacPlatform } from '../../electron/platform/mac';
 import { nodeFs } from '../../electron/platform/node-fs';
 import { sandboxClone, sandboxPlatform, sandboxZh } from '../../electron/platform/sandbox-codex';
@@ -244,10 +244,15 @@ describe('switching', () => {
     await installed_(b);
     await b.h['switch:start']({ vendor: 'deepseek' });
     const before = configOf(b.paths.codexHome);
-    scenario('unreachable');
+    scenario('model');
     const r = await b.h['switch:start']({ vendor: 'kimi' });
     expect(r.ok).toBe(false);
     expect(r.kind).toBeUndefined();
+    scenario('unreachable');
+    expect((await b.h['switch:start']({ vendor: 'kimi' })).kind).toBeUndefined();
+    // M-15: Codex runs but answers nothing → Codex itself is broken (一键修复), config still untouched
+    scenario('broken');
+    expect(await b.h['switch:start']({ vendor: 'kimi' })).toMatchObject({ ok: false, kind: 'codex-broken' });
     expect(configOf(b.paths.codexHome)).toBe(before);
     expect((await b.h['wallet:get'](undefined as never)).active).toBe('deepseek');
   });
@@ -257,6 +262,8 @@ describe('switching', () => {
     await installed_(b);
     scenario('balance');
     expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'no-balance' });
+    // M-13: the recharge page opens enlarged by itself
+    expect(b.browser.opens.at(-1)).toBe(PROVIDERS.find(p => p.id === 'deepseek')!.rechargeUrl);
     scenario('401');
     expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'key-failed' });
     scenario('429');
@@ -361,6 +368,27 @@ describe('switching', () => {
     expect(b.svc.pollModel()).toBe(true);
     expect(events.at(-1)!.event).toBe('wallet');
     expect((await b.h['wallet:get'](undefined as never)).cards.find(c => c.vendor === 'zhipu')).toMatchObject({ model: 'glm-4.6', free: false });
+  });
+
+  test('M-11 在 Codex 里换成付费模型：先测通，余额不够就打开充值页；免费模型不测', async () => {
+    const b = build();
+    await installed_(b);
+    await b.h['switch:start']({ vendor: 'zhipu' });
+    expect(b.svc.pollModel()).toBe(false); // our own write is not the user's pick
+    const pick = (m: string) => fs.writeFileSync(path.join(b.paths.codexHome, 'config.toml'), configOf(b.paths.codexHome).replace(/^model = ".*"$/m, `model = "${m}"`));
+    scenario('balance');
+    pick('glm-4.7-flash'); // free: nothing to test
+    expect(b.svc.pollModel()).toBe(true);
+    await new Promise(r => setTimeout(r, 50));
+    expect(b.browser.opens).toHaveLength(0);
+    pick('glm-4.6');
+    expect(b.svc.pollModel()).toBe(true);
+    await expect.poll(() => b.browser.opens.at(-1), { timeout: 10_000 }).toBe(PROVIDERS.find(p => p.id === 'zhipu')!.rechargeUrl);
+    scenario('ok');
+    pick('glm-5');
+    expect(b.svc.pollModel()).toBe(true);
+    await new Promise(r => setTimeout(r, 1500));
+    expect(configOf(b.paths.codexHome)).toContain('glm-5');
   });
 
   test('R-01 转接层端口每次启动都变：启动时把 config.toml 指到新地址', async () => {
@@ -564,7 +592,7 @@ describe('security, help, update, restore', () => {
     expect(configOf(b.paths.codexHome)).toBe(original);
     expect(fs.readFileSync(path.join(b.paths.codexHome, 'history.jsonl'), 'utf8')).toBe('chat');
     expect(fs.existsSync(b.paths.zhLauncherPath)).toBe(false);
-    expect(fs.existsSync(path.join(root, 'Applications', 'ChatGPT.app'))).toBe(false);
+    expect(fs.existsSync(path.join(root, 'Applications', 'Test-ChatGPT.app'))).toBe(false);
     expect(external).toContain('clear');
     expect((await b.h['app:state'](undefined as never)).configured).toBe(false);
   });
@@ -580,7 +608,30 @@ describe('security, help, update, restore', () => {
     const cfg = configOf(b.paths.codexHome);
     expect(cfg).not.toContain('model_catalog_json');
     expect(cfg).not.toContain('kimi');
-    expect(fs.readFileSync(path.join(b.paths.codexHome, 'auth.json'), 'utf8')).toBe('{}\n');
+    // The key file and the model menu CodexBuddy added are taken away again (they still hold only what we wrote)
+    expect(fs.existsSync(path.join(b.paths.codexHome, 'auth.json'))).toBe(false);
+    expect(fs.existsSync(path.join(b.paths.codexHome, 'codexbuddy-models.json'))).toBe(false);
+  });
+
+  test('T-04 还原：我们加的 auth.json 后来存了 ChatGPT 登录，就留着不动', async () => {
+    const b = build();
+    await installed_(b);
+    await b.h['switch:start']({ vendor: 'kimi' });
+    const login = '{"OPENAI_API_KEY":null,"tokens":{"id_token":"x"}}\n';
+    fs.writeFileSync(path.join(b.paths.codexHome, 'auth.json'), login);
+    expect((await b.h['restore:run'](undefined as never)).ok).toBe(true);
+    expect(fs.readFileSync(path.join(b.paths.codexHome, 'auth.json'), 'utf8')).toBe(login);
+  });
+
+  test('T-04 own-file checks: only a bare API key and our catalog shape count as ours', () => {
+    expect(onlyOurKey('{"OPENAI_API_KEY":"sk-1"}')).toBe(true);
+    expect(onlyOurKey('{}')).toBe(true);
+    expect(onlyOurKey('{"tokens":{}}')).toBe(false);
+    expect(onlyOurKey('null')).toBe(false);
+    expect(onlyOurKey('not json')).toBe(false);
+    expect(isOurCatalog('{"models":[]}')).toBe(true);
+    expect(isOurCatalog('{"x":1}')).toBe(false);
+    expect(isOurCatalog('nope')).toBe(false);
   });
 
   test('T-03 还原中途失败：报原因，停在那一步', async () => {

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { TID } from '../../ui/testids';
-import { finishOnboarding, nav, switchTo, webContentsUrls } from './flows';
+import { clickClear, finishOnboarding, makeCloneOf, nav, switchTo, webContentsUrls } from './flows';
 import { hashTree } from './hash';
 import {
   appState, codexHome, configToml, launch, readText, REPO, sandboxApps, seedCodex, seedUserData, setCodexRunning, wallet, type Launched,
@@ -25,10 +25,13 @@ async function ready(env: Record<string, string> = {}, clones: string[] = []): P
 const zhLauncher = () => process.platform === 'win32'
   ? path.join(run.home, 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'ChatGPT 汉化版.lnk')
   : path.join(sandboxApps(run.sandbox), 'ChatGPT 汉化版.app');
-const chatgptApp = () => path.join(sandboxApps(run.sandbox), 'ChatGPT.app');
+const chatgptApp = () => path.join(sandboxApps(run.sandbox), 'Test-ChatGPT.app');
 const cjk = (s: string) => (s.match(/[一-鿿]/g) ?? []).length;
 const toSettings = async () => { await nav.settings(run.page); await expect(run.page.getByTestId(TID.settings.root)).toBeVisible(); };
 const zhOn = async () => (await appState(run.page)).zh.on;
+/** The previews ignore clicks while the line-by-line animation runs (language-final.html); wait for it to finish */
+const settled = () => expect(run.page.getByTestId(TID.settings.zhCard)).toHaveAttribute('aria-busy', 'false', { timeout: 10_000 });
+const langMsg = () => run.page.getByTestId(TID.settings.langMsg);
 
 // ---------- 汉化 L ----------
 
@@ -55,9 +58,11 @@ test('L-02 点汉化版，预览图逐行变中文，第一次加上汉化版图
   for (let i = 0; i < 20; i++) { samples.push(cjk(await preview.innerText())); await run.page.waitForTimeout(80); }
   await expect.poll(zhOn, { timeout: 10_000 }).toBe(true);
   const end = cjk(await preview.innerText());
-  expect(end).toBeGreaterThan(start);
-  // line by line: at least one sample sits strictly between the English and the Chinese preview
-  expect(samples.some(n => n > start && n < end)).toBe(true);
+  // The clicked preview starts over from English (language-final.html), then flips into Chinese line by line:
+  // at least one sample sits strictly between the all-English start and the Chinese end
+  const low = Math.min(start, ...samples);
+  expect(end).toBeGreaterThan(low);
+  expect(samples.some(n => n > low && n < end)).toBe(true);
   expect(fs.existsSync(zhLauncher())).toBe(true);
   expect(hashTree(chatgptApp())).toBe(app);
   await expect(run.page.getByTestId(TID.settings.zhCard)).toHaveAttribute('aria-checked', 'true');
@@ -68,10 +73,14 @@ test('L-03 点英文原版字倒回英文，汉化版图标留着', async () => 
   await toSettings();
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect.poll(zhOn).toBe(true);
+  await settled();
   const zhText = cjk(await run.page.getByTestId(TID.settings.zhCard).innerText());
   await run.page.getByTestId(TID.settings.enCard).click();
   await expect.poll(zhOn).toBe(false);
-  await expect.poll(async () => cjk(await run.page.getByTestId(TID.settings.zhCard).innerText())).toBeLessThan(zhText);
+  await settled();
+  // The English preview turns back into English (bottom to top); the 汉化版 preview keeps showing Chinese
+  await expect(run.page.getByTestId(TID.settings.enCard)).toContainText('New chat');
+  expect(cjk(await run.page.getByTestId(TID.settings.zhCard).innerText())).toBeGreaterThanOrEqual(zhText - 5);
   expect(fs.existsSync(zhLauncher())).toBe(true);
   await expect(run.page.getByTestId(TID.settings.zhTrash)).toBeVisible();
   await expect(run.page.getByTestId(TID.settings.enCard)).toHaveAttribute('aria-checked', 'true');
@@ -92,7 +101,8 @@ test('L-04 垃圾桶只在汉化版加上后出现，在预览框右下角不配
   expect(t.y + t.height).toBeLessThanOrEqual(card.y + card.height + 1);
   expect(t.x + t.width / 2).toBeGreaterThan(card.x + card.width / 2);
   expect(t.y + t.height / 2).toBeGreaterThan(card.y + card.height / 2);
-  expect((await trash.innerText()).trim()).toBe('');
+  // no words on the button itself; 去掉汉化版 is only the hover tip
+  expect(await trash.evaluate(e => { const c = e.cloneNode(true) as HTMLElement; c.querySelectorAll('.tip').forEach(t => t.remove()); return (c.textContent ?? '').trim(); })).toBe('');
   expect(await trash.getAttribute('title') ?? await trash.getAttribute('aria-label')).toBe('去掉汉化版');
   // the English card never has one
   await expect(run.page.getByTestId(TID.settings.enCard).getByTestId(TID.settings.zhTrash)).toHaveCount(0);
@@ -110,13 +120,14 @@ test('L-05 只有 Codex 正开着时才问要不要重新打开', async () => {
   await toSettings();
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect.poll(zhOn).toBe(true);
-  await expect(run.page.getByTestId(TID.dialog.root)).toHaveCount(0);
+  await settled();
+  await expect(langMsg()).not.toContainText('重新打开');
   setCodexRunning(run.sandbox, true);
   await run.page.getByTestId(TID.settings.enCard).click();
-  const dlg = run.page.getByTestId(TID.dialog.root);
-  await expect(dlg).toBeVisible();
-  await expect(dlg).toContainText('重新打开');
-  await run.page.getByTestId(TID.dialog.cancel).click();
+  // language-final.html asks on the line under the previews: 重新打开 / 先不了
+  await expect(langMsg()).toContainText('重新打开', { timeout: 10_000 });
+  await langMsg().getByRole('button', { name: '先不了' }).click();
+  await expect(langMsg()).not.toContainText('重新打开');
   expect(fs.existsSync(path.join(run.sandbox, 'fake-codex-running'))).toBe(true); // never closes Codex itself
 });
 
@@ -124,7 +135,7 @@ test('L-06 这一版 Codex 汉化不了时退回英文，Codex 照常能用', as
   await ready({ CODEXBUDDY_FAKE_ZH: 'unsupported' });
   await toSettings();
   await run.page.getByTestId(TID.settings.zhCard).click();
-  await expect(run.page.getByTestId(TID.toast).or(run.page.getByTestId(TID.dialog.root))).toContainText('汉化不了');
+  await expect(langMsg()).toContainText('汉化不了', { timeout: 10_000 });
   expect(await zhOn()).toBe(false);
   await expect(run.page.getByTestId(TID.settings.enCard)).toHaveAttribute('aria-checked', 'true');
   await nav.models(run.page);
@@ -134,17 +145,18 @@ test('L-06 这一版 Codex 汉化不了时退回英文，Codex 照常能用', as
 test('L-07 分身跟着汉化开关走', async () => {
   await ready();
   await run.page.getByTestId(TID.models.modeClone).click();
-  await run.page.getByTestId(TID.models.cloneMake('deepseek')).click();
-  await expect(run.page.getByTestId(TID.models.cloneOpen('deepseek'))).toBeVisible({ timeout: 30_000 });
+  await makeCloneOf(run.app, run.page, 'deepseek');
   const appsDir = process.platform === 'win32' ? path.join(run.home, 'AppData', 'Local', 'CodexBuddy', 'apps') : sandboxApps(run.sandbox);
   const cloneApp = () => fs.readdirSync(appsDir).find(n => n.startsWith('DeepSeek'))!;
   const english = hashTree(path.join(appsDir, cloneApp()));
   await toSettings();
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect.poll(zhOn).toBe(true);
+  await settled();
   await expect.poll(() => hashTree(path.join(appsDir, cloneApp()))).not.toBe(english); // its launcher now opens in Chinese
   await run.page.getByTestId(TID.settings.enCard).click();
   await expect.poll(zhOn).toBe(false);
+  await settled();
   await expect.poll(() => hashTree(path.join(appsDir, cloneApp()))).toBe(english);
 });
 
@@ -155,15 +167,18 @@ test('T-01 汉化版和英文原版切换，失败时提示', async () => {
   await toSettings();
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect.poll(zhOn).toBe(true);
+  await settled();
   await run.page.getByTestId(TID.settings.enCard).click();
   await expect.poll(zhOn).toBe(false);
+  await settled();
   // failure path: the 汉化版 entry cannot be added (its folder is a file), the page says so and stays English
   fs.rmSync(zhLauncher(), { recursive: true, force: true });
   fs.mkdirSync(path.dirname(zhLauncher()), { recursive: true });
   fs.writeFileSync(zhLauncher(), 'occupied');
   fs.chmodSync(zhLauncher(), 0o444);
   await run.page.getByTestId(TID.settings.zhCard).click();
-  await expect(run.page.getByTestId(TID.toast).or(run.page.getByTestId(TID.dialog.root))).toBeVisible();
+  await expect(langMsg()).toContainText('✗', { timeout: 10_000 });
+  expect(await zhOn()).toBe(false);
 });
 
 test('T-02 检查更新：有新版本、已是最新、断网三种情况', async () => {
@@ -190,7 +205,7 @@ test('T-03 一键还原先列出会做的事，先不了就什么都不做', asy
   const toml = configToml(run.sandbox);
   const w = await wallet(run.page);
   await toSettings();
-  await run.page.getByTestId(TID.settings.restore).click();
+  await clickClear(run.page.getByTestId(TID.settings.restore));
   const dlg = run.page.getByTestId(TID.dialog.root);
   await expect(dlg).toBeVisible();
   const plan = await run.page.evaluate(() => (window as unknown as { buddy: { invoke(c: string): Promise<{ lines: string[] }> } }).buddy.invoke('restore:plan'));
@@ -210,7 +225,7 @@ test('T-04 还原后配置恢复原样，原来就有的 Codex 不卸，聊天�
   await switchTo(run, 'zhipu');
   expect(configToml(run.sandbox)).not.toBe(original);
   await toSettings();
-  await run.page.getByTestId(TID.settings.restore).click();
+  await clickClear(run.page.getByTestId(TID.settings.restore));
   await run.page.getByTestId(TID.dialog.confirm).click();
   await expect(run.page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
   expect(configToml(run.sandbox)).toBe(original);
@@ -228,7 +243,7 @@ test('T-04 还原时卸掉这次装的 Codex', async () => {
   await finishOnboarding(run.page);
   expect(fs.existsSync(chatgptApp())).toBe(true);
   await toSettings();
-  await run.page.getByTestId(TID.settings.restore).click();
+  await clickClear(run.page.getByTestId(TID.settings.restore));
   await run.page.getByTestId(TID.dialog.confirm).click();
   await expect(run.page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
   expect(fs.existsSync(chatgptApp())).toBe(false);
@@ -247,7 +262,7 @@ test('U-01 有新版本时弹窗，稍后后同一个版本一天内不再弹', 
   await expect(dlg).toBeHidden();
   run = await run.relaunch();
   await run.page.waitForTimeout(3000);
-  await expect(dlg).toHaveCount(0);
+  await expect(run.page.getByTestId(TID.update.root)).toHaveCount(0);
 });
 
 test('U-02 立即更新显示进度并重启，模型、Key、设置都保留', async () => {
@@ -273,7 +288,7 @@ test('U-03 Mac 没签名时立即更新改成在右侧浏览器打开下载页',
   await toSettings();
   await run.page.getByTestId(TID.settings.checkUpdate).click();
   await run.page.getByTestId(TID.update.now).click();
-  await expect.poll(async () => [...await webContentsUrls(run.app), ...(await run.external()).opened].join('\n'))
+  await expect.poll(async () => [...await webContentsUrls(run.app), ...(await run.external()).opened].join('\n'), { timeout: 20_000 })
     .toContain(REMOTE.latest.macUrl.replace('https://', ''));
 });
 

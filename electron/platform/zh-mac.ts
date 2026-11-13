@@ -9,6 +9,7 @@ import { execFile } from 'node:child_process';
 import * as path from 'node:path';
 import { guardedRemove } from '../core/guard';
 import type { FileSystem } from '../core/types';
+import { codexAppName } from './sandbox';
 import type { Platform, ZhLauncher } from './types';
 
 export type Exec = (cmd: string, args: string[]) => Promise<{ code: number; out: string }>;
@@ -42,7 +43,7 @@ export interface ZhRunnerConfig {
 
 export const ZH_APP_EXECUTABLE = 'codexbuddy-zh';
 export const zhStateDir = (buddyDir: string) => path.join(buddyDir, 'zh');
-export const codexAppPath = (appsDir: string) => path.join(appsDir, 'ChatGPT.app');
+export const codexAppPath = (appsDir: string) => path.join(appsDir, codexAppName(appsDir));
 
 const plistValue = (plist: string, key: string) =>
   new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`).exec(plist)?.[1] ?? null;

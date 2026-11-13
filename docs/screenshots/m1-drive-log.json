@@ -1,0 +1,32 @@
+[
+  {
+    "step": "01-welcome",
+    "shot": "docs/screenshots/m1-01-welcome.png",
+    "note": "欢迎屏只有标题和「开始安装」"
+  },
+  {
+    "step": "02-installing",
+    "shot": "docs/screenshots/m1-02-installing.png",
+    "note": "安装进度：下载 Codex / 装进应用程序 / 检查 Codex 一行行打勾"
+  },
+  {
+    "step": "03-models-first",
+    "shot": "docs/screenshots/m1-03-models-first.png",
+    "note": "装好直接进模型页：7 张卡叠在一起，没有正在用的"
+  },
+  {
+    "step": "04-login-enlarged",
+    "shot": "docs/screenshots/m1-04-login-enlarged.png",
+    "note": "第一次用 DeepSeek：右侧浏览器放大到登录页"
+  },
+  {
+    "step": "05-first-success",
+    "shot": "docs/screenshots/m1-05-first-success.png",
+    "note": "第一次成功弹窗：从零到能用 N 秒、打开 Codex、关注行"
+  },
+  {
+    "step": "06-switch-zhipu",
+    "shot": "docs/screenshots/m1-06-switch-zhipu.png",
+    "note": "切到 zhipu：卡在最上层 ✓ 能用；菜单只有 glm-4.5-flash, glm-4.6, glm-4.7-flash, glm-5"
+  }
+]

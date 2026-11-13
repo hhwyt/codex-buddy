@@ -37,7 +37,7 @@ describe('汉化（L）', () => {
     await mount(fakeApi());
     expect($(TID.settings.enCard)!.classList.contains('on')).toBe(true);
     expect($(TID.settings.zhCard)!.classList.contains('on')).toBe(false);
-    expect($(TID.settings.zhTrash)!.hidden).toBe(true);
+    expect($(TID.settings.zhTrash)).toBeNull(); // only there while the launcher exists
     expect(words(TID.settings.enCard)).toContain('New chat');
     expect(words(TID.settings.zhCard)).toContain('新对话');
   });
@@ -45,7 +45,7 @@ describe('汉化（L）', () => {
   it('L-01 已经是汉化版时打开设置，汉化卡选中、垃圾桶在', async () => {
     await mount(fakeApi({ 'app:state': appState({ zh: { on: true, launcherExists: true, supported: true, hidden: false } }) }));
     expect($(TID.settings.zhCard)!.classList.contains('on')).toBe(true);
-    expect($(TID.settings.zhTrash)!.hidden).toBe(false);
+    expect($(TID.settings.zhTrash)).not.toBeNull();
   });
 
   it('L-02 点汉化版：字从上往下一行行变中文，第一次加上图标，没有确认框', async () => {
@@ -60,7 +60,7 @@ describe('汉化（L）', () => {
     expect(order).toEqual(['New chat', 'Skills', 'Automations', 'Settings', "Let's build", 'Ask Codex anything…']);
     expect(fake.called('zh:set')[0].args).toEqual({ on: true });
     expect($(TID.settings.zhCard)!.classList.contains('on')).toBe(true);
-    expect($(TID.settings.zhTrash)!.hidden).toBe(false);
+    expect($(TID.settings.zhTrash)).not.toBeNull();
     expect(msg()).toContain('好了：从「ChatGPT 汉化版」打开就是中文');
     expect($(TID.dialog.root)).toBeNull();
     click(button('打开看看'));
@@ -100,7 +100,7 @@ describe('汉化（L）', () => {
     expect(order).toEqual(['Ask Codex anything…', "Let's build", 'Settings', 'Automations', 'Skills', 'New chat']);
     expect(fake.called('zh:set')[0].args).toEqual({ on: false });
     expect($(TID.settings.enCard)!.classList.contains('on')).toBe(true);
-    expect($(TID.settings.zhTrash)!.hidden).toBe(false);
+    expect($(TID.settings.zhTrash)).not.toBeNull();
     expect(msg()).toContain('图标还留着');
   });
 
@@ -136,7 +136,7 @@ describe('汉化（L）', () => {
     expect(fake.called('zh:remove')).toHaveLength(1);
     expect(fake.called('zh:set')).toHaveLength(0);
     expect(fake.called('restore:run')).toHaveLength(0);
-    expect($(TID.settings.zhTrash)!.hidden).toBe(true);
+    expect($(TID.settings.zhTrash)).toBeNull(); // only there while the launcher exists
     expect(msg()).toContain('Codex 和聊天记录都没动');
   });
 
@@ -167,11 +167,11 @@ describe('汉化（L）', () => {
     await settle();
     expect(fake.called('zh:remove')).toHaveLength(1);
     expect(msg()).toContain('图标没去掉');
-    expect($(TID.settings.zhTrash)!.hidden).toBe(false);
+    expect($(TID.settings.zhTrash)).not.toBeNull();
     click(button('再试一次'));
     await settle();
     expect(fake.called('zh:remove')).toHaveLength(2);
-    expect($(TID.settings.zhTrash)!.hidden).toBe(true);
+    expect($(TID.settings.zhTrash)).toBeNull(); // only there while the launcher exists
   });
 
   it('L-05 Codex 正开着时才问要不要重新打开', async () => {
@@ -204,7 +204,7 @@ describe('汉化（L）', () => {
     expect($(TID.settings.enCard)!.classList.contains('on')).toBe(true);
     expect($(TID.settings.zhCard)!.classList.contains('on')).toBe(false);
     expect(msg()).toContain('暂时汉化不了，已经退回英文原版，Codex 照常能用');
-    expect($(TID.settings.zhTrash)!.hidden).toBe(true);
+    expect($(TID.settings.zhTrash)).toBeNull(); // only there while the launcher exists
     click(button('知道了'));
     expect(msg()).toBe('');
   });

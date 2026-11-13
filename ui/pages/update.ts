@@ -75,9 +75,13 @@ export function showUpdate(api: BuddyApi, root: HTMLElement, info: { version: st
 
 /** U-01: subscribe once at startup; the same version pops at most once a day */
 export function watchUpdates(api: BuddyApi, root: HTMLElement): () => void {
-  return api.on('update', info => {
+  const offer = (info: { version: string; notes: string }) => {
     if (dismissedRecently(info.version, Date.now())) return;
     if (root.querySelector(`[data-testid="${TID.update.root}"]`)) return;
     showUpdate(api, root, info);
-  });
+  };
+  const off = api.on('update', offer);
+  // The main process may announce before this page listens: ask once as well
+  void api.invoke('update:check').then(r => { if (r?.kind === 'new') offer(r); }).catch(() => undefined);
+  return off;
 }

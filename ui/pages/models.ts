@@ -24,15 +24,16 @@ const SPREAD_COLS = 3;
 const SHAKE_MS = 400;
 
 export const renderModels: Page = async ({ api, root }) => {
-  const view = await api.invoke('wallet:get');
-  return mountModels(api, root, view);
+  const [view, state] = await Promise.all([api.invoke('wallet:get'), api.invoke('app:state')]);
+  return mountModels(api, root, view, { codexMissing: state?.codexInstalled === false });
 };
 
-export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletView): () => void {
+export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletView, opts: { codexMissing?: boolean } = {}): () => void {
   let wallet = initial;
   let order: VendorKey[] = initial.order.slice();
   let mode = initial.mode;
-  let front: FrontState | null = null;
+  // M-16: Codex was deleted since last time → the top card offers 重新安装 right away
+  let front: FrontState | null = opts.codexMissing ? { kind: 'missing' } : null;
   let switching = false;
   let dragging = false;
   let pendingWallet: WalletView | null = null;

@@ -57,7 +57,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
   let lang: Lang = state.zh.on ? 'zh' : 'en';
   let launcher = state.zh.launcherExists;
   let busy = false;
-  const msg = h('div', { class: 'lang-msg', role: 'status' });
+  const msg = h('div', { class: 'lang-msg', role: 'status', 'data-testid': TID.settings.langMsg });
 
   const radio = (on: boolean) => h('span', { class: on ? 'radio on' : 'radio' });
   const enShot = preview('en');
@@ -70,23 +70,25 @@ export const renderSettings: Page = async ({ api, root, go }) => {
   });
   trash.innerHTML = TRASH_SVG;
   trash.append(h('span', { class: 'tip' }, '去掉汉化版'));
-  zhShot.append(trash);
 
-  const enCard = h('button', { class: 'pick', type: 'button', 'data-testid': TID.settings.enCard, onclick: () => void choose('en') },
+  const enCard = h('button', { class: 'pick', type: 'button', role: 'radio', 'data-testid': TID.settings.enCard, onclick: () => void choose('en') },
     h('span', { class: 'cap' }, enRadio, '英文原版'), enShot);
-  const zhCard = h('div', { class: 'pick', role: 'button', tabindex: '0', 'data-testid': TID.settings.zhCard, onclick: () => void choose('zh'),
+  const zhCard = h('div', { class: 'pick', role: 'radio', tabindex: '0', 'data-testid': TID.settings.zhCard, onclick: () => void choose('zh'),
     onkeydown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void choose('zh'); } } },
   h('span', { class: 'cap' }, zhRadio, '汉化版'), zhShot);
 
   const mark = (l: Lang, spinning = false) => {
     enCard.classList.toggle('on', l === 'en');
     zhCard.classList.toggle('on', l === 'zh');
-    enCard.setAttribute('aria-pressed', String(l === 'en'));
-    zhCard.setAttribute('aria-pressed', String(l === 'zh'));
+    enCard.setAttribute('aria-checked', String(l === 'en'));
+    zhCard.setAttribute('aria-checked', String(l === 'zh'));
     enRadio.className = l === 'en' ? (spinning ? 'spin' : 'radio on') : 'radio';
     zhRadio.className = l === 'zh' ? (spinning ? 'spin' : 'radio on') : 'radio';
   };
-  const showTrash = () => { zhCard.classList.toggle('has', launcher); trash.hidden = !launcher; };
+  // The trash exists only while the 汉化版 launcher does (L-04)
+  const showTrash = () => { zhCard.classList.toggle('has', launcher); if (launcher) zhShot.append(trash); else trash.remove(); };
+  /** While a switch or removal runs the previews ignore clicks; aria-busy says so */
+  const setBusy = (on: boolean) => { busy = on; for (const c of [enCard, zhCard]) c.setAttribute('aria-busy', String(on)); };
   mark(lang);
   showTrash();
 
@@ -99,7 +101,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
 
   async function choose(to: Lang): Promise<void> {
     if (busy || to === lang) return;
-    busy = true;
+    setBusy(true);
     const shot = to === 'zh' ? zhShot : enShot;
     setWords(shot, to === 'zh' ? 'en' : 'zh'); // start from the other language, then morph into the target
     mark(to, true);
@@ -115,7 +117,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
         mark(lang);
         say(bad(), ` ${res.reason ?? '没切回英文原版'} `, btn('再试一次', () => void choose('en')));
       }
-      busy = false;
+      setBusy(false);
       return;
     }
     lang = to;
@@ -129,7 +131,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
     } else {
       say(ok(), ' 已切回英文原版；分身也变回英文。「ChatGPT 汉化版」图标还留着，想去掉点它右下角的垃圾桶');
     }
-    busy = false;
+    setBusy(false);
   }
 
   async function removeZh(): Promise<void> { // L-04: removes the launcher only
@@ -138,7 +140,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
       await choose('en');
       if (lang === 'zh') return;
     }
-    busy = true;
+    setBusy(true);
     trash.classList.add('open');
     const flyer = h('span', { class: 'flyer' }, h('img', { src: CODEX_ICON, alt: '' }), h('i', {}, '中'));
     zhCard.append(flyer);
@@ -153,7 +155,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
     } else {
       say(bad(), ' 「ChatGPT 汉化版」图标没去掉，从原来的 ChatGPT 打开已经是英文了 ', btn('再试一次', () => void removeZh()));
     }
-    busy = false;
+    setBusy(false);
   }
 
   const langPanel = state.zh.hidden ? null : h('div', { class: 'panel lang' },

@@ -44,7 +44,12 @@ export interface LaunchOptions {
   sandbox?: string;
   vendors?: VendorServer;
   config?: ConfigServer;
+  /** Extra CODEXBUDDY_ENDPOINTS keys (e.g. codexDownload for the real installer against a fake dmg server) */
+  endpoints?: Record<string, string>;
 }
+
+/** CODEXBUDDY_E2E_EXECUTABLE=<packaged app binary>: drive the packaged app instead of the repo build (m1 drive) */
+const packaged = process.env.CODEXBUDDY_E2E_EXECUTABLE;
 
 export interface Launched {
   app: ElectronApplication;
@@ -62,12 +67,13 @@ export interface Launched {
   close(): Promise<void>;
 }
 
-const appEnv = (sandbox: string, vendors: VendorServer, config: ConfigServer, extra: Record<string, string>) => ({
+const appEnv = (sandbox: string, vendors: VendorServer, config: ConfigServer, extra: Record<string, string>, endpoints: Record<string, string> = {}) => ({
   ...process.env,
   CODEXBUDDY_SANDBOX: sandbox,
   CODEXBUDDY_ENDPOINTS: JSON.stringify({
     remoteConfig: [config.jsdelivrUrl, config.githubUrl],
     vendors: Object.fromEntries(VENDOR_IDS.map(v => [v, vendors.vendorUrl(v)])),
+    ...endpoints,
   }),
   CODEXBUDDY_FAKE_CODEX: path.join(FAKES, 'fake-codex.mjs'),
   CODEXBUDDY_NODE: process.execPath,
@@ -91,14 +97,23 @@ export async function launch(opts: LaunchOptions = {}): Promise<Launched> {
   if (!opts.sandbox) opts.seed?.(sandbox);
   const vendors = opts.vendors ?? await (await loadFake<typeof VendorFake>('vendor-server.mjs')).startVendorServer();
   const config = opts.config ?? await (await loadFake<typeof ConfigFake>('config-server.mjs')).startConfigServer();
-  const app = await electron.launch({ args: [REPO], env: appEnv(sandbox, vendors, config, opts.env ?? {}) });
-  await captureExternal(app);
+  const env = appEnv(sandbox, vendors, config, opts.env ?? {}, opts.endpoints);
+  const app = await electron.launch(packaged ? { executablePath: packaged, args: [], env } : { args: [REPO], env });
   const page = await app.firstWindow();
+  await captureExternal(app);
   await page.waitForLoadState('domcontentloaded');
   const quit = async () => { await app.close().catch(() => undefined); };
   const run: Launched = {
     app, page, sandbox, vendors, config, home: path.join(sandbox, 'home'),
-    external: () => app.evaluate(() => (globalThis as unknown as { __e2e: { opened: string[]; revealed: string[] } }).__e2e),
+    async external() {
+      const seen = await app.evaluate(() => (globalThis as unknown as { __e2e: { opened: string[]; revealed: string[] } }).__e2e);
+      // The sandboxed app never opens anything; it records each open / reveal / external link in <sandbox>/opened.log
+      for (const line of (readText(path.join(sandbox, 'opened.log')) ?? '').split('\n').filter(Boolean)) {
+        const { kind, target } = JSON.parse(line) as { kind: string; target: string };
+        (kind === 'external' ? seen.opened : seen.revealed).push(target);
+      }
+      return seen;
+    },
     async relaunch(env) {
       await quit();
       return launch({ ...opts, sandbox, vendors, config, env: { ...(opts.env ?? {}), ...(env ?? {}) } });
@@ -125,11 +140,13 @@ export const codexDataDir = (sandbox: string) => process.platform === 'win32'
 
 /** A fake ChatGPT.app inside the sandbox whose CLI is test/fakes/fake-codex.mjs (seam 1) */
 export function seedCodex(sandbox: string, version = '26.1.0'): void {
-  const app = path.join(sandboxApps(sandbox), 'ChatGPT.app');
+  const app = path.join(sandboxApps(sandbox), 'Test-ChatGPT.app');
   fs.mkdirSync(path.join(app, 'Contents'), { recursive: true });
   fs.writeFileSync(path.join(app, 'Contents', 'Info.plist'),
-    `<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.openai.codex</string>` +
-    `<key>CFBundleName</key><string>ChatGPT</string><key>CFBundleShortVersionString</key><string>${version}</string></dict></plist>\n`);
+    `<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>local.codexbuddy.test-chatgpt</string>` +
+    `<key>CFBundleName</key><string>Test-ChatGPT</string><key>SUEnableAutomaticChecks</key><false/><key>CFBundleExecutable</key><string>ChatGPT</string><key>CFBundleShortVersionString</key><string>${version}</string></dict></plist>\n`);
+  fs.mkdirSync(path.join(app, 'Contents', 'MacOS'), { recursive: true });
+  fs.writeFileSync(path.join(app, 'Contents', 'MacOS', 'ChatGPT'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
   const cliDir = path.join(app, 'Contents', 'Resources', 'codex-cli', 'CodexCLI.app', 'Contents', 'MacOS');
   fs.mkdirSync(cliDir, { recursive: true });
   const fake = path.join(FAKES, 'fake-codex.mjs');

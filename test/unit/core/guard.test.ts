@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { GuardError, guardedRemove, protectedHit, type ProtectedRoots } from '../../../electron/core/guard';
+import { GuardError, guardedRemove, guardedRemoveOwn, protectedHit, type ProtectedRoots } from '../../../electron/core/guard';
 import { memFs } from '../../helpers/memfs';
 
 const roots: ProtectedRoots = {
@@ -49,5 +49,33 @@ describe('guard (Windows data dirs)', () => {
   });
   test('G-01 Windows 上 CodexBuddy 自己的分身启动器文件夹可以删', () => {
     expect(protectedHit('C:\\Users\\U\\AppData\\Local\\CodexBuddy\\apps\\deepseek', win)).toBeNull();
+  });
+});
+
+describe('guardedRemoveOwn (一键还原 takes back only files CodexBuddy added)', () => {
+  const roots = { codexHome: '/u/.codex', home: '/u', appDataDirs: ['/u/Library/Application Support/Codex'] };
+  const ownFs = (files: Record<string, string>) => ({
+    readText: (f: string) => files[f] ?? null,
+    remove: (f: string) => { delete files[f]; },
+  }) as unknown as import('../../../electron/core/types').FileSystem;
+
+  test('G-01 removes our own key file while it still holds only what we wrote', () => {
+    const files: Record<string, string> = { '/u/.codex/auth.json': '{"OPENAI_API_KEY":"sk-1"}' };
+    expect(guardedRemoveOwn(ownFs(files), '/u/.codex/auth.json', roots, t => !t.includes('tokens'))).toBe(true);
+    expect(files['/u/.codex/auth.json']).toBeUndefined();
+  });
+
+  test('G-01 keeps it when the content changed (a ChatGPT login saved later) or it is gone', () => {
+    const files: Record<string, string> = { '/u/.codex/auth.json': '{"tokens":{}}' };
+    expect(guardedRemoveOwn(ownFs(files), '/u/.codex/auth.json', roots, t => !t.includes('tokens'))).toBe(false);
+    expect(files['/u/.codex/auth.json']).toBe('{"tokens":{}}');
+    expect(guardedRemoveOwn(ownFs(files), '/u/.codex/codexbuddy-models.json', roots, () => true)).toBe(false);
+  });
+
+  test('G-01 refuses anything that is not one of our two files directly in the Codex home', () => {
+    const fs = ownFs({});
+    for (const t of ['/u/.codex/config.toml', '/u/.codex/sessions/auth.json', '/u/.codex', '/u/other/auth.json', '/u/.codex-kimi/auth.json']) {
+      expect(() => guardedRemoveOwn(fs, t, roots, () => true)).toThrow(GuardError);
+    }
   });
 });

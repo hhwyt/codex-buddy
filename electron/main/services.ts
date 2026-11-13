@@ -3,9 +3,9 @@
 // the real pieces in. Keys never leave this file except masked (keyTail) or inside auth.json / the encrypted state.
 import * as path from 'node:path';
 import { backup, restoreBackup } from '../core/backup';
-import { modelsFor } from '../core/catalogs';
+import { CATALOG_FILE, modelsFor } from '../core/catalogs';
 import { classifyFailure, reasonOf } from '../core/connectivity';
-import { guardedRemove } from '../core/guard';
+import { guardedRemove, guardedRemoveOwn } from '../core/guard';
 import { PROVIDERS, isBuiltin } from '../core/providers';
 import { hide, keyTail } from '../core/redact';
 import { loadRemote, isHidden, type Fetcher } from '../core/remote';
@@ -47,6 +47,8 @@ export const emptyState = (): BuddyState => ({
 });
 
 export interface ServiceDeps {
+  /** M-12: the vendor's own balance (only vendors with a balance API); null when unknown */
+  balance?(provider: ProviderInfo, key: string): Promise<{ granted: number; toppedUp: number } | null>;
   platform: Platform;
   clone: Clone;
   zh: ZhLauncher;
@@ -83,7 +85,19 @@ const ASK_AI = [
   '3. 它删除东西时会不会删掉 ~/.codex 里的聊天记录',
 ].join('\n');
 
-const FAIL_KIND: Partial<Record<FailureCode, string>> = { balance: 'no-balance', 'rate-limit': 'rate-limited', auth: 'key-failed' };
+/** auth.json that holds only an API key CodexBuddy wrote (no ChatGPT login tokens): ours to take away on 一键还原 */
+export const onlyOurKey = (text: string): boolean => {
+  try { const o = JSON.parse(text); return !!o && typeof o === 'object' && Object.keys(o).every(k => k === 'OPENAI_API_KEY'); } catch { return false; }
+};
+/** codexbuddy-models.json in the shape buildCatalog writes */
+export const isOurCatalog = (text: string): boolean => {
+  try { return Array.isArray(JSON.parse(text)?.models); } catch { return false; }
+};
+
+// Codex ran but answered nothing usable: Codex itself is broken → 一键修复 (M-15). Network trouble is a plain failure
+const FAIL_KIND: Partial<Record<FailureCode, string>> = {
+  balance: 'no-balance', 'rate-limit': 'rate-limited', auth: 'key-failed', 'no-reply': 'codex-broken', 'bad-reply': 'codex-broken',
+};
 
 export function createServices(d: ServiceDeps) {
   const { platform, cipher } = d;
@@ -159,6 +173,7 @@ export function createServices(d: ServiceDeps) {
     st.original = {
       takenAt: new Date(d.now()).toISOString(), backupDir,
       configExisted: fs.exists(configPath(paths.codexHome)), authExisted: fs.exists(path.join(paths.codexHome, 'auth.json')),
+      catalogExisted: fs.exists(path.join(paths.codexHome, CATALOG_FILE)),
       codexInstalled: !!(await platform.findCodex()), zhLauncher: await d.zh.exists(),
     };
     save();
@@ -236,6 +251,8 @@ export function createServices(d: ServiceDeps) {
       }
       st.rateLimited = st.rateLimited.filter(x => x !== v);
       if (result.model) st.models[v] = result.model;
+      // Our own write is not the user picking a model in Codex (pollModel)
+      if (codexHome === paths.codexHome) lastModel = readActive(fs.readText(configPath(codexHome))).model;
       save();
       return { ok: true, result };
     } finally { cleanScratch(dir); }
@@ -246,7 +263,11 @@ export function createServices(d: ServiceDeps) {
     await captureOriginal();
     keepOpenaiLogin();
     const r = await applyVendor(v, paths.codexHome, 'switch');
-    if (!r.ok) { const { result: _r, ...out } = r; return out; }
+    if (!r.ok) {
+      const { result: _r, ...out } = r;
+      if (out.kind === 'no-balance') await openRecharge(v); // M-13: the recharge page opens enlarged
+      return out;
+    }
     st.active = v;
     st.order = moveCard(walletOrder() as never[], v as never, 0) as VendorKey[];
     const firstTime = !st.firstSuccess;
@@ -255,7 +276,11 @@ export function createServices(d: ServiceDeps) {
     const seconds = firstTime && st.startedAt ? Math.max(1, Math.round((d.now() - st.startedAt) / 1000)) : undefined;
     const running = await platform.isCodexRunning();
     d.emit('wallet', wallet());
-    return { ok: true, firstTime, ...(seconds ? { seconds } : {}), running };
+    // M-12: only gift credit left (never topped up) → 先用着, the recharge page waits in the small window
+    const trial = await trialCredit(v);
+    const rechargeUrl = providerOf(v)?.rechargeUrl;
+    if (trial && rechargeUrl) await d.browser.open(rechargeUrl, { mode: 'pip' });
+    return { ok: true, firstTime, ...(seconds ? { seconds } : {}), running, ...(trial ? { trial: true } : {}) };
   };
 
   // ---------- wallet ----------
@@ -281,11 +306,32 @@ export function createServices(d: ServiceDeps) {
 
   /** M-28: Codex's own model menu changed config.toml → the card follows */
   let lastModel: string | null = readActive(fs.readText(configPath(paths.codexHome))).model;
+  const vendorOf = (v: VendorKey) => (isBuiltin(v) ? d.vendors[v] : null);
+  const openRecharge = async (v: VendorKey) => { const vendor = vendorOf(v); return !!vendor && vendor.openRecharge(d.browser); };
+  const trialCredit = async (v: VendorKey): Promise<boolean> => {
+    const p = providerOf(v);
+    const key = keyOf(v);
+    if (!p || !key || !d.balance) return false;
+    const b = await d.balance(p, key).catch(() => null);
+    return !!b && b.granted > 0 && b.toppedUp <= 0;
+  };
+  let checkingModel: Promise<void> | null = null;
+  /** M-11: the user picked a paid model in Codex's menu → test it with the saved key; no balance → recharge page (M-13) */
+  const checkPaidModel = (v: VendorKey, model: string) => {
+    const p = providerOf(v);
+    if (!p || p.officialAccount || modelsOf(p).find(m => m.slug === model)?.free !== false || checkingModel) return;
+    checkingModel = applyVendor(v, paths.codexHome, 'switch').then(async r => {
+      if (!r.ok && r.kind === 'no-balance') await openRecharge(v);
+    }).finally(() => { checkingModel = null; });
+  };
   const pollModel = () => {
     const now = readActive(fs.readText(configPath(paths.codexHome))).model;
     if (now === lastModel) return false;
     lastModel = now;
-    if (st.active && now) { st.models[st.active] = now; save(); }
+    if (st.active && now) {
+      st.models[st.active] = now; save();
+      checkPaidModel(st.active, now);
+    }
     d.emit('wallet', wallet());
     return true;
   };
@@ -327,7 +373,10 @@ export function createServices(d: ServiceDeps) {
             restoreBackup(fs, cipher, { codexHome: paths.codexHome, backupRoot: '' }, o.backupDir);
             // A file Codex did not have before cannot be deleted (guard protects ~/.codex): strip our lines instead
             if (!o.configExisted) fs.writeText(configPath(paths.codexHome), joinLines(configFor(splitLines(fs.readText(configPath(paths.codexHome))), { provider: PROVIDERS.find(p => p.officialAccount)!, codexHome: '', backupRoot: '', baseUrl: '', model: '', models: [] }, null)));
-            if (!o.authExisted && fs.exists(path.join(paths.codexHome, 'auth.json'))) fs.writeText(path.join(paths.codexHome, 'auth.json'), '{}\n');
+            // Files CodexBuddy added itself go away again, but only while they still hold just what we wrote
+            const roots = paths.protectedRoots();
+            if (!o.authExisted) guardedRemoveOwn(fs, path.join(paths.codexHome, 'auth.json'), roots, onlyOurKey);
+            if (o.catalogExisted === false) guardedRemoveOwn(fs, path.join(paths.codexHome, CATALOG_FILE), roots, isOurCatalog);
             break;
           }
           case 'remove-zh-launcher': await d.zh.remove(); break;
@@ -358,10 +407,10 @@ export function createServices(d: ServiceDeps) {
       await getRemote();
       const codex = await platform.findCodex();
       return {
-        version: d.version, os: d.os, configured: !!codex && st.onboarded, codexInstalled: !!codex,
+        version: d.version, os: d.os, configured: st.onboarded, codexInstalled: !!codex,
         codexRunning: await platform.isCodexRunning(),
         zh: { on: st.zh, launcherExists: await d.zh.exists(), supported: await d.zh.supported().catch(() => false), hidden: remote.switches.hideZh },
-        community: { qrUrl: await communityQr(), text: remote.community.text || '连上网后显示' },
+        community: { qrUrl: await communityQr(), text: (st.lastRemote && remote.community.text) || '连上网后显示' },
       };
     },
 
@@ -406,7 +455,18 @@ export function createServices(d: ServiceDeps) {
       return r;
     },
     'codex:open': async () => { await platform.openCodex({ zh: st.zh }); return { ok: true }; },
-    'codex:repair': async () => (st.active ? switchTo(st.active) : { ok: false, reason: '还没有选模型' }),
+    // M-15: steps already in place are ticked without redoing them; then the vendor in use is written again
+    'codex:repair': async () => {
+      if (!st.active) return { ok: false, reason: '还没有选模型' };
+      const emit = step('repair');
+      emit({ id: 'check', state: 'start', text: '检查 Codex' });
+      if (!(await platform.findCodex())) { emit({ id: 'check', state: 'fail', text: '没找到 Codex' }); return { ok: false, kind: 'codex-missing', reason: '没找到 Codex' }; }
+      emit({ id: 'check', state: 'done', text: 'Codex 已装好，跳过' });
+      const r = await applyVendor(st.active, paths.codexHome, 'repair');
+      if (!r.ok) { const { result: _r, ...out } = r; return out; }
+      emit({ id: 'config', state: 'done', text: '配置重写好了' });
+      return { ok: true };
+    },
     'codex:reinstall': async () => platform.installCodex(step('repair')),
 
     'clone:make': async ({ vendor }) => {

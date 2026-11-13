@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import { TID } from '../../ui/testids';
 import { applicationsListing, hashAll, realProtectedPaths, SNAPSHOT_FILE } from './hash';
-import { finishOnboarding, nav, switchTo } from './flows';
+import { clickClear, finishOnboarding, nav, switchTo } from './flows';
 import { launch, seedCodex, seedUserData } from './launch';
 
 test('X-01 测试版跑完全部端到端后，真实 ~/.codex 和 /Applications/ChatGPT.app 的哈希不变', async () => {
@@ -19,7 +19,7 @@ test('X-01 测试版跑完全部端到端后，真实 ~/.codex 和 /Applications
       await switchTo(run, 'deepseek');
       await nav.settings(run.page);
       await run.page.getByTestId(TID.settings.zhCard).click();
-      await run.page.getByTestId(TID.settings.restore).click();
+      await clickClear(run.page.getByTestId(TID.settings.restore));
       await run.page.getByTestId(TID.dialog.confirm).click();
     } finally {
       await run.close();

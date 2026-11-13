@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { TID } from '../../ui/testids';
-import { cardBoxes, finishOnboarding, nav, switchTo } from './flows';
+import { cardBoxes, clickClear, finishOnboarding, makeCloneOf, nav, switchTo } from './flows';
 import { hashTree } from './hash';
 import {
   catalogOf, cloneHome, codexHome, launch, readText, seedCodex, seedUserData, setCodexRunning, VENDOR_IDS, wallet, type Launched,
@@ -37,8 +37,7 @@ async function toCloneMode() {
   await expect.poll(async () => (await wallet(run.page)).mode).toBe('clone');
 }
 async function makeClone(v: string) {
-  await run.page.getByTestId(TID.models.cloneMake(v)).click();
-  await expect(run.page.getByTestId(TID.models.cloneOpen(v))).toBeVisible({ timeout: 30_000 });
+  await makeCloneOf(run.app, run.page, v);
 }
 
 test('C-01 分身模式下点做成分身生成独立 App', async () => {
@@ -168,7 +167,7 @@ test('C-10 一键还原时分身 App 一起去掉，数据目录留着', async (
   await makeClone('kimi');
   const data = hashTree(path.join(cloneHome(run.sandbox, 'kimi'), 'sessions'));
   await nav.settings(run.page);
-  await run.page.getByTestId(TID.settings.restore).click();
+  await clickClear(run.page.getByTestId(TID.settings.restore));
   await run.page.getByTestId(TID.dialog.confirm).click();
   await expect(run.page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
   expect(cloneEntry('Kimi')).toBeNull();

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import * as path from 'node:path';
 import { TID } from '../../ui/testids';
 import { fakeScan, finishOnboarding, inWebContents, switchTo, webContentsUrls } from './flows';
-import { clipboard, filesUnder, launch, seedCodex, seedUserData, vendorState, type Launched } from './launch';
+import { clipboard, filesUnder, launch, seedCodex, seedUserData, vendorState, wallet, type Launched } from './launch';
 import type { ConnectionView } from '../../electron/main/ipc-contract';
 import { BASE_NEEDS, merge, needs } from './pending';
 
@@ -64,8 +64,11 @@ test('S-04 连过的网站实时更新，分 CodexBuddy 连过的和网页里连
   await expect(appSites).toBeVisible();
   await expect(webSites).toBeVisible();
   await run.page.getByTestId(TID.security.close).click();
-  await run.page.getByTestId(TID.models.card('zhipu')).click();
-  await fakeScan(run.app, 'zhipu');
+  // DeepSeek: the key is made in the web page (网页里连过的); CodexBuddy itself then asks DeepSeek for the balance
+  await run.page.getByTestId(TID.models.card('deepseek')).click({ position: { x: 60, y: 20 } });
+  await fakeScan(run.app, 'deepseek');
+  await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('deepseek');
+  await run.page.keyboard.press('Escape'); // first-success dialog
   await openPanel();
   // panel stays open while more connections happen: it updates live
   await expect(webSites).toContainText(vendorHost(), { timeout: 20_000 });
@@ -77,8 +80,9 @@ test('S-04 连过的网站实时更新，分 CodexBuddy 连过的和网页里连
 
 test('S-05 白名单外的请求被拦掉并记下来', async () => {
   await ready();
-  await run.page.getByTestId(TID.models.card('zhipu')).click();
-  await inWebContents(run.app, '/zhipu/login', `fetch('http://203.0.113.9/steal').catch(() => 0); true`);
+  // CodexBuddy's own session asks for a host outside the whitelist (web pages are only logged, never blocked: S-04)
+  const reached = await run.app.evaluate(async ({ session }) => session.defaultSession.fetch('http://203.0.113.9/steal').then(() => true, () => false));
+  expect(reached).toBe(false);
   await openPanel();
   await expect.poll(async () => {
     const got = await run.page.evaluate(() => (window as unknown as { buddy: { invoke(c: string): Promise<{ app: ConnectionView[]; web: ConnectionView[] }> } }).buddy.invoke('security:get'));

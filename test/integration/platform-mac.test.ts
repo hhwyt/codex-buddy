@@ -19,7 +19,7 @@ const plist = (id: string, version = '26.1.0') =>
   `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>${id}</string>` +
   `<key>CFBundleShortVersionString</key><string>${version}</string></dict></plist>`;
 
-function makeApp(dir: string, id = 'com.openai.codex', version = '26.1.0') {
+function makeApp(dir: string, id = 'local.codexbuddy.test-chatgpt', version = '26.1.0') {
   fs.mkdirSync(path.join(dir, 'Contents', 'MacOS'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'Contents', 'Info.plist'), plist(id, version));
   fs.writeFileSync(path.join(dir, 'Contents', 'MacOS', 'ChatGPT'), 'bin');
@@ -100,8 +100,8 @@ afterEach(async () => {
 const platform = () => createMacPlatform(paths, { exec: fakeExec, downloadUrl: url });
 const app = () => macCodexAppPath(paths);
 
-test('O-02 沙盒里 Codex 装成 <沙盒>/Applications/ChatGPT.app，真机路径是 /Applications/ChatGPT.app', () => {
-  expect(app()).toBe(path.join(root, 'Applications', 'ChatGPT.app'));
+test('O-02 沙盒里 Codex 装成 <沙盒>/Applications/Test-ChatGPT.app，真机路径是 /Applications/ChatGPT.app', () => {
+  expect(app()).toBe(path.join(root, 'Applications', 'Test-ChatGPT.app'));
   expect(macCodexAppPath(macPaths('/Users/x'))).toBe(MAC_CODEX_APP);
   expect(macCli(MAC_CODEX_APP)).toBe('/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex');
   const real = macPaths('/Users/x');
@@ -110,7 +110,7 @@ test('O-02 沙盒里 Codex 装成 <沙盒>/Applications/ChatGPT.app，真机路�
 });
 
 test('O-02 已经装了 Codex：读出版本，直接算已装好，不下载不覆盖', async () => {
-  makeApp(app(), 'com.openai.codex', '26.5.1');
+  makeApp(app(), 'local.codexbuddy.test-chatgpt', '26.5.1');
   const p = platform();
   expect(await p.findCodex()).toEqual({ version: '26.5.1', location: app(), cli: macCli(app()), running: false });
   const events: string[] = [];
@@ -310,7 +310,7 @@ test('S-02 沙盒里不真的打开 App，只记下来', async () => {
 
 test.runIf(process.platform === 'darwin')('O-01 真的 hdiutil 和 ditto：从假下载源的 dmg 装进沙盒', async () => {
   const src = path.join(root, 'dmgroot');
-  makeApp(path.join(src, 'ChatGPT.app'), 'com.openai.codex', '27.0.0');
+  makeApp(path.join(src, 'Test-ChatGPT.app'), 'local.codexbuddy.test-chatgpt', '27.0.0');
   const dmgFile = path.join(root, 'real.dmg');
   execFileSync('/usr/bin/hdiutil', ['create', '-quiet', '-fs', 'HFS+', '-srcfolder', src, '-volname', 'Codex', dmgFile]);
   const bytes = fs.readFileSync(dmgFile);

@@ -10,7 +10,7 @@ import * as path from 'node:path';
 import { guardedRemove } from '../core/guard';
 import { nodeFs } from './node-fs';
 import { codexRunner } from './run-codex';
-import { sandboxExec } from './sandbox';
+import { codexAppName, sandboxExec, TEST_CODEX_BUNDLE_ID } from './sandbox';
 import type { CodexInstall, InstallProgress, Paths, Platform } from './types';
 
 export function macPaths(home = os.homedir()): Paths {
@@ -36,8 +36,8 @@ export const MAC_CODEX_BUNDLE_ID = 'com.openai.codex';
 export const MAC_CODEX_DMG_URL = 'https://persistent.oaistatic.com/codex-app-prod/Codex.dmg';
 export const macCli = (app: string) => path.join(app, 'Contents', 'Resources', 'codex-cli', 'CodexCLI.app', 'Contents', 'MacOS', 'codex');
 
-/** Where Codex lives: ChatGPT.app in the apps folder (/Applications, or <sandbox>/Applications in a sandbox) */
-export const macCodexAppPath = (paths: Paths) => path.join(paths.appsDir, 'ChatGPT.app');
+/** Where Codex lives: /Applications/ChatGPT.app, or <sandbox>/Applications/Test-ChatGPT.app in a sandbox */
+export const macCodexAppPath = (paths: Paths) => path.join(paths.appsDir, codexAppName(paths.appsDir));
 
 export type Exec = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
 
@@ -115,7 +115,7 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
     const plist = path.join(app, 'Contents', 'Info.plist');
     const id = await plistValue(plist, 'CFBundleIdentifier', exec);
     // Unreadable bundle id: treat it as installed, never overwrite (O-02)
-    if (id !== null && id !== MAC_CODEX_BUNDLE_ID) return null;
+    if (id !== null && id !== (sandboxed ? TEST_CODEX_BUNDLE_ID : MAC_CODEX_BUNDLE_ID)) return null;
     const version = (await plistValue(plist, 'CFBundleShortVersionString', exec)) ?? '';
     return { version, location: app, cli: macCli(app), running: await isCodexRunning() };
   };

@@ -86,13 +86,13 @@ describe('sandbox Codex', () => {
     expect(await p.uninstallCodex()).toEqual({ ok: true });
     expect((await p.installCodex(() => {})).ok).toBe(true);
     const c = await p.findCodex();
-    expect(c).toMatchObject({ version: '26.1.0', location: path.join(root, 'Applications', 'ChatGPT.app'), running: false });
+    expect(c).toMatchObject({ version: '26.1.0', location: path.join(root, 'Applications', 'Test-ChatGPT.app'), running: false });
     fs.mkdirSync(paths.codexHome, { recursive: true });
     const r = await p.runCodex(['--version'], { codexHome: paths.codexHome, timeoutMs: 10_000 });
     expect(r.out).toContain('codex-cli');
     await p.openCodex({ zh: true });
     await p.revealInFolder('/x');
-    expect(opened).toEqual([path.join(root, 'Applications', 'ChatGPT.app'), 'r:/x']);
+    expect(opened).toEqual([path.join(root, 'Applications', 'Test-ChatGPT.app'), 'r:/x']);
     fs.writeFileSync(path.join(root, 'fake-codex-running'), '');
     expect(await p.uninstallCodex()).toEqual({ ok: false, reason: '先退出 Codex 再还原' });
     fs.rmSync(path.join(root, 'fake-codex-running'));

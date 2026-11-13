@@ -1,6 +1,6 @@
 // User flows shared by the e2e specs: page navigation, card clicks and drags, the fake QR login. Owner: A7.
 // Everything goes through ui/testids.ts and the IPC contract; nothing depends on class names or internal storage.
-import { expect, type ElectronApplication, type Page } from '@playwright/test';
+import { expect, type ElectronApplication, type Locator, type Page } from '@playwright/test';
 import { TID } from '../../ui/testids';
 import { wallet, type Launched } from './launch';
 
@@ -28,7 +28,8 @@ export async function inWebContents(app: ElectronApplication, part: string, js: 
   for (;;) {
     const result = await app.evaluate(async ({ webContents }, a) => {
       const wc = webContents.getAllWebContents().find(w => w.getURL().includes(a.part) && !w.isLoading());
-      return wc ? { found: true, value: await wc.executeJavaScript(a.js) } : { found: false, value: null };
+      // userGesture: like a real click, so Chromium keeps the page in the back history
+      return wc ? { found: true, value: await wc.executeJavaScript(a.js, true) } : { found: false, value: null };
     }, { part, js });
     if (result.found) return result.value;
     if (Date.now() > until) throw new Error(`no webContents with ${part}; have ${(await webContentsUrls(app)).join(', ')}`);
@@ -81,7 +82,7 @@ export async function dragToFront(page: Page, vendor: string): Promise<void> {
 export async function switchTo(run: Launched, vendor: string, opts: { expectOk?: boolean; via?: 'click' | 'drag' } = {}): Promise<void> {
   const { page, app } = run;
   if (opts.via === 'drag') await dragToFront(page, vendor);
-  else await page.getByTestId(TID.models.card(vendor)).click();
+  else await page.getByTestId(TID.models.card(vendor)).click({ position: { x: 60, y: 20 } });
   if (vendor !== 'openai') {
     // Login is only needed the first time; ignore when the vendor needs none
     await fakeScan(app, vendor).catch(() => undefined);
@@ -98,3 +99,16 @@ export const confirmDialog = (page: Page) => page.getByTestId(TID.dialog.confirm
 /** All visible text of the window (for wording scans and key scans) */
 export const visibleText = (page: Page) => page.evaluate(() => document.body.innerText);
 export const fullHtml = (page: Page) => page.content();
+
+/** 做成分身: clicks the card's button and scans the fake QR code when the vendor's login page shows up (first key) */
+export async function makeCloneOf(app: ElectronApplication, page: Page, vendor: string): Promise<void> {
+  await page.getByTestId(TID.models.cloneMake(vendor)).click();
+  await fakeScan(app, vendor).catch(() => undefined);
+  await expect(page.getByTestId(TID.models.cloneOpen(vendor))).toBeVisible({ timeout: 30_000 });
+}
+
+/** Scrolls an element to the middle of its page first: the picture-in-picture window may sit over the bottom right */
+export async function clickClear(loc: Locator): Promise<void> {
+  await loc.evaluate(e => e.scrollIntoView({ block: 'center' }));
+  await loc.click();
+}

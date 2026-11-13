@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Fake Codex CLI. Owner: Base. Behaves like `codex exec --ephemeral --skip-git-repo-check <prompt>` and `codex login`
 // as far as CodexBuddy can tell, reading $CODEX_HOME/config.toml and auth.json.
-// Scenario: FAKE_CODEX_SCENARIO = ok | 401 | 429 | balance | timeout | unreachable | model (default ok)
+// Scenario: FAKE_CODEX_SCENARIO = ok | 401 | 429 | balance | timeout | unreachable | model | broken (default ok)
 //   or a file $CODEX_HOME/../fake-codex-scenario (lets a test change it between runs).
 // Model check: when config.toml has model_catalog_json, the model must be one of its slugs, else it fails like the
 // real CLI does: "unexpected status 404 Not Found: Model not available: <model>" (spike (a)).
@@ -51,6 +51,7 @@ switch (scenario) {
   case '429': fail(['ERROR: unexpected status 429 Too Many Requests: rate limit exceeded']); break;
   case 'balance': fail(['ERROR: unexpected status 402: insufficient balance 余额不足']); break;
   case 'model': fail([`ERROR: unexpected status 404 Not Found: Model not available: ${model}`]); break;
+  case 'broken': fail(['thread panicked']); break; // Codex itself broken: runs, answers nothing (M-15)
   default:
     if (provider && provider !== 'openai' && !key) fail(['ERROR: unexpected status 401 Unauthorized: missing api key']);
     if (catalog && model && !catalog.includes(model)) fail([`ERROR: unexpected status 404 Not Found: Model not available: ${model}`]);

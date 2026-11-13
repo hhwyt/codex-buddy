@@ -45,21 +45,16 @@ test('W-02 左栏切换模型、设置、帮助', async () => {
 });
 
 test('W-03 断网时正在做的那一步失败，再试一次从失败处接着做', async () => {
-  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
-  await finishOnboarding(run.page);
+  // The network drops while Codex downloads (the sandbox installer fails the download once)
+  run = await launch({ env: { CODEXBUDDY_FAKE_INSTALL: 'fail-once' }, seed: s => seedUserData(s) });
   await recordSteps(run.page);
-  setCodexScenario(run.sandbox, 'unreachable');
-  run.vendors.setScenario('timeout', 'deepseek');
-  await run.page.getByTestId(TID.models.card('deepseek')).click();
-  await fakeScan(run.app, 'deepseek').catch(() => undefined);
-  await expect.poll(async () => (await steps(run!.page)).some(s => s.state === 'fail'), { timeout: 60_000 }).toBe(true);
+  await run.page.getByTestId(TID.onboarding.start).click();
+  await expect(run.page.getByTestId(TID.onboarding.failure)).toBeVisible({ timeout: 30_000 });
   const failed = (await steps(run.page)).find(s => s.state === 'fail')!;
   const doneBefore = (await steps(run.page)).filter(s => s.flow === failed.flow && s.state === 'done').map(s => s.id);
-  setCodexScenario(run.sandbox, 'ok');
-  run.vendors.setScenario('ok', 'deepseek');
   await clearSteps(run.page);
-  await run.page.getByTestId(TID.dialog.confirm).click(); // 再试一次
-  await expect.poll(async () => (await wallet(run!.page)).active, { timeout: 30_000 }).toBe('deepseek');
+  await run.page.getByTestId(TID.onboarding.retry).click(); // 再试一次
+  await expect(run.page.getByTestId(TID.models.root)).toBeVisible({ timeout: 30_000 });
   const again = (await steps(run.page)).filter(s => s.state === 'start').map(s => s.id);
   expect(again[0]).toBe(failed.id);
   for (const id of doneBefore) expect(again).not.toContain(id);
@@ -122,7 +117,7 @@ test('H-03 代码、网络请求、界面里都不出现 humanslive', async () =
   run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
   run.app.context().on('request', req => urls.push(req.url()));
   await finishOnboarding(run.page);
-  await run.page.getByTestId(TID.models.card('zhipu')).click();
+  await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'zhipu');
   await nav.help(run.page);
   expect(urls.filter(u => /humanslive/i.test(u))).toEqual([]);

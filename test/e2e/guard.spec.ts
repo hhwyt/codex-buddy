@@ -4,7 +4,7 @@
 import { expect, test } from '@playwright/test';
 import * as path from 'node:path';
 import { TID } from '../../ui/testids';
-import { finishOnboarding, nav, switchTo } from './flows';
+import { clickClear, finishOnboarding, makeCloneOf, nav, switchTo } from './flows';
 import { hashAll, hashTree, realProtectedPaths } from './hash';
 import { cloneHome, codexDataDir, codexHome, launch, seedCodex, seedUserData, type Launched } from './launch';
 import { BASE_NEEDS, merge, needs } from './pending';
@@ -40,8 +40,7 @@ test('G-01 去掉汉化版、删除分身、一键还原前后，数据目录的
   // 删除分身
   await nav.models(page);
   await page.getByTestId(TID.models.modeClone).click();
-  await page.getByTestId(TID.models.cloneMake('deepseek')).click();
-  await expect(page.getByTestId(TID.models.cloneOpen('deepseek'))).toBeVisible({ timeout: 30_000 });
+  await makeCloneOf(run.app, page, 'deepseek');
   before = data();
   await page.getByTestId(TID.models.cloneRemove('deepseek')).click();
   await page.getByTestId(TID.dialog.confirm).click();
@@ -52,7 +51,7 @@ test('G-01 去掉汉化版、删除分身、一键还原前后，数据目录的
   await page.getByTestId(TID.models.modeSwitch).click();
   await nav.settings(page);
   before = data();
-  await page.getByTestId(TID.settings.restore).click();
+  await clickClear(page.getByTestId(TID.settings.restore));
   await page.getByTestId(TID.dialog.confirm).click();
   await expect(page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
   const after = data();

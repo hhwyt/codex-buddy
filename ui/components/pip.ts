@@ -19,6 +19,8 @@ export function mountBrowser(api: BuddyApi, root: HTMLElement): () => void {
   const close = () => btn(TID.browser.close, '关闭', '✕', () => void api.invoke('browser:close'));
 
   function render(s: BrowserState): void {
+    // While the small window sits bottom right, pages leave room under their content so nothing stays hidden behind it
+    root.classList.toggle('pip-open', s.open && s.mode === 'pip');
     if (!s.open) { host.replaceChildren(); return; }
     if (s.mode === 'pip') {
       const expand = () => void api.invoke('browser:show', { mode: 'expanded' });

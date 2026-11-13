@@ -38,7 +38,7 @@ test('O-02 已经装了 Codex 那一行直接显示已装好', async () => {
   // The Codex row says 已装好 without installing anything (the step text carries what the row shows)
   await expect.poll(async () => (await steps(page)).some(s => s.flow === 'install' && s.state === 'done' && s.text.includes('已装好')), { timeout: 30_000 }).toBe(true);
   await expect(page.getByTestId(TID.models.root)).toBeVisible({ timeout: 30_000 });
-  expect(fs.readFileSync(path.join(run.sandbox, 'Applications', 'ChatGPT.app', 'Contents', 'Info.plist'), 'utf8')).toContain('26.1.0');
+  expect(fs.readFileSync(path.join(run.sandbox, 'Applications', 'Test-ChatGPT.app', 'Contents', 'Info.plist'), 'utf8')).toContain('26.1.0');
 });
 
 test('O-03 安装失败进故障屏，再试一次从失败的那一步接着做', async () => {

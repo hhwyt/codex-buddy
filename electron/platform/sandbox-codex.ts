@@ -1,13 +1,14 @@
 // Sandbox stand-ins for the parts of Codex that cannot run in tests (CODEXBUDDY_SANDBOX runs only; never used on a
 // real machine). They follow the e2e seams listed in test/e2e/launch.ts:
-//   Codex installed = <sandbox>/Applications/ChatGPT.app exists; its CLI is the fake Codex (CODEXBUDDY_FAKE_CODEX run by
+//   Codex installed = <sandbox>/Applications/Test-ChatGPT.app exists; its CLI is the fake Codex (CODEXBUDDY_FAKE_CODEX run by
 //   CODEXBUDDY_NODE); Codex running = <sandbox>/fake-codex-running exists; install outcome = CODEXBUDDY_FAKE_INSTALL
-//   (ok | fail-once | fail | fix); 汉化 support = CODEXBUDDY_FAKE_ZH=unsupported; opening an app or revealing a file goes
+//   (ok | fail-once | fail | fix | dmg = the real installer against a fake dmg server); 汉化 support = CODEXBUDDY_FAKE_ZH=unsupported; opening an app or revealing a file goes
 //   through the injected opener / revealer (Electron shell, captured by e2e) so nothing is ever launched.
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
 import { guardedRemove } from '../core/guard';
 import type { CodexRunner } from '../core/types';
+import { TEST_CODEX_BUNDLE_ID } from './sandbox';
 import type { Clone, CodexInstall, Platform, ZhLauncher } from './types';
 
 export interface SandboxSeams {
@@ -18,8 +19,9 @@ export interface SandboxSeams {
 }
 
 const plist = (version: string) =>
-  `<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.openai.codex</string>` +
-  `<key>CFBundleName</key><string>ChatGPT</string><key>CFBundleExecutable</key><string>ChatGPT</string>` +
+  `<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>${TEST_CODEX_BUNDLE_ID}</string>` +
+  `<key>CFBundleName</key><string>Test-ChatGPT</string><key>CFBundleExecutable</key><string>ChatGPT</string>` +
+  `<key>SUEnableAutomaticChecks</key><false/>` +
   `<key>CFBundleShortVersionString</key><string>${version}</string></dict></plist>\n`;
 
 /** Runs the fake Codex CLI (node script) with CODEX_HOME set; same contract as platform/run-codex.ts */
@@ -39,7 +41,7 @@ export function fakeCodexRunner(node: string, script: string, extraEnv: NodeJS.P
 
 export function sandboxPlatform(base: Platform, seams: SandboxSeams): Platform {
   const { fs, paths } = base;
-  const app = path.join(seams.root, 'Applications', 'ChatGPT.app');
+  const app = path.join(seams.root, 'Applications', 'Test-ChatGPT.app');
   const runningFlag = path.join(seams.root, 'fake-codex-running');
   const downloads = path.join(paths.buddyDir, 'downloads');
   const failedOnce = path.join(downloads, '.failed-once');
@@ -57,6 +59,8 @@ export function sandboxPlatform(base: Platform, seams: SandboxSeams): Platform {
   const installCodex: Platform['installCodex'] = async progress => {
     if (await findCodex()) { progress({ id: 'download', state: 'done', text: '已装好' }); return { ok: true }; }
     const mode = seams.env.CODEXBUDDY_FAKE_INSTALL || 'ok';
+    // dmg: the real Mac installer (download, mount, ditto, check) against a fake download server holding Test-ChatGPT.app
+    if (mode === 'dmg') return base.installCodex(progress);
     fs.mkdirp(downloads);
     progress({ id: 'download', state: 'start', text: '下载 Codex' });
     if (mode === 'fail' || (mode === 'fail-once' && !fs.exists(failedOnce))) {

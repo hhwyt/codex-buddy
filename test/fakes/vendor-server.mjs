@@ -6,19 +6,18 @@
 //   GET  /<vendor>/recharge        recharge page (has a pay button the app must never click)
 //   POST /<vendor>/v1/chat/completions  Chat Completions (plain or stream)
 //   POST /<vendor>/v1/responses         Responses API (SSE stream, what Codex sends)
-// Scenario (per server or per vendor): ok | 401 | 429 | balance | timeout | keyfail
+// Scenario (per server or per vendor): ok | 401 | 429 | balance | timeout | keyfail | trial (gift credit only)
 // Model check: a request whose model is not in that vendor's list gets 404 "Model not available".
 // Run directly: `node test/fakes/vendor-server.mjs` prints the base URL (PORT env picks the port).
+import fs from 'node:fs';
 import http from 'node:http';
 
 export const VENDORS = ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'];
+// Each vendor knows exactly the models remote/config.json lists for it (the model menu CodexBuddy writes), so a new
+// model added there is served here too
+const REMOTE_MODELS = JSON.parse(fs.readFileSync(new URL('../../remote/config.json', import.meta.url), 'utf8')).models;
 const DEFAULT_MODELS = {
-  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
-  zhipu: ['glm-4.5-flash', 'glm-4.7-flash', 'glm-4.6', 'glm-5'],
-  kimi: ['kimi-k2-0905-preview', 'kimi-k2-turbo-preview', 'kimi-k2-thinking'],
-  qwen: ['qwen3-coder-plus', 'qwen3-coder-flash', 'qwen3-max'],
-  minimax: ['MiniMax-M2'],
-  hunyuan: ['hunyuan-turbos-latest', 'hunyuan-t1-latest'],
+  ...Object.fromEntries(VENDORS.map(v => [v, (REMOTE_MODELS[v] ?? []).map(m => m.slug)])),
   openai: ['gpt-5.5'],
 };
 
@@ -94,6 +93,11 @@ export function startVendorServer(opts = {}) {
       const key = `sk-fake-${vendor}-${Math.random().toString(36).slice(2, 14)}`;
       (state.keys[vendor] ??= []).push(key);
       return json(res, 200, { name: body?.name ?? 'CodexBuddy', key });
+    }
+    // DeepSeek-style balance: scenario trial = only gift credit (M-12), otherwise topped up
+    if (sub === '/user/balance') {
+      const trial = scenario === 'trial';
+      return json(res, 200, { is_available: true, balance_infos: [{ currency: 'CNY', total_balance: '10.00', granted_balance: trial ? '10.00' : '0.00', topped_up_balance: trial ? '0.00' : '10.00' }] });
     }
     const isChat = sub === '/v1/chat/completions';
     const isResponses = sub === '/v1/responses';

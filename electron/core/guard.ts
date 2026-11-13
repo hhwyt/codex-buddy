@@ -49,3 +49,21 @@ export function guardedRemove(fs: FileSystem, target: string, roots: ProtectedRo
   if (hit) throw new GuardError(target, hit);
   if (fs.exists(target)) fs.remove(target);
 }
+
+/** The only files CodexBuddy itself writes into a Codex home (the model menu and the key) */
+export const OWN_CODEX_FILES = ['codexbuddy-models.json', 'auth.json'] as const;
+
+/**
+ * 一键还原 only: takes away a file CodexBuddy itself added to a Codex home that did not have it before. Allowed only
+ * for a direct child of codexHome named in OWN_CODEX_FILES, and only while `stillOurs` confirms the content is still
+ * exactly what CodexBuddy wrote (a ChatGPT login saved there later is never removed). Returns whether it removed it.
+ */
+export function guardedRemoveOwn(fs: FileSystem, target: string, roots: ProtectedRoots, stillOurs: (text: string) => boolean): boolean {
+  const t = norm(target);
+  const name = t.slice(norm(roots.codexHome).length + 1);
+  if (!t.startsWith(norm(roots.codexHome) + '/') || !(OWN_CODEX_FILES as readonly string[]).includes(name)) throw new GuardError(target, roots.codexHome);
+  const text = fs.readText(target);
+  if (text === null || !stillOurs(text)) return false;
+  fs.remove(target);
+  return true;
+}

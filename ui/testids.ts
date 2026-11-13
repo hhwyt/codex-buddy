@@ -62,6 +62,7 @@ export const TID = {
     zhCard: 'lang-zh', // 汉化版 preview L-02
     enCard: 'lang-en', // 英文原版 preview L-03
     zhTrash: 'lang-zh-trash', // red trash, bottom right of the zh preview L-04
+    langMsg: 'lang-msg', // the line under the two previews: progress, 重新打开 / 先不了, failures (L-05, L-06, T-01)
     version: 'settings-version',
     checkUpdate: 'settings-check-update', // T-02
     restore: 'settings-restore', // 一键还原 T-03

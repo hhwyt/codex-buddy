@@ -7,6 +7,10 @@ import type { Paths } from './types';
 
 export const SANDBOX_ENV = 'CODEXBUDDY_SANDBOX';
 
+/** Codex's app name: the real ChatGPT.app in /Applications; in a sandbox a separate Test-ChatGPT.app with its own bundle id */
+export const codexAppName = (appsDir: string) => (appsDir === '/Applications' ? 'ChatGPT.app' : 'Test-ChatGPT.app');
+export const TEST_CODEX_BUNDLE_ID = 'local.codexbuddy.test-chatgpt';
+
 export function sandboxPaths(root: string, os: 'mac' | 'win' = process.platform === 'win32' ? 'win' : 'mac'): Paths {
   const home = path.join(root, 'home');
   const appSupport = os === 'mac' ? path.join(home, 'Library', 'Application Support') : path.join(home, 'AppData', 'Roaming');

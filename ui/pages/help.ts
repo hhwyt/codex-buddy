@@ -38,13 +38,15 @@ export const renderHelp: Page = async ({ api, root }) => {
   }
 
   const qr = communityQr(state.community.qrUrl);
+  // The code and its words come from the remote config; never fetched online yet → 连上网后显示 (H-02)
+  const words = state.community.text || '连上网后显示';
   const code = h('div', { class: 'qr', 'data-testid': TID.help.community },
-    qr ? h('img', { src: qr, alt: '社群二维码' }) : h('span', { class: 'muted' }, '连上网后显示'));
+    qr ? h('img', { src: qr, alt: '社群二维码' }) : null, h('span', { class: 'muted' }, words));
 
   root.replaceChildren(h('div', { class: 'help', 'data-testid': TID.help.root },
     h('h1', {}, '帮助'),
     h('div', { class: 'panel' }, h('div', { class: 'ft' }, '粘贴报错'), input, h('div', { class: 'row-end' }, explain), result),
     h('div', { class: 'panel row-between' },
-      h('div', {}, h('div', { class: 'ft' }, '扫码问我们'), h('div', { class: 'muted' }, state.community.text || '解决不了就扫码进群，把报错发给我们')),
+      h('div', {}, h('div', { class: 'ft' }, '扫码问我们'), h('div', { class: 'muted' }, '解决不了就扫码进群，把报错发给我们')),
       code)));
 };

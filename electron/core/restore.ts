@@ -6,6 +6,8 @@ export interface OriginalState {
   takenAt: string;
   configExisted: boolean;
   authExisted: boolean;
+  /** codexbuddy-models.json was already there (an older CodexBuddy); missing in states saved before this field = true */
+  catalogExisted?: boolean;
   codexInstalled: boolean;
   zhLauncher: boolean;
 }

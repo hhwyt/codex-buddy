@@ -42,6 +42,7 @@ async function responses(model: string, input: string, tools: unknown[] = []): P
 }
 
 test('M-24 切换后 Codex 菜单里只有这一家的模型，每个都标免费或付费', async () => {
+  test.setTimeout(240_000); // six vendors in a row
   await ready();
   for (const v of THIRD_PARTY) {
     await switchTo(run, v);
@@ -55,6 +56,7 @@ test('M-24 切换后 Codex 菜单里只有这一家的模型，每个都标免�
 });
 
 test('M-25 菜单里每个模型都能实际发一句话，不报 Model not available', async () => {
+  test.setTimeout(240_000); // six vendors in a row
   await ready();
   for (const v of THIRD_PARTY) {
     await switchTo(run, v);

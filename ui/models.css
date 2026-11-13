@@ -65,7 +65,7 @@
 .card .cl-note { font-size: 12px; opacity: .75; }
 .card .cl-btns { display: flex; gap: 8px; align-items: center; }
 .card .clbtn { font: 500 13px/1 var(--font); letter-spacing: 0; padding: 8px 16px; border-radius: var(--pill); border: 0; background: var(--bg); color: var(--ink); display: inline-flex; gap: 6px; align-items: center; }
-.card .clbtn.make { background: color-mix(in srgb, currentColor 18%, transparent); color: inherit; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, currentColor 60%, transparent); }
+.card .clbtn.make { background: var(--face-fill); color: inherit; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, currentColor 60%, transparent); }
 .models.clone .card { cursor: default; box-shadow: 0 10px 28px var(--shadow); }
 .models.clone .card.todo { filter: saturate(.35) brightness(1.08); }
 
