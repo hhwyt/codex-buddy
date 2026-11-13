@@ -1,6 +1,6 @@
 # Codex one-command installer (Windows): installs the official Codex app, creates a Zhipu API key after a
 # WeChat QR login, and wires Codex to Zhipu's free model.
-# Usage (PowerShell): irm https://humanslive.ai/codex.ps1 | iex
+# Usage (PowerShell): irm https://cdn.jsdelivr.net/gh/hhwyt/codex-buddy@main/scripts/vendor/codex.ps1 | iex
 # It only: downloads and verifies the official Codex package (China mirror, falling back to the Microsoft Store),
 # opens a Zhipu login window, creates one API key,
 # writes the config under %USERPROFILE%\.codex, and opens Codex. As on Mac, Codex downloads in the background while
@@ -8,7 +8,7 @@
 # Works with the built-in Windows PowerShell 5.1. Codex ships a system service (its command sandbox relies on it)
 # and Windows requires administrator consent to install it:
 # one UAC prompt at the start, used only to install Codex; every other step runs as the user.
-# Every run writes a log to %LOCALAPPDATA%\HumansLive\logs for debugging. Keys are never logged.
+# Every run writes a log to %LOCALAPPDATA%\CodexBuddy\logs for debugging. Keys are never logged.
 
 $ErrorActionPreference = 'Continue'   # codex.exe writes warnings to stderr; 'Stop' would treat them as fatal
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
@@ -22,7 +22,7 @@ $ZhipuBaseUrl = 'https://open.bigmodel.cn/api/v1'
 # Codex's model menu lists OpenAI's GPT models (and suggests switching to them) whatever the provider is, and picking one
 # writes it into config.toml; Zhipu has none of them, so every message then fails with "This model isn't available".
 # This catalog (codex-models.json in the repository) replaces that list with Zhipu models only
-$ModelCatalogUrl = 'https://humanslive.ai/codex-models.json'
+$ModelCatalogUrl = 'https://cdn.jsdelivr.net/gh/hhwyt/codex-buddy@main/remote/codex-models.json'
 $ZhipuLoginUrl = 'https://bigmodel.cn/login?redirect=%2Fapikey%2Fplatform'
 $ZhipuKeyPattern = '^[0-9a-f]{32}\.[A-Za-z0-9]{16}$'
 # glm-4.7-flash's free tier often answers 429 "overloaded", which stalls agent work (many requests in a row); try 4.5 first
@@ -30,7 +30,7 @@ $FreeModels = @('glm-4.5-flash', 'glm-4.7-flash')
 # CODEX_SETUP_LOGIN_PORT: an app already shows the Zhipu login page with a DevTools port, so connect to that page
 # instead of opening a browser window
 $DebugPort = if ($env:CODEX_SETUP_LOGIN_PORT) { [int]$env:CODEX_SETUP_LOGIN_PORT } else { 9333 }
-$CacheDir = if ($env:CODEX_SETUP_CACHE_DIR) { $env:CODEX_SETUP_CACHE_DIR } else { Join-Path $env:LOCALAPPDATA 'HumansLive' }
+$CacheDir = if ($env:CODEX_SETUP_CACHE_DIR) { $env:CODEX_SETUP_CACHE_DIR } else { Join-Path $env:LOCALAPPDATA 'CodexBuddy' }
 $WorkDir = Join-Path $env:TEMP ('codex-setup-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Force $WorkDir | Out-Null
 
@@ -137,8 +137,8 @@ function Header($title, $subtitle) {
   if ($Live) {
     $cols = Get-ConsoleWidth
     Show-Rain $(if ($cols -gt 76) { 70 } else { $cols - 6 }) 6 900
-    Show-Decode "$Blue$Bold" "HUMANSLIVE.AI ▸ $title"
-  } else { Write-Host "  HUMANSLIVE.AI ▸ $title" }
+    Show-Decode "$Blue$Bold" "CODEXBUDDY ▸ $title"
+  } else { Write-Host "  CODEXBUDDY ▸ $title" }
   Write-Host "  $Dim$subtitle$R"
 }
 function Section($title, $note) { Log "== $title $note"; Write-Host ''; Write-Host "  $Blue$Bold▸$R $Bold$title$R  $Dim$note$R" }
@@ -162,7 +162,7 @@ function Show-Error($text) {
   Write-Host "  $Red$Bold$Cross 出错了$R"
   Write-Host "     $text"
   Write-Host "     ${Dim}日志：$LogFile$R"
-  Write-Host "     ${Dim}需要帮助：把这个日志文件发到社群 https://humanslive.ai/community$R"
+  Write-Host "     ${Dim}需要帮助：把这个日志文件发到社群 https://github.com/hhwyt/codex-buddy/discussions$R"
   Write-Host ''
   if (-not $StepOutput) { Start-Process explorer.exe "/select,`"$LogFile`"" -ErrorAction SilentlyContinue }   # The app offers to copy the log instead
 }
@@ -185,7 +185,7 @@ function Show-NextSteps {
   Section '想用更强的模型' '我们帮你开通'
   Write-Host "     ${Bold}OpenAI 官方 GPT 模型$R"
   Write-Host "     ${Bold}Claude 模型$R"
-  Write-Host "     $Blue→$R 来社群找我们：${Link}https://humanslive.ai/community$R"
+  Write-Host "     $Blue→$R 来社群找我们：${Link}https://github.com/hhwyt/codex-buddy/discussions$R"
 }
 function Fail($text) {
   Log "FAIL $text"
@@ -359,7 +359,7 @@ function Open-Codex($codex) {
 # why). The launcher opens Codex with Chinese turned on locally; "ChatGPT 汉化版" shortcuts on the desktop and in the
 # Start menu point at it. Written to disk as is, so it stays readable for anyone who wants to check what it does
 $CodexZhLauncher = {
-# Opens Codex with a Chinese interface (written by the HumansLive Codex installer).
+# Opens Codex with a Chinese interface (written by the CodexBuddy Codex installer).
 # Codex shows translations only when OpenAI's feature switch enable_i18n (Statsig layer 72216192) is on, and the
 # switch is fetched from OpenAI on every launch; where OpenAI is unreachable it stays off and the UI is English
 # whatever the Language setting says. So start Codex with a local DevTools port, patch that one switch in every
@@ -420,7 +420,7 @@ function Get-ShortcutIcon {
   "$path,0"
 }
 function Save-Shortcut($path) {
-  $temporary = Join-Path $env:TEMP 'humanslive-codex-zh.lnk'
+  $temporary = Join-Path $env:TEMP 'codexbuddy-codex-zh.lnk'
   $link = (New-Object -ComObject WScript.Shell).CreateShortcut($temporary)
   # A headless console host: the launcher stays alive next to Codex, and a plain powershell.exe would sit in the taskbar
   # as a Windows Terminal window all that time
@@ -483,34 +483,34 @@ public static class CodexActivator {
 # layer 72216192, get('enable_i18n') answers true. Everything else Statsig returns is left as it is.
 $Patch = @'
 (() => {
-  if (window.__humansliveZh) return;
-  window.__humansliveZh = true;
+  if (window.__codexBuddyZh) return;
+  window.__codexBuddyZh = true;
   const LAYER = '72216192';
   // Every hook hands Codex exactly what it would have got and only then tries the patch, inside try/catch: if
   // anything here breaks on a future Codex, the switch simply stays off
   const fixValue = (value) => {
     try {
-      if (!value || typeof value.get !== 'function' || value.__humansliveZh) return;
+      if (!value || typeof value.get !== 'function' || value.__codexBuddyZh) return;
       const get = value.get;
       value.get = function (key, fallback) { return key === 'enable_i18n' ? true : get.call(this, key, fallback); };
-      value.__humansliveZh = true;
+      value.__codexBuddyZh = true;
     } catch (e) { }
   };
   const wrap = (original) => {
-    if (typeof original !== 'function' || original.__humansliveZh) return original;
+    if (typeof original !== 'function' || original.__codexBuddyZh) return original;
     const wrapped = function (layerName, options) {
       const value = original.apply(this, arguments);
       if (layerName === LAYER) fixValue(value);
       return value;
     };
-    wrapped.__humansliveZh = true;
+    wrapped.__codexBuddyZh = true;
     return wrapped;
   };
   // The client registers itself before its constructor finishes and assigns its own getLayer/getDynamicConfig
   // afterwards, so wrap whatever gets assigned, not just what is there now
   const fixClient = (client) => {
-    if (!client || typeof client !== 'object' || client.__humansliveZh) return;
-    client.__humansliveZh = true;
+    if (!client || typeof client !== 'object' || client.__codexBuddyZh) return;
+    client.__codexBuddyZh = true;
     for (const name of ['getLayer', 'getDynamicConfig']) {
       let current = wrap(client[name]);
       Object.defineProperty(client, name, { configurable: true, get: () => current, set: (next) => { current = next; try { current = wrap(next); } catch (e) { } } });
@@ -524,8 +524,8 @@ $Patch = @'
   };
   const fixRoot = (root) => {
     try {
-      if (!root || typeof root !== 'object' || root.__humansliveZh) return;
-      root.__humansliveZh = true;
+      if (!root || typeof root !== 'object' || root.__codexBuddyZh) return;
+      root.__codexBuddyZh = true;
       for (const key of ['firstInstance', 'instances']) {
         let current = root[key];
         Object.defineProperty(root, key, { configurable: true, enumerable: true, get: () => current, set: (next) => { current = next; fixAll(root); } });
@@ -579,8 +579,8 @@ function Get-CodexProcesses($appDir) {
 # text, one blue primary button). Closing the window or Esc means no; Enter means yes
 function Ask-RestartInChinese {
   Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-  try { Add-Type -Namespace HumansLive -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -ErrorAction Stop } catch {}
-  try { [void][HumansLive.Dpi]::SetProcessDPIAware() } catch {}
+  try { Add-Type -Namespace CodexBuddy -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -ErrorAction Stop } catch {}
+  try { [void][CodexBuddy.Dpi]::SetProcessDPIAware() } catch {}
   $color = { param($hex) [Drawing.ColorTranslator]::FromHtml($hex) }
   $white = [Drawing.Color]::White
   $form = New-Object Windows.Forms.Form
@@ -596,7 +596,7 @@ function Ask-RestartInChinese {
       Text = $text; Font = $font; ForeColor = (& $color $hex); Location = New-Object Drawing.Point(28, $y); Size = New-Object Drawing.Size(424, $height)
     }))
   }
-  & $addLabel 'HUMANSLIVE.AI ▸ CODEX' (New-Object Drawing.Font('Consolas', 9, [Drawing.FontStyle]::Bold)) '#0c8df6' 26 20
+  & $addLabel 'CODEXBUDDY ▸ CODEX' (New-Object Drawing.Font('Consolas', 9, [Drawing.FontStyle]::Bold)) '#0c8df6' 26 20
   & $addLabel 'ChatGPT 现在是英文界面' (New-Object Drawing.Font('Microsoft YaHei UI', 15)) '#2e343b' 50 36
   & $addLabel '多半是升级后它自己重启了。重启一下就是中文，正在进行的任务会中断。' (New-Object Drawing.Font('Microsoft YaHei UI Light', 10)) '#737b85' 90 44
   $answer = @{ restart = $false }
@@ -635,7 +635,7 @@ function Ask-RestartInChinese {
 }
 
 # Already running from this launcher: just bring Codex to the front
-$mutex = [Threading.Mutex]::new($false, 'Local\HumansLiveCodexZh')
+$mutex = [Threading.Mutex]::new($false, 'Local\CodexBuddyCodexZh')
 if (-not $mutex.WaitOne(0)) { Log 'launcher already running: activating codex'; Open-CodexPlain; exit }
 Set-Content -LiteralPath $LogFile -Value "$(Get-Date -Format s) start" -Encoding UTF8
 
@@ -714,7 +714,7 @@ try {
 Log 'codex closed'
 }
 function Install-CodexZh {
-  $dir = Join-Path $env:LOCALAPPDATA 'HumansLive'
+  $dir = $CacheDir
   New-Item -ItemType Directory -Force $dir | Out-Null
   $launcher = Join-Path $dir 'codex-zh.ps1'
   # With a BOM: Windows PowerShell reads a .ps1 without one in the ANSI code page, and the launcher has Chinese text
@@ -731,19 +731,19 @@ function Install-CodexZh {
 }
 # English edition chosen: remove what the Chinese edition added, so Codex is only opened the original way
 function Remove-CodexZh {
-  $dir = Join-Path $env:LOCALAPPDATA 'HumansLive'
+  $dir = $CacheDir
   $links = [Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs') | ForEach-Object { Join-Path $_ 'ChatGPT 汉化版.lnk'; Join-Path $_ 'Codex 汉化版.lnk' }
   Remove-Item -LiteralPath $links -ErrorAction SilentlyContinue
   Remove-Item (Join-Path $dir 'codex-zh.*'), (Join-Path $dir 'shortcut-icon.txt'), (Join-Path $dir 'chatgpt-*.ico'), (Join-Path $dir 'disabled-*.txt') -ErrorAction SilentlyContinue
 }
 # Two big buttons in a window on top, for users who would not think of typing into the console. Styled like the
-# humanslive.ai dialogs: white card, ink text, one blue primary button. Closing the window or Enter picks Chinese;
+# CodexBuddy dialogs: white card, ink text, one blue primary button. Closing the window or Enter picks Chinese;
 # returns $null when no window can be shown
 function Show-EditionDialog {
   try {
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-    try { Add-Type -Namespace HumansLive -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -ErrorAction Stop } catch {}
-    try { [void][HumansLive.Dpi]::SetProcessDPIAware() } catch {}
+    try { Add-Type -Namespace CodexBuddy -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -ErrorAction Stop } catch {}
+    try { [void][CodexBuddy.Dpi]::SetProcessDPIAware() } catch {}
     $color = { param($hex) [Drawing.ColorTranslator]::FromHtml($hex) }
     $white = [Drawing.Color]::White
     $form = New-Object Windows.Forms.Form
@@ -759,7 +759,7 @@ function Show-EditionDialog {
         Text = $text; Font = $font; ForeColor = (& $color $hex); Location = New-Object Drawing.Point(28, $y); Size = New-Object Drawing.Size(424, $height)
       }))
     }
-    & $addLabel 'HUMANSLIVE.AI ▸ CODEX' (New-Object Drawing.Font('Consolas', 9, [Drawing.FontStyle]::Bold)) '#0c8df6' 26 20
+    & $addLabel 'CODEXBUDDY ▸ CODEX' (New-Object Drawing.Font('Consolas', 9, [Drawing.FontStyle]::Bold)) '#0c8df6' 26 20
     & $addLabel '选择 Codex 版本' (New-Object Drawing.Font('Microsoft YaHei UI', 15)) '#2e343b' 50 36
     & $addLabel 'Codex 在国内打开只有英文界面，我们可以帮你汉化。' (New-Object Drawing.Font('Microsoft YaHei UI Light', 10)) '#737b85' 90 24
     $choice = @{ value = 'zh' }
@@ -1142,10 +1142,47 @@ if ($env:CODEX_SETUP_ACTION -eq 'edition') {
     exit 0
   } catch { Log "edition failed: $($_.Exception.Message)"; Step edition fail '汉化没装上'; exit 1 }
 }
+# CODEX_SETUP_ACTION=install: only install the official Codex app (steps check, install), for CodexBuddy, which sets up
+# the models itself. The download resumes from the cache, so 再试一次 does not download again
+if ($env:CODEX_SETUP_ACTION -eq 'install') {
+  try {
+    Step check start '检测电脑'
+    $os = Get-CimInstance Win32_OperatingSystem
+    Log "install only: os=$($os.Caption) build=$($os.BuildNumber) arch=$env:PROCESSOR_ARCHITECTURE"
+    $codex = Get-Codex
+    if (-not $codex) {
+      $freeGb = [int]((Get-PSDrive ($env:LOCALAPPDATA.Substring(0, 1))).Free / 1GB)
+      if ($freeGb -lt 4) { Fail "硬盘空间不够：装 Codex 需要约 4GB，现在只剩 ${freeGb}GB。清理一些文件后，重新运行这行命令。" }
+      if (-not (Test-AdminMember)) { Fail '这台电脑现在登录的账号不是管理员。Codex 带一个系统组件，Windows 规定要管理员账号才能装。换管理员账号登录后，重新运行这行命令。' }
+    }
+    Step check done "$($os.Caption -replace 'Microsoft ', '')"
+    if ($codex) { Step install done "已经装过 Codex $($codex.Version)"; exit 0 }
+    Step install start '下载 Codex'
+    $installed = $false
+    $source = Select-Source
+    if ($source) {
+      Start-Download $source.Url $source.Name $source.File; Start-InstallHelper
+      if (-not $Script:Dl.Done) { Show-DownloadProgress }
+      if ($Script:Dl.Done) { Step install start '安装 Codex'; $installed = Install-FromMsix $Script:Dl.File }
+    }
+    if (-not $installed -and -not $Script:RepositoryBroken) { Install-FromStore }
+    $codex = Get-Codex
+    if (-not $codex -and $Script:RepositoryBroken) { Fail '这台电脑的 Windows 应用数据库坏了（错误 0x80073CFE），微软商店也装不上任何应用，不是 Codex 的问题。修好 Windows 后重新运行这行命令。' }
+    if (-not $codex) {
+      Start-Process "ms-windows-store://pdp/?ProductId=$CodexStoreId" -ErrorAction SilentlyContinue
+      Fail '没能自动安装 Codex。已为你打开微软商店的 Codex 页面：点「获取」装好后，重新运行这行命令。'
+    }
+    Step install done "Codex $($codex.Version) 已装好"
+    exit 0
+  } catch {
+    if ("$_" -ne 'HL_FAIL') { Log "EXCEPTION $($_.Exception.Message)"; Step $Script:CurrentStep 'fail' "安装中途出了意外：$($_.Exception.Message)" }
+    exit 1
+  } finally { Stop-Download; Remove-Item -Recurse -Force $WorkDir -ErrorAction SilentlyContinue }
+}
 $Steps = 3
 try {
   Header 'CODEX INSTALLER' 'Codex 一键安装 · 国产模型版 · 不用科学上网 · 不花一分钱'
-  Write-Host "  $Blue→$R 遇到问题来社群找我们：${Link}https://humanslive.ai/community$R"
+  Write-Host "  $Blue→$R 遇到问题来社群找我们：${Link}https://github.com/hhwyt/codex-buddy/discussions$R"
   $Edition = Select-Edition
   Log "edition: $Edition"
   Ok $(if ($Edition -eq 'zh') { '汉化版' } else { '英文原版' })
@@ -1274,7 +1311,7 @@ try {
     }
   }
   # The model menu shows only Zhipu models: fetch the catalog (see $ModelCatalogUrl); without it, the menu stays as it is
-  $catalogPath = Join-Path $CodexHome 'humanslive-models.json'
+  $catalogPath = Join-Path $CodexHome 'codexbuddy-models.json'
   $catalogLine = $null
   try {
     $catalog = [Text.Encoding]::UTF8.GetString((Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 $ModelCatalogUrl).RawContentStream.ToArray())
@@ -1417,25 +1454,8 @@ try {
   }
   Show-NextSteps
 
-  # ---------- Closing banner: other free HumansLive tools ----------
-  # Content and layout come from the website (one kind<TAB>a<TAB>b per line); this only colors by kind.
-  # If it cannot be fetched, print one URL instead; the install result is unaffected.
-  $text = $null
-  try { $text = Invoke-RestMethod -TimeoutSec 6 "https://humanslive.ai/api/install-banner?f=codex&w=$(Get-ConsoleWidth)" } catch { }
-  if (-not $text) { Write-Host ''; Write-Host '  更多免费工具和服务：https://humanslive.ai'; Write-Host '' }
-  else {
-    foreach ($line in (($text -replace "`r", '' -replace [char]27, '') -split "`n")) {
-      $p = $line -split "`t"
-      switch ($p[0]) {
-        'rule'  { Write-Host "  $Dim$($p[1])$R" }
-        'brand' { Write-Host "  $Bold$($p[1])$R$($p[2])" }
-        'head'  { Write-Host "  $Blue$Bold$($p[1])$R  $Dim$($p[2])$R" }
-        'row'   { Write-Host "    $($p[1])$Dim$($p[2])$R" }
-        'link'  { Write-Host "    $Blue$($p[1])$R" }
-        default { Write-Host '' }
-      }
-    }
-  }
+  # ---------- Closing banner: where CodexBuddy lives ----------
+  Write-Host ''; Write-Host "  CodexBuddy：https://github.com/hhwyt/codex-buddy"; Write-Host ''
   Write-Host ''
   Write-Host "  ${Bold}装好了，可以关掉这个窗口。$R"
   Write-Host ''
