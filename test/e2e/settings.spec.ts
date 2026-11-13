@@ -147,7 +147,7 @@ test('L-07 分身跟着汉化开关走', async () => {
   await run.page.getByTestId(TID.models.modeClone).click();
   await makeCloneOf(run.app, run.page, 'deepseek');
   const appsDir = process.platform === 'win32' ? path.join(run.home, 'AppData', 'Local', 'CodexBuddy', 'apps') : sandboxApps(run.sandbox);
-  const cloneApp = () => fs.readdirSync(appsDir).find(n => n.startsWith('DeepSeek'))!;
+  const cloneApp = () => fs.readdirSync(appsDir).find(n => n.toLowerCase().startsWith('deepseek'))!; // Mac DeepSeek.app, Windows deepseek\
   const english = hashTree(path.join(appsDir, cloneApp()));
   await toSettings();
   await run.page.getByTestId(TID.settings.zhCard).click();
@@ -174,8 +174,8 @@ test('T-01 汉化版和英文原版切换，失败时提示', async () => {
   // failure path: the 汉化版 entry cannot be added (its folder is a file), the page says so and stays English
   fs.rmSync(zhLauncher(), { recursive: true, force: true });
   fs.mkdirSync(path.dirname(zhLauncher()), { recursive: true });
-  fs.writeFileSync(zhLauncher(), 'occupied');
-  fs.chmodSync(zhLauncher(), 0o444);
+  if (process.platform === 'win32') fs.mkdirSync(zhLauncher()); // Windows: a folder where the .lnk goes (a read-only file can still be replaced)
+  else { fs.writeFileSync(zhLauncher(), 'occupied'); fs.chmodSync(zhLauncher(), 0o444); }
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect(langMsg()).toContainText('✗', { timeout: 10_000 });
   expect(await zhOn()).toBe(false);

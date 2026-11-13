@@ -4,13 +4,13 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { PROVIDERS } from '../../electron/core/providers';
 import { validateRemote } from '../../electron/core/remote';
 import type { BuiltinVendorId, RemoteConfig } from '../../electron/core/types';
 import { aesCipher } from '../../electron/main/cipher';
 import type { EventName } from '../../electron/main/ipc-contract';
-import { createServices, explain, isOurCatalog, onlyOurKey, SOURCE_URL, type ServiceDeps } from '../../electron/main/services';
+import { createServices, explain, isOurCatalog, onlyOurKey, QR_WAIT_MS, SOURCE_URL, type ServiceDeps } from '../../electron/main/services';
 import { createMacPlatform } from '../../electron/platform/mac';
 import { nodeFs } from '../../electron/platform/node-fs';
 import { sandboxClone, sandboxPlatform, sandboxZh } from '../../electron/platform/sandbox-codex';
@@ -542,6 +542,23 @@ describe('security, help, update, restore', () => {
     const b = build();
     expect((await b.h['app:state'](undefined as never)).community).toEqual({ qrUrl: 'data:image/png;base64,AQID', text: '扫码进群' });
     expect((await b.h['app:state'](undefined as never)).community.qrUrl).toBe('data:image/png;base64,AQID');
+  });
+
+  test('H-02 社群码下得慢时不拖住页面：最多等 3 秒，下好了下次就有', async () => {
+    fetchText = async () => JSON.stringify({ ...bundled, community: { qrUrl: 'https://cdn.jsdelivr.net/gh/hhwyt/codex-buddy@main/remote/qr.png', text: '扫码进群' } });
+    let arrive: (v: { type: string; data: Uint8Array }) => void = () => {};
+    fetchBytes = () => new Promise(r => { arrive = r; });
+    const b = build();
+    await b.h['app:state'](undefined as never); // loads the remote config
+    vi.useFakeTimers();
+    try {
+      const pending = b.h['app:state'](undefined as never);
+      await vi.advanceTimersByTimeAsync(QR_WAIT_MS);
+      expect((await pending).community.qrUrl).toBeNull();
+    } finally { vi.useRealTimers(); }
+    arrive({ type: 'image/png', data: new Uint8Array([1]) });
+    await new Promise(r => setTimeout(r, 0));
+    expect((await b.h['app:state'](undefined as never)).community.qrUrl).toBe('data:image/png;base64,AQ==');
   });
 
   test('T-02 检查更新：有新版 / 已是最新 / 没网；U-01 启动时提示，稍后当天不再提示', async () => {

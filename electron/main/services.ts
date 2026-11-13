@@ -20,6 +20,9 @@ import type { BrowserDriver, Vendor } from '../vendors/types';
 import type { CardView, ConnectionView, EventName, IpcEvents, Outcome, StepView, VendorKey, WalletView } from './ipc-contract';
 import type { Handlers } from './ipc';
 
+/** How long app:state waits for the community QR code before answering without it */
+export const QR_WAIT_MS = 3000;
+
 export interface CustomVendor { id: `custom-${string}`; name: string; baseUrl: string; model: string }
 
 /** Everything CodexBuddy remembers (buddyDir/state.json). Secrets are encrypted (base64 of cipher output) */
@@ -137,10 +140,13 @@ export function createServices(d: ServiceDeps) {
     const url = remote.community.qrUrl;
     if (!url) return null;
     if (qrData) return qrData;
-    try {
-      const { type, data } = await d.fetchBytes(url);
-      qrData = `data:${type};base64,${Buffer.from(data).toString('base64')}`;
-    } catch { /* offline: the page shows its cached copy (H-02) */ }
+    // A slow network must not hold up app:state: wait at most 3 s; a later answer is kept for the next call
+    const fetched = d.fetchBytes(url)
+      .then(({ type, data }) => { qrData = `data:${type};base64,${Buffer.from(data).toString('base64')}`; })
+      .catch(() => { /* offline: the page shows its cached copy (H-02) */ });
+    let timer: NodeJS.Timeout | undefined;
+    await Promise.race([fetched, new Promise(r => { timer = setTimeout(r, QR_WAIT_MS); })]);
+    clearTimeout(timer);
     return qrData;
   };
 

@@ -76,7 +76,7 @@ export function sandboxPlatform(base: Platform, seams: SandboxSeams): Platform {
     await new Promise(r => setTimeout(r, Number(seams.env.CODEXBUDDY_FAKE_INSTALL_MS ?? 1500)));
     if (mode === 'fix') {
       progress({ id: 'fix-catalog', state: 'start', text: '模型清单不对，重新写一份' });
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 1500)); // long enough to be seen (and asserted) on a slow machine
       progress({ id: 'fix-catalog', state: 'done', text: '修好了' });
     }
     progress({ id: 'copy', state: 'start', text: '装进应用程序' });
