@@ -1,8 +1,6 @@
-// openai: console API for creating a key, login detection. Owner: A4.
+// openai: the official account logs in through Codex itself in the system browser (M-22, M-26); no key, no recharge
+// page. obtainKey answers 'failed' with a note so the caller routes it to `codex login`. Owner: A4.
 import { providerOf } from '../core/providers';
 import { makeVendor } from './base';
 
-export const openai = makeVendor(providerOf('openai'), {
-  // TODO(A4): real login detection and console API (docs/spikes.md (b) lists the key page)
-  loggedIn: url => !/login|sign_in/.test(url),
-});
+export const openai = makeVendor(providerOf('openai'));
