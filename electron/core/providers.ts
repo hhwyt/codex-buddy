@@ -48,7 +48,9 @@ export const PROVIDERS: ProviderInfo[] = [
       { slug: 'qwen3-coder-flash', name: 'Qwen3 Coder Flash', free: false, reasoning: [] },
       { slug: 'qwen3-max', name: 'Qwen3 Max', free: false, reasoning: [] },
     ],
-    loginUrl: 'https://bailian.console.aliyun.com/', keysUrl: 'https://bailian.console.aliyun.com/?apiKey=1',
+    // The console itself shows a logged-out visitor the same URL (with a 登录 link): log in on Aliyun's own login page,
+    // which comes back to the console (2026-11-13, hwy-pc)
+    loginUrl: 'https://account.aliyun.com/login/login.htm?oauth_callback=https%3A%2F%2Fbailian.console.aliyun.com%2F', keysUrl: 'https://bailian.console.aliyun.com/?apiKey=1',
     rechargeUrl: 'https://billing-cost.console.aliyun.com/fortune/fund-management/recharge',
     hosts: ['dashscope.aliyuncs.com', 'bailian.console.aliyun.com'],
   },
@@ -68,7 +70,7 @@ export const PROVIDERS: ProviderInfo[] = [
       { slug: 'hunyuan-t1-latest', name: '混元 T1', free: false, reasoning: [] },
       { slug: 'hunyuan-lite', name: '混元 Lite', free: true, reasoning: [] },
     ],
-    loginUrl: 'https://cloud.tencent.com/login', keysUrl: 'https://console.cloud.tencent.com/hunyuan/start',
+    loginUrl: 'https://cloud.tencent.com/login?s_url=https%3A%2F%2Fconsole.cloud.tencent.com%2Fhunyuan%2Fstart', keysUrl: 'https://console.cloud.tencent.com/hunyuan/start',
     rechargeUrl: 'https://console.cloud.tencent.com/expense/recharge', hosts: ['api.hunyuan.cloud.tencent.com', 'console.cloud.tencent.com'],
   },
   {
