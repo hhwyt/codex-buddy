@@ -1,6 +1,7 @@
 // Sandbox paths: every path CodexBuddy touches, mapped inside one folder (CODEXBUDDY_SANDBOX). Owner: Base.
 // Used by tests and by e2e runs of the real app. Nothing outside the sandbox is read or written: no real ~/.codex,
 // no /Applications, no real Codex app.
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Paths } from './types';
 
@@ -30,3 +31,15 @@ export function sandboxPaths(root: string, os: 'mac' | 'win' = process.platform 
 
 /** The sandbox root when CodexBuddy runs sandboxed, else null */
 export const sandboxRoot = (env: NodeJS.ProcessEnv = process.env): string | null => env[SANDBOX_ENV] || null;
+
+type Exec = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
+
+/** Exec for sandbox runs: `open` (launch an app, show in Finder) is appended to logFile instead of run */
+export function sandboxExec(logFile: string, real: Exec): Exec {
+  return async (cmd, args) => {
+    if (path.basename(cmd) !== 'open') return real(cmd, args);
+    fs.mkdirSync(path.dirname(logFile), { recursive: true });
+    fs.appendFileSync(logFile, JSON.stringify([cmd, ...args]) + '\n');
+    return { code: 0, stdout: '' };
+  };
+}

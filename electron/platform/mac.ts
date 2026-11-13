@@ -1,13 +1,17 @@
 // Mac platform. Owner: A2.
 // Codex on Mac = /Applications/ChatGPT.app (bundle id com.openai.codex); CLI at
 // Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex (spike (a)). Install = download the official dmg and
-// copy the app into /Applications (never in tests: sandbox.ts paths). Never modify ChatGPT.app.
+// copy the app into /Applications (never in tests: sandbox paths put it at <sandbox>/Applications/Test-ChatGPT.app).
+// Never modify ChatGPT.app. 还原 removes Codex only when CodexBuddy installed it (marker file), always through guard.ts.
+import { execFile } from 'node:child_process';
+import * as nfs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { todo } from '../core/todo';
+import { guardedRemove } from '../core/guard';
 import { nodeFs } from './node-fs';
 import { codexRunner } from './run-codex';
-import type { Paths, Platform } from './types';
+import { sandboxExec } from './sandbox';
+import type { CodexInstall, InstallProgress, Paths, Platform } from './types';
 
 export function macPaths(home = os.homedir()): Paths {
   const appSupport = path.join(home, 'Library', 'Application Support');
@@ -27,17 +31,165 @@ export function macPaths(home = os.homedir()): Paths {
 }
 
 export const MAC_CODEX_APP = '/Applications/ChatGPT.app';
+export const MAC_CODEX_BUNDLE_ID = 'com.openai.codex';
+/** Official Codex dmg (overridable: CODEXBUDDY_ENDPOINTS {"codexDownload": "..."} or deps.downloadUrl) */
+export const MAC_CODEX_DMG_URL = 'https://persistent.oaistatic.com/codex-app-prod/Codex.dmg';
 export const macCli = (app: string) => path.join(app, 'Contents', 'Resources', 'codex-cli', 'CodexCLI.app', 'Contents', 'MacOS', 'codex');
 
-export function createMacPlatform(paths: Paths = macPaths()): Platform {
+/** Where Codex lives: the real /Applications/ChatGPT.app, or Test-ChatGPT.app inside a sandbox */
+export const macCodexAppPath = (paths: Paths) =>
+  paths.appsDir === '/Applications' ? MAC_CODEX_APP : path.join(paths.appsDir, 'Test-ChatGPT.app');
+
+export type Exec = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
+
+export const realExec: Exec = (cmd, args) => new Promise(resolve => {
+  execFile(cmd, args, { timeout: 10 * 60_000 }, (err, stdout) => {
+    resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stdout: String(stdout ?? '') });
+  });
+});
+
+export interface MacDeps {
+  exec: Exec;
+  fetch: typeof fetch;
+  downloadUrl: string;
+}
+
+export function downloadUrlFromEnv(env: NodeJS.ProcessEnv = process.env): string {
+  try {
+    const u = JSON.parse(env.CODEXBUDDY_ENDPOINTS || '{}').codexDownload;
+    if (typeof u === 'string' && u) return u;
+  } catch { /* fall through */ }
+  return MAC_CODEX_DMG_URL;
+}
+
+/** Reads one key of an Info.plist: XML text first, then plutil (binary plists). null when unreadable */
+export async function plistValue(plist: string, key: string, exec: Exec): Promise<string | null> {
+  const text = nodeFs.readText(plist);
+  if (text === null) return null;
+  const m = text.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`));
+  if (m) return m[1];
+  const r = await exec('/usr/bin/plutil', ['-extract', key, 'raw', '-o', '-', plist]);
+  return r.code === 0 && r.stdout.trim() ? r.stdout.trim() : null;
+}
+
+/** Downloads url into file, resuming from file.part (O-07). A finished file is never fetched again */
+export async function resumableDownload(url: string, file: string, doFetch: typeof fetch): Promise<void> {
+  if (nfs.existsSync(file)) return;
+  const part = `${file}.part`;
+  nfs.mkdirSync(path.dirname(file), { recursive: true });
+  const have = nfs.existsSync(part) ? nfs.statSync(part).size : 0;
+  const res = await doFetch(url, { headers: have ? { Range: `bytes=${have}-` } : {} });
+  if (res.status === 416 && have) { nfs.renameSync(part, file); return; }
+  if (!res.ok || !res.body) throw new Error(`download http ${res.status}`);
+  const append = res.status === 206 && have > 0;
+  const out = nfs.createWriteStream(part, { flags: append ? 'a' : 'w' });
+  try {
+    const reader = res.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!out.write(value)) await new Promise<void>(r => out.once('drain', () => r()));
+    }
+  } finally {
+    await new Promise<void>(r => out.end(r));
+  }
+  nfs.renameSync(part, file);
+}
+
+export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDeps> = {}): Platform {
+  const sandboxed = paths.appsDir !== '/Applications';
+  // In a sandbox `open` is recorded instead of run, so e2e never launches anything
+  const exec = deps.exec ?? (sandboxed ? sandboxExec(path.join(paths.buddyDir, 'sandbox-open.log'), realExec) : realExec);
+  const doFetch = deps.fetch ?? fetch;
+  const downloadUrl = deps.downloadUrl ?? downloadUrlFromEnv();
+  const app = macCodexAppPath(paths);
+  const roots = paths.protectedRoots();
+  const downloads = path.join(paths.buddyDir, 'downloads');
+  const dmg = path.join(downloads, 'Codex.dmg');
+  /** Present only when CodexBuddy installed Codex itself; 还原 uninstalls nothing without it */
+  const marker = path.join(paths.buddyDir, 'installed-codex.json');
+
+  const isCodexRunning = async () => (await exec('/usr/bin/pgrep', ['-f', path.join(app, 'Contents', 'MacOS') + '/'])).code === 0;
+
+  const findCodex = async (): Promise<CodexInstall | null> => {
+    if (!nodeFs.exists(app)) return null;
+    const plist = path.join(app, 'Contents', 'Info.plist');
+    const id = await plistValue(plist, 'CFBundleIdentifier', exec);
+    // Unreadable bundle id: treat it as installed, never overwrite (O-02)
+    if (id !== null && id !== MAC_CODEX_BUNDLE_ID) return null;
+    const version = (await plistValue(plist, 'CFBundleShortVersionString', exec)) ?? '';
+    return { version, location: app, cli: macCli(app), running: await isCodexRunning() };
+  };
+
+  /** Mounts the dmg, copies the first .app into place (via a temp name, then rename), detaches */
+  const copyFromDmg = async () => {
+    const mnt = path.join(paths.buddyDir, 'mnt');
+    nodeFs.mkdirp(mnt);
+    const attach = await exec('/usr/bin/hdiutil', ['attach', dmg, '-nobrowse', '-readonly', '-noautoopen', '-mountpoint', mnt]);
+    if (attach.code !== 0) {
+      guardedRemove(nodeFs, dmg, roots); // a broken dmg is fetched again next time
+      throw new Error('mount');
+    }
+    try {
+      const name = nodeFs.list(mnt).find(f => f.endsWith('.app'));
+      if (!name) throw new Error('no app in dmg');
+      const tmp = `${app}.partial`;
+      guardedRemove(nodeFs, tmp, roots);
+      if ((await exec('/usr/bin/ditto', [path.join(mnt, name), tmp])).code !== 0) throw new Error('copy');
+      nfs.renameSync(tmp, app);
+    } finally {
+      await exec('/usr/bin/hdiutil', ['detach', mnt, '-force']);
+    }
+  };
+
+  const installCodex = async (progress: InstallProgress) => {
+    let step = 'download';
+    try {
+      if (nodeFs.exists(app)) {
+        // Already there (ours, someone else's, or unreadable): never overwrite
+        progress({ id: 'download', state: 'done', text: 'Codex 已装好' });
+        return (await findCodex()) ? { ok: true } : { ok: false, reason: '应用程序里已有同名的 App，没有覆盖它' };
+      }
+      progress({ id: 'download', state: 'start', text: '下载 Codex' });
+      await resumableDownload(downloadUrl, dmg, doFetch);
+      progress({ id: 'download', state: 'done', text: '下载 Codex' });
+      step = 'copy';
+      progress({ id: 'copy', state: 'start', text: '装进应用程序' });
+      await copyFromDmg();
+      nodeFs.writeText(marker, JSON.stringify({ app }));
+      progress({ id: 'copy', state: 'done', text: '装进应用程序' });
+      step = 'check';
+      progress({ id: 'check', state: 'start', text: '检查 Codex' });
+      if (!(await findCodex())) throw new Error('check');
+      guardedRemove(nodeFs, dmg, roots);
+      progress({ id: 'check', state: 'done', text: '检查 Codex' });
+      return { ok: true };
+    } catch {
+      const reason = step === 'download' ? '下载没成功，检查一下网络再试' : step === 'copy' ? '没能装进应用程序' : '装好的 Codex 打不开';
+      progress({ id: step, state: 'fail', text: reason });
+      return { ok: false, reason };
+    }
+  };
+
+  const uninstallCodex = async () => {
+    // Codex that was there before CodexBuddy is never uninstalled
+    if (!nodeFs.exists(marker)) return { ok: true };
+    if (await isCodexRunning()) return { ok: false, reason: '先退出 Codex 再还原' };
+    guardedRemove(nodeFs, app, roots);
+    guardedRemove(nodeFs, downloads, roots);
+    guardedRemove(nodeFs, marker, roots);
+    return { ok: true };
+  };
+
   return {
     os: 'mac', paths, fs: nodeFs,
-    findCodex: async () => todo('A2', 'mac findCodex'),
-    installCodex: async () => todo('A2', 'mac installCodex'),
-    uninstallCodex: async () => todo('A2', 'mac uninstallCodex'),
-    runCodex: (args, opts) => codexRunner(macCli(MAC_CODEX_APP))(args, opts),
-    openCodex: async () => todo('A2', 'mac openCodex'),
-    isCodexRunning: async () => todo('A2', 'mac isCodexRunning'),
-    revealInFolder: async () => todo('A2', 'mac revealInFolder'),
+    findCodex, installCodex, uninstallCodex,
+    runCodex: (args, opts) => codexRunner(macCli(app))(args, opts),
+    openCodex: async ({ zh }) => {
+      const target = zh && nodeFs.exists(paths.zhLauncherPath) ? paths.zhLauncherPath : app;
+      await exec('/usr/bin/open', [target]);
+    },
+    isCodexRunning,
+    revealInFolder: async target => { await exec('/usr/bin/open', ['-R', target]); },
   };
 }
