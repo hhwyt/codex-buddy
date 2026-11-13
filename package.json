@@ -5,21 +5,32 @@
   "author": "hhwyt",
   "license": "MIT",
   "private": true,
-  "main": "dist/main.js",
+  "main": "dist/app.js",
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p ui/tsconfig.json",
     "start": "npm run build && electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p ui/tsconfig.json --noEmit && tsc -p test/tsconfig.json",
+    "lint": "npm run typecheck && node scripts/lint-scan.mjs",
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage",
+    "test:e2e": "npm run build && playwright test",
+    "check:ids": "node scripts/check-spec-ids.mjs",
     "preview": "scripts/preview.sh",
-    "dist": "npm run build && electron-builder --win nsis --x64 --publish never"
+    "dist": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^5.1.0",
     "electron": "38.4.0",
     "electron-builder": "26.8.1",
-    "typescript": "5.9.3"
+    "happy-dom": "^21.0.4",
+    "typescript": "5.9.3",
+    "vitest": "^5.1.0"
   },
   "build": {
-    "appId": "ai.humanslive.codexbuddy",
+    "appId": "app.codexbuddy",
     "productName": "CodexBuddy",
     "executableName": "CodexBuddy",
     "directories": {
@@ -28,11 +39,12 @@
     },
     "files": [
       "package.json",
-      "dist/*.js",
+      "dist/**/*.js",
       "ui/index.html",
-      "ui/app.css",
-      "ui/build/*.js",
+      "ui/*.css",
+      "ui/build/**/*.js",
       "ui/assets/**",
+      "remote/config.json",
       "scripts/vendor/codex.ps1"
     ],
     "asar": true,
@@ -61,6 +73,15 @@
       "shortcutName": "CodexBuddy",
       "artifactName": "CodexBuddy-Setup-${version}.exe",
       "deleteAppDataOnUninstall": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dir"
+        }
+      ],
+      "identity": null,
+      "category": "public.app-category.developer-tools"
     }
   }
 }

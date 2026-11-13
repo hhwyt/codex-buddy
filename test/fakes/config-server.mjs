@@ -1,0 +1,43 @@
+// Fake remote-config server: serves remote/config.json at a jsDelivr-like and a GitHub-raw-like path.
+// Owner: Base. Modes per source: ok | down (500) | bad (invalid JSON) | slow (never answers).
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+export const BUNDLED_CONFIG = path.join(here, '..', '..', 'remote', 'config.json');
+
+/** @param {{ port?: number, config?: unknown }} [opts] */
+export function startConfigServer(opts = {}) {
+  const state = {
+    body: JSON.stringify(opts.config ?? JSON.parse(fs.readFileSync(BUNDLED_CONFIG, 'utf8'))),
+    mode: /** @type {Record<'jsdelivr'|'github', string>} */ ({ jsdelivr: 'ok', github: 'ok' }),
+    hits: /** @type {string[]} */ ([]),
+    hangs: /** @type {http.ServerResponse[]} */ ([]),
+  };
+  const server = http.createServer((req, res) => {
+    const source = req.url?.startsWith('/jsdelivr/') ? 'jsdelivr' : req.url?.startsWith('/github/') ? 'github' : null;
+    if (!source) { res.writeHead(404); return res.end(); }
+    state.hits.push(source);
+    const mode = state.mode[source];
+    if (mode === 'slow') { state.hangs.push(res); return; }
+    if (mode === 'down') { res.writeHead(500); return res.end('down'); }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(mode === 'bad' ? '{not json' : state.body);
+  });
+  return new Promise(resolve => {
+    server.listen(opts.port ?? 0, '127.0.0.1', () => {
+      const { port } = /** @type {import('node:net').AddressInfo} */ (server.address());
+      const url = `http://127.0.0.1:${port}`;
+      resolve({
+        url, state,
+        jsdelivrUrl: `${url}/jsdelivr/remote/config.json`,
+        githubUrl: `${url}/github/remote/config.json`,
+        setMode: (/** @type {'jsdelivr'|'github'} */ source, /** @type {string} */ mode) => { state.mode[source] = mode; },
+        setConfig: (/** @type {unknown} */ config) => { state.body = JSON.stringify(config); },
+        close: () => new Promise(r => { for (const h of state.hangs) h.destroy(); server.closeAllConnections?.(); server.close(() => r(undefined)); }),
+      });
+    });
+  });
+}

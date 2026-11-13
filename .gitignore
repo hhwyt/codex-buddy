@@ -3,3 +3,6 @@ node_modules/
 dist/
 ui/build/
 release/
+coverage/
+test-results/
+playwright-report/

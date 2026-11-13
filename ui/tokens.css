@@ -1,0 +1,45 @@
+/* Design tokens: approved-spec §2「Codex 原样」. The ONLY file allowed to contain color values (UI-00, npm run lint).
+   Everything else uses var(--…). No gradients, no glow, no sweep. Owner: Base. */
+:root {
+  --bg: #fff;
+  --side: #f9f9f9;
+  --line: #ededed;
+  --ink: #0d0d0d;
+  --ink-2: #5d5d5d;
+  --ink-3: #8f8f8f;
+  --on-ink: #fff;
+  --blue: #0285ff;         /* only「正在用 / ✓ 能用」and selected */
+  --blue-bg: #e5f3ff;
+  --green: #00a240;        /* only success */
+  --red: #e02e2a;          /* only errors */
+  --hover: rgba(0, 0, 0, 0.04);
+  --selected: rgba(0, 0, 0, 0.06); /* left column selected item, no blue bar */
+  --shadow: rgba(0, 0, 0, 0.12);
+  --scrim: rgba(0, 0, 0, 0.32);
+
+  /* Card faces: full-bleed brand colors */
+  --face-zhipu: #1c1c1e;
+  --face-deepseek: #4d6bfe;
+  --face-kimi: #16191e;
+  --face-qwen: #615ced;
+  --face-minimax: #f0446a;
+  --face-hunyuan: #0b5cff;
+  --face-openai: #ececec;
+  --face-custom: #0d0d0d;
+  --face-ink: #fff;
+  --face-ink-light: #5d5d5d; /* text on the light OpenAI face */
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --tracking: -0.01em;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --pill: 999px;
+
+  /* Layout */
+  --side-width: 200px;
+  --top-height: 52px;
+  --card-width: 380px;
+  --card-ratio: 1.586;
+  --card-peek: 64px;
+}

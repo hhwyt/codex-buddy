@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "latest": {
+    "version": "0.1.0",
+    "notes": "",
+    "macUrl": "https://github.com/hhwyt/codex-buddy/releases/latest",
+    "winUrl": "https://github.com/hhwyt/codex-buddy/releases/latest"
+  },
+  "models": {
+    "deepseek": [
+      {
+        "slug": "deepseek-chat",
+        "name": "DeepSeek Chat",
+        "free": false,
+        "reasoning": []
+      },
+      {
+        "slug": "deepseek-reasoner",
+        "name": "DeepSeek Reasoner",
+        "free": false,
+        "reasoning": []
+      }
+    ],
+    "zhipu": [
+      {
+        "slug": "glm-4.5-flash",
+        "name": "GLM-4.5-Flash",
+        "free": true,
+        "reasoning": []
+      },
+      {
+        "slug": "glm-4.7-flash",
+        "name": "GLM-4.7-Flash",
+        "free": true,
+        "reasoning": []
+      },
+      {
+        "slug": "glm-4.6",
+        "name": "GLM-4.6",
+        "free": false,
+        "reasoning": []
+      },
+      {
+        "slug": "glm-5",
+        "name": "GLM-5",
+        "free": false,
+        "reasoning": []
+      }
+    ],
+    "kimi": [
+      {
+        "slug": "kimi-k2-0905-preview",
+        "name": "Kimi K2",
+        "free": false,
+        "reasoning": []
+      },
+      {
+        "slug": "kimi-k2-turbo-preview",
+        "name": "Kimi K2 Turbo",
+        "free": false,
+        "reasoning": []
+      },
+      {
+        "slug": "kimi-k2-thinking",
+        "name": "Kimi K2 Thinking",
+        "free": false,
+        "reasoning": []
+      }
+    ],
+    "qwen": [
+      {
+        "slug": "qwen3-coder-plus",
+        "name": "Qwen3 Coder Plus",
+        "free": false,
+        "reasoning": []
+      },
+      {
+        "slug": "qwen3-coder-flash",
+        "name": "Qwen3 Coder Flash",
+        "free": false,
+        "reasoning": []
+      },
+      {
+        "slug": "qwen3-max",
+        "name": "Qwen3 Max",
+        "free": false,
+        "reasoning": []
+      }
+    ],
+    "minimax": [
+      {
+        "slug": "MiniMax-M2",
+        "name": "MiniMax-M2",
+        "free": false,
+        "reasoning": []
+      }
+    ],
+    "hunyuan": [
+      {
+        "slug": "hunyuan-turbos-latest",
+        "name": "混元 TurboS",
+        "free": false,
+        "reasoning": []
+      },
+      {
+        "slug": "hunyuan-t1-latest",
+        "name": "混元 T1",
+        "free": false,
+        "reasoning": []
+      },
+      {
+        "slug": "hunyuan-lite",
+        "name": "混元 Lite",
+        "free": true,
+        "reasoning": []
+      }
+    ]
+  },
+  "community": {
+    "qrUrl": "",
+    "text": "连上网后显示"
+  },
+  "switches": {
+    "hiddenVendors": [],
+    "hideZh": false,
+    "hideClone": false
+  }
+}
