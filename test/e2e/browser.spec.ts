@@ -3,7 +3,7 @@
 import { expect, test } from '@playwright/test';
 import { TID } from '../../ui/testids';
 import { fakeScan, finishOnboarding, inWebContents, nav, switchTo, webContentsUrls } from './flows';
-import { launch, seedCodex, seedUserData, vendorState, type Launched } from './launch';
+import { launch, seedCodex, seedUserData, setCodexScenario, vendorState, type Launched } from './launch';
 import { BASE_NEEDS, merge, needs } from './pending';
 
 let run: Launched;
@@ -28,7 +28,7 @@ const screenWidth = () => run.app.evaluate(({ screen }) => screen.getPrimaryDisp
 test('B-01 后台自动操作时显示画中画在右下角', async () => {
   await ready();
   // The connectivity test hangs, so the switch stays in its background step (a finished switch closes the PiP)
-  run.vendors.setScenario('timeout', 'zhipu');
+  setCodexScenario(run.sandbox, 'timeout');
   await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'zhipu'); // after the scan the key is made in the background
   await expect.poll(async () => (await events()).some(e => e.open && e.mode === 'pip'), { timeout: 30_000 }).toBe(true);
