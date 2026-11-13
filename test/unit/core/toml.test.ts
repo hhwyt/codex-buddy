@@ -55,3 +55,9 @@ describe('toml', () => {
     expect(tomlString('C:\\x "y"')).toBe('"C:\\\\x \\"y\\""');
   });
 });
+
+describe('toml (duplicates)', () => {
+  test('setTableValue collapses a key written twice in the table', () => {
+    expect(setTableValue(['[desktop]', 'k = "a"', 'k = "b"'], 'desktop', 'k', 'k = "c"')).toEqual(['[desktop]', 'k = "c"']);
+  });
+});

@@ -38,6 +38,8 @@ export function protectedHit(target: string, roots: ProtectedRoots): string | nu
   }
   // Codex (Name) data dirs on Mac, under any Application Support
   if (/\/application support\/codex( \([^/]*\))?(\/|$)/.test(t)) return target;
+  // Windows: %APPDATA%\Codex*, %LOCALAPPDATA%\Codex*, and the Store package's data (Packages\OpenAI.Codex_*)
+  if (/\/appdata\/(roaming|local)\/(codex[^/]*|packages\/openai\.codex[^/]*)(\/|$)/.test(t)) return target;
   return null;
 }
 

@@ -37,3 +37,14 @@ describe('guard', () => {
     expect(fs.removed).toEqual(['/Applications/DeepSeek.app']);
   });
 });
+
+describe('guard (Windows data dirs)', () => {
+  const win: ProtectedRoots = { home: 'C:/Users/U', codexHome: 'C:/Users/U/.codex', appDataDirs: [] };
+  test.each([
+    'C:\\Users\\U\\AppData\\Roaming\\Codex', 'C:\\Users\\U\\AppData\\Local\\Codex (DeepSeek)\\Cache',
+    'C:\\Users\\U\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalState',
+  ])('G-01 拒绝删除 Codex 的 Windows 数据目录 %s', t => { expect(protectedHit(t, win)).not.toBeNull(); });
+  test('G-01 Windows 上快捷方式可以删', () => {
+    expect(protectedHit('C:\\Users\\U\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\ChatGPT 汉化版.lnk', win)).toBeNull();
+  });
+});

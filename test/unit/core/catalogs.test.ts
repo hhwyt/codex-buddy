@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { buildCatalog, catalogSlugs, labelOf, setCatalogLine } from '../../../electron/core/catalogs';
 import { providerOf, PROVIDERS, isBuiltin } from '../../../electron/core/providers';
 import { getValue } from '../../../electron/core/toml';
+import { todo } from '../../../electron/core/todo';
 
 describe('catalogs', () => {
   test('labels say 免费 or 付费', () => {
@@ -14,6 +15,16 @@ describe('catalogs', () => {
     expect(catalogSlugs(JSON.stringify(cat))).toEqual(zhipu.models.map(m => m.slug));
     expect(cat.models.every(m => /（(免费|付费)）$/.test(String(m.display_name)))).toBe(true);
     expect(buildCatalog([{ slug: 'r', name: 'R', free: false, reasoning: ['low', 'high'] }]).models[0].default_reasoning_level).toBe('low');
+  });
+  test('M-24 默认思考深度：有 medium 用 medium，否则第一个', () => {
+    expect(buildCatalog([{ slug: 'r', name: 'R', free: false, reasoning: ['low', 'medium'] }]).models[0].default_reasoning_level).toBe('medium');
+    expect(buildCatalog([{ slug: 'r', name: 'R', free: false }]).models[0].default_reasoning_level).toBeNull();
+    for (const k of ['base_instructions', 'support_verbosity', 'truncation_policy', 'experimental_supported_tools']) {
+      expect(buildCatalog([{ slug: 'r', name: 'R', free: true }]).models[0]).toHaveProperty(k);
+    }
+  });
+  test('todo marks unfinished stubs', () => {
+    expect(() => todo('A1', 'x')).toThrow('not implemented yet (A1): x');
   });
   test('setCatalogLine writes and removes model_catalog_json', () => {
     const withLine = setCatalogLine(['model = "x"'], '/h/.codex/codexbuddy-models.json');
