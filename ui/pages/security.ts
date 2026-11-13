@@ -68,7 +68,10 @@ export function openSecurity(api: BuddyApi, root: HTMLElement): HTMLElement {
   root.append(panel);
 
   void (async () => {
-    const [state, got] = await Promise.all([api.invoke('app:state'), api.invoke('security:get')]);
+    // The site lists do not wait for app:state (which asks Windows about Codex and can take a second or two)
+    const gotP = api.invoke('security:get');
+    void gotP.then(got => drawSites({ app: got.app ?? [], web: got.web ?? [] }), () => undefined);
+    const [state, got] = await Promise.all([api.invoke('app:state'), gotP]);
     // a main-side failure answers { ok: false, reason } instead of the lists
     const data = { keys: got.keys ?? [], app: got.app ?? [], web: got.web ?? [] };
     const reveal = state.os === 'win' ? '在文件夹里显示' : '在访达里显示';

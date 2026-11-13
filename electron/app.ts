@@ -40,7 +40,9 @@ if (sandbox) app.setPath('userData', path.join(sandbox, 'electron-user-data'));
 // window counts as hidden and would stop painting, which screenshots need
 const testMode = !!sandbox && !!process.env.CODEXBUDDY_ENDPOINTS;
 const realCodex = !!sandbox && !testMode && os === 'win' && process.env.CODEXBUDDY_REAL_CODEX === '1';
-if (testMode) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+// WebRTC's mDNS responder listens on UDP 5353 on every network card, which makes Windows Firewall ask the user whether
+// to let CodexBuddy onto public networks. Official pages get no local WebRTC ports anyway (browser.ts WEBRTC_POLICY)
+app.commandLine.appendSwitch('disable-features', ['WebRtcHideLocalIpsWithMdns', ...(testMode ? ['CalculateNativeWinOcclusion'] : [])].join(','));
 
 // In a sandbox nothing is ever opened or launched: every open / reveal / external link goes to <sandbox>/opened.log
 const record = (kind: 'open' | 'reveal' | 'external', target: string) =>

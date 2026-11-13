@@ -64,6 +64,12 @@ describe('安全面板', () => {
     expect($(TID.security.webSites)!.textContent).toContain('persistent.oaistatic.com2 分钟前');
   });
 
+  it('S-04 连过的网站不等 app:state（Windows 上要一两秒）就先列出来', async () => {
+    await open(fakeApi({ 'security:get': DATA, 'app:state': () => new Promise(() => {}) }));
+    expect($(TID.security.appSites)!.textContent).toContain('open.bigmodel.cn');
+    expect($(TID.security.webSites)!.textContent).toContain('persistent.oaistatic.com');
+  });
+
   it('S-04 实时更新；关掉后不再听', async () => {
     const fake = await open();
     fake.emit('connections', { app: [{ host: 'api.deepseek.com', allowed: true, at: Date.now() }], web: [] });

@@ -57,6 +57,13 @@ describe('findCodex', () => {
     expect(codex!.cli.endsWith(path.join('app', 'resources', 'codex.exe'))).toBe(true);
   });
 
+  test('一次打开页面问好几遍（装没装、开没开、能不能汉化）只起一次 PowerShell', async () => {
+    const { platform, calls } = setup(() => ({ out: codexJson({ running: [7] }) }));
+    expect(await platform.isCodexRunning()).toBe(true);
+    expect((await platform.findCodex())!.running).toBe(true);
+    expect(calls.filter(c => c.command === FIND_CODEX_PS)).toHaveLength(1);
+  });
+
   test('M-16 Codex 被删了：找不到时返回 null（空输出、坏 JSON、缺字段都算没有）', async () => {
     for (const out of ['', 'garbage{', 'null', '{"version":"1"}']) {
       const { platform } = setup(() => ({ out }));

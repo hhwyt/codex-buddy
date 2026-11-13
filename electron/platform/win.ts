@@ -77,6 +77,8 @@ function pids(raw: unknown): number[] {
   return (Array.isArray(list) ? list : [list]).filter((x): x is number => typeof x === 'number');
 }
 
+export const GET_CODEX_REUSE_MS = 1500;
+
 export const winCli = (location: string) => path.join(location, 'app', 'resources', 'codex.exe');
 
 /** codex.ps1 progress line → event. The script's advice is written for its terminal ("rerun this command"); in the
@@ -104,7 +106,16 @@ export function createWinPlatform(paths: Paths = winPaths(), opts: WinOptions = 
   const fs = opts.fs ?? nodeFs;
   const codexPs1Source = opts.codexPs1Source ?? path.join(__dirname, '..', '..', 'scripts', 'vendor', 'codex.ps1');
 
-  async function getCodex(): Promise<WinCodex | null> {
+  // One PowerShell start costs ~0.5 s and a single page load asks several times (app:state: installed, running, 汉化
+  // supported): answers within GET_CODEX_REUSE_MS share one call
+  let lastCodex: { at: number; result: Promise<WinCodex | null> } | null = null;
+  function getCodex(): Promise<WinCodex | null> {
+    const now = Date.now();
+    if (lastCodex && now - lastCodex.at < GET_CODEX_REUSE_MS) return lastCodex.result;
+    lastCodex = { at: now, result: readCodex() };
+    return lastCodex.result;
+  }
+  async function readCodex(): Promise<WinCodex | null> {
     const { out } = await shell.powershell(FIND_CODEX_PS);
     try {
       const raw = out.trim() ? JSON.parse(out.trim()) : null;
@@ -129,12 +140,14 @@ export function createWinPlatform(paths: Paths = winPaths(), opts: WinOptions = 
 
   async function installCodex(progress: InstallProgress) {
     let failText: string | null = null;
+    lastCodex = null;
     const code = await runCodexPs1({ CODEX_SETUP_ACTION: 'install' }, line => {
       const step = parseStepLine(line);
       if (!step) return;
       if (step.state === 'fail') failText = step.text;
       progress(step);
     });
+    lastCodex = null;
     return code === 0 ? { ok: true } : { ok: false, reason: failText ?? '没能装好 Codex' };
   }
 
@@ -142,6 +155,7 @@ export function createWinPlatform(paths: Paths = winPaths(), opts: WinOptions = 
     const codex = await getCodex();
     if (!codex) return { ok: true };
     const { out } = await shell.powershell(UNINSTALL_CODEX_PS, { env: { CODEX_PACKAGE: codex.fullName } });
+    lastCodex = null;
     return out.trim() === 'OK' ? { ok: true } : { ok: false, reason: '没能自动卸载：打开「设置 → 应用」，找到「ChatGPT」点卸载' };
   }
 
