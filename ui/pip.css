@@ -1,0 +1,18 @@
+/* Right-side browser frame: picture-in-picture and side panel (B-01..B-05). Owner: A11. Only var(--…) colors.
+   The main process draws the web page into .pip-view / .browser-panel-view. */
+.browser-host { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+.browser-btn { width: 26px; height: 26px; border: 0; border-radius: var(--r-sm); background: none; color: var(--ink-2); pointer-events: auto; }
+.browser-btn:hover:not(:disabled) { background: var(--hover); }
+.browser-btn:disabled { color: var(--ink-3); cursor: default; }
+
+.pip { position: absolute; right: 16px; bottom: 16px; width: 320px; height: 210px; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: 0 8px 24px var(--shadow); overflow: hidden; pointer-events: auto; cursor: pointer; }
+.pip-bar { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.pip-live { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); animation: pip-blink 1.2s ease-in-out infinite; flex: none; }
+.pip-url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pip-view { flex: 1; }
+@keyframes pip-blink { 50% { opacity: .25; } }
+
+.browser-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 480px; max-width: 50%; display: flex; flex-direction: column; background: var(--bg); border-left: 1px solid var(--line); pointer-events: auto; }
+.browser-panel-bar { height: var(--top-height); display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--line); -webkit-app-region: no-drag; }
+.browser-panel-address { flex: 1; min-width: 0; height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--pill); background: var(--side); color: var(--ink-2); font: inherit; font-size: 12px; outline: none; }
+.browser-panel-view { flex: 1; }
