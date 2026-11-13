@@ -1,0 +1,51 @@
+# CI: every push and pull request, on macOS and Windows (build-plan §4: CI 在 macOS 和 Windows 上都跑).
+# typecheck → lint → unit/integration/component tests with the coverage gate → acceptance-id check → end-to-end.
+# End-to-end runs the real Electron app in sandbox mode (CODEXBUDDY_SANDBOX) against the fake servers in test/fakes;
+# no real ~/.codex, /Applications, accounts or keys are used. X-01 hashes the runner's real paths read-only.
+name: ci
+on:
+  push:
+    branches: [main, 'm1/**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+      CODEXBUDDY_COV_GATE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:cov
+      - run: npm run check:ids
+      - name: End-to-end (sandboxed Electron + fake servers)
+        run: npm run test:e2e
+      - name: Keep traces, screenshots and the new baselines when something fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ matrix.os }}
+          path: |
+            test-results/
+            test/e2e/**/*-snapshots/
+          retention-days: 7
