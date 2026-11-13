@@ -1,10 +1,9 @@
 // Unit (L1), integration (L2) and UI component (L3) tests. Owner: Base.
 // Coverage gate (build-plan §4): lines / branches / functions / statements ≥ 85% over electron/** and ui/**,
-// electron/core/** ≥ 95%. TEMPORARILY OFF at the Base stage (stubs throw "not implemented"): set
-// CODEXBUDDY_COV_GATE=1 to enforce. The integration agent flips the default to on before delivery.
+// electron/core/** ≥ 95%. On by default; CODEXBUDDY_COV_GATE=0 turns it off for a local look at partial runs only.
 import { defineConfig } from 'vitest/config';
 
-const gate = process.env.CODEXBUDDY_COV_GATE === '1';
+const gate = process.env.CODEXBUDDY_COV_GATE !== '0';
 
 export default defineConfig({
   test: {
