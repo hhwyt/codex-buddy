@@ -61,6 +61,8 @@ test('M-02 点后面的卡抽到最上层并开始切换', async () => {
   expect(tomlValue(configToml(run.sandbox), 'model_provider')).toContain('kimi');
   // Switched: the picture-in-picture with the login / Key page is closed and nothing covers the top card's 换
   await expect.poll(async () => (await events()).at(-1)?.open ?? false).toBe(false);
+  await run.page.keyboard.press('Escape'); // first-success dialog
+  await expect(run.page.getByTestId(TID.firstSuccess.root)).toHaveCount(0);
   await run.page.getByTestId(TID.models.changeKey('kimi')).click({ trial: true, timeout: 5_000 });
 });
 

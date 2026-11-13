@@ -27,6 +27,8 @@ const screenWidth = () => run.app.evaluate(({ screen }) => screen.getPrimaryDisp
 
 test('B-01 后台自动操作时显示画中画在右下角', async () => {
   await ready();
+  // The connectivity test hangs, so the switch stays in its background step (a finished switch closes the PiP)
+  run.vendors.setScenario('timeout', 'zhipu');
   await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 20 } });
   await fakeScan(run.app, 'zhipu'); // after the scan the key is made in the background
   await expect.poll(async () => (await events()).some(e => e.open && e.mode === 'pip'), { timeout: 30_000 }).toBe(true);
