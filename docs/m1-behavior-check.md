@@ -4,7 +4,7 @@
 - 对象：`npx electron-builder --win dir` 打出来的 `release\win-unpacked\CodexBuddy.exe`（Playwright `_electron` 的 executablePath 指向它），不是源码直跑。
 - 沙盒：`CODEXBUDDY_SANDBOX` 是新的临时目录；`CODEXBUDDY_ENDPOINTS` 把 7 家接口、远程配置全指向本机假服务（test/fakes）。Codex 是沙盒里的 Test-ChatGPT.app（自己的 bundle id、关自动更新，命令行是假 Codex）。打开 App / 在文件夹里显示 / 外部链接一律只记到 `<沙盒>/opened.log`，什么都不真的打开。站主自己的 Codex（OpenAI.Codex 26.1103.4239.0）和 `%USERPROFILE%\.codex` 没动。
 - 测试模式下窗口在屏幕外（x = -30000）、显示时不抢焦点（m1-decisions 2026-11-13）；截图用 Electron 自己的 capturePage，把主页面和右侧浏览器（WebContentsView）按位置拼起来，所以截图里有右侧浏览器，但没有系统画的标题栏三个按钮。
-- 截图：`docs/screenshots/win-*.png`；每步的说明在 [win-drive-log.json](screenshots/win-drive-log.json)。
+- 截图：`docs/screenshots/win-*.png`（2026-11-13 复核修复后在打包的 App 上重跑了一遍，提交 39081cc）；每步的说明在 [win-drive-log.json](screenshots/win-drive-log.json)。
 - 对照的参考图：定稿原型在同一台 Windows 上用 Electron 离屏渲染（[ref-model-switch.png](screenshots/ref-model-switch.png)、[ref-model-clone.png](screenshots/ref-model-clone.png)、[ref-language.png](screenshots/ref-language.png)），不在 M3 上开窗口。
 
 ## 逐步对照
@@ -52,10 +52,35 @@
 9. **MiniMax、Kimi 控制台换了域名**（D「实测发现」）：MiniMax 登录 / Key / 充值页改到 platform.minimax.cn，白名单加 platform.minimax.cn、platform.kimi.com；控制台跳到 platform.* 新域名时也认得出「已登录」。测试 M-08。
 10. **测试窗口不出现在站主屏幕上**（D「实测发现」）：测试模式（沙盒 + 假服务）下窗口放在屏幕外、显示时不抢焦点、不进任务栏；Windows 上同时关掉「被遮挡就不画」，截图照样能截。测试 W-01。
 
+11. **Windows 分身开的是 `app\Codex.exe` 空壳**（复核 blocker）：商店包的真程序是 `app\ChatGPT.exe`，`Codex.exe` 只有 20 KB；按 AppUserModelID 激活又会丢掉 CODEX_HOME。分身启动器改成走 Codex 包自带的启动别名 `%LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe`（带包身份运行 ChatGPT.exe，继承环境变量、传参数），`--user-data-dir` 指向分身自己的数据目录；`app\ChatGPT.exe` 只拿来当图标。launch.vbs 改存 UTF-16（智谱、混元这种中文名在 ANSI 里存不下）。[electron/platform/clone-win.ts](../electron/platform/clone-win.ts)，测试 C-04、C-01。
+12. **Windows 分身选了汉化也是英文**（L-07）：原来只给 Codex 加了调试端口，没人去连。现在汉化的分身由启动器用 CodexBuddy 自带的 Electron 跑和 Mac 同一个 zh-runner.js：开 127.0.0.1 随机端口、每个页面打开 enable_i18n；CodexBuddy 不在了就直接英文打开。分身已经开着时（命令行里带着它的数据目录）只把它调到前面。测试 L-07（真的跑 zh-runner.js 连假调试端口，断言 enable_i18n 被打开）。
+13. **切换成功后画中画还留着上一家的 Key 管理页、挡住最上层卡的「换」**（D「实测发现」1、2）：切换成功就关掉右侧浏览器；只有 M-12（只剩赠送额度）时把充值页留在画中画。测试 M-02（集成：关掉、不再打开；端到端：画中画关了以后「换」点得到）。
+14. **换页后上一页的提示还在**（win-29 里删分身的「删好了…」盖在设置页上）：左栏切页时清掉提示。测试 W-02。
+15. **Codex 发给厂商的请求不走白名单**：127.0.0.1 中转改用 guardedFetch，进「CodexBuddy 连过的」；「其他厂商」填的地址在用上以后加进白名单。
+16. **X-01 在 Windows 上几乎没查东西**：加上商店版 Codex 的数据目录 `%LOCALAPPDATA%\Packages\OpenAI.Codex_*\LocalCache\Roaming\Codex`、开始菜单里的「ChatGPT 汉化版.lnk」，并比对桌面和开始菜单里的 .lnk 清单（测试多留一个快捷方式就失败）。站主的 Codex 开着时自己会改的缓存（GrShaderCache、ShaderCache 等）跳过；这些是 hwy-pc 空闲两分钟实测出来的。C-03 在 Windows 上读两个 .lnk 的 AppUserModelID，必须是 `CodexBuddy.Kimi`，不是商店包的。
+
+## Windows 真机检查（hwy-pc，2026-11-13，不碰站主的 Codex）
+
+站主的 Codex（OpenAI.Codex 26.1106.6628.0，开着 11 个 ChatGPT.exe）全程没关、没改；所有文件在 `C:\Users\hwy\codex-buddy-m1-sandbox` 下；没有用真实账号（汉化那次给分身放了一个假 Key `sk-fake-test-0000`，只为让 Codex 进主界面）。
+
+| 检查 | 做法 | 结果 |
+|---|---|---|
+| spike d：分身和原来的 Codex 同时开 | 在站主桌面会话里用启动别名开第二个 Codex，`--user-data-dir` 和 CODEX_HOME 都在沙盒 | 第二个 ChatGPT.exe 起来了，带自己的 codex.exe app-server；沙盒 CODEX_HOME 里写了 config.toml、sqlite 等 27 项；站主的 11 个进程前后都在；关分身只关它自己那一组进程 |
+| 分身（不汉化，C-01..C-04） | 用打包代码 `createWinClone` 在沙盒里做 DeepSeek 分身，再 `wscript launch.vbs` | ChatGPT.exe 命令行是 `chatgpt-desktop.exe --user-data-dir="…\Codex (DeepSeek)"`；`.codex-deepseek` 被写入；站主进程不受影响 |
+| 分身（汉化，L-07） | 同上做「智谱」分身（中文名），`launch.vbs` 走 zh-runner | ChatGPT.exe 带 `--remote-debugging-port`；zh.log「attached」「patched page」；通过调试端口读页面：`window.__codexBuddyZh = true`，`getLayer('72216192').get('enable_i18n') = true`。hwy-pc 的系统语言是 en-US，Codex 的界面语言跟系统走，所以页面还是英文；中文界面要在中文系统或把 Codex 语言设成中文时看 |
+
 ## 还不一致 / 没法在这里核实的
 
 - **系统标题栏三个按钮**：Windows 的 titleBarOverlay 由系统画，capturePage 截不到；W-01 的位置断言（左栏顶到上边、右边留 150px）通过了，样子要在真机桌面上看一眼。
 - **卡片标签文字**：MF 写「按量付费」，PRD §4 术语表写「按用量付费」，按术语表保留「按用量付费」。
-- **画中画里留着上一家的 Key 管理页**（win-05、win-06）：切换成功后浏览器缩回画中画、保留最后一个页面，这是 B-03 的行为；站主之前在 M3 上把它当成了 bug（D「实测发现」）。要不要在切换成功后自动关掉画中画，需要站主定。
-- **真实厂商**：这里全是假服务。7 家真实登录、建 Key、模型清单（尤其 MiniMax 只列了 MiniMax-M2）、充值页地址，要在站主登录好的环境里再核（M3 上的 ~/CodexBuddy-Test，之后 Mac mini）。
-- **真实 Windows 安装、汉化、分身启动**：沙盒里不跑 codex.ps1、不启动商店版 Codex；分身的 launch.vbs 能不能让商店版 Codex.exe 和原来的同时开（spike d）还没在真机上试。
+- **真实厂商**：这里全是假服务。7 家真实登录、建 Key、充值页地址要在站主登录好的环境里再核（M3 上的 ~/CodexBuddy-Test，之后 Mac mini）。**MiniMax 模型清单只有 MiniMax-M2**：这次去查官方文档，platform.minimaxi.com 302 到 platform.minimax.cn，文档页没取到，清单没改；发布前要在登录的环境里核对 MiniMax 现在的编程模型和 API 域名（api.minimaxi.com 还是 api.minimax.cn）。
+- **Windows 真实安装没跑**：沙盒里「开始安装」只是把 Test-ChatGPT.app 写进沙盒，没跑 codex.ps1 / 商店安装（hwy-pc 上已经装着站主的 Codex，真装会动到它）；第 2 步只在 Mac（假 dmg）上算真的装了。真实安装要在一台没装 Codex 的 Windows（或新建的 Windows 用户）上试。
+- **Windows 主程序的汉化启动器**（codex.ps1 写的「ChatGPT 汉化版.lnk」）没在真机上跑：它会去开站主的 Codex，并在 Codex 开着时问要不要重启；沙盒里只写替身快捷方式。分身的汉化程序已经在真机上验过（上表）。
+- **M-25 每个模型真的能回话、R-01** 只对假服务跑过。
+- **分身在任务栏上是不是单独一组**：.lnk 的 AppUserModelID 是 CodexBuddy.<名字>，但窗口是商店包的进程开的，任务栏可能和原来的 ChatGPT 并在一起；要在站主桌面上看一眼。
+
+## 复核修复后的重跑（2026-11-13）
+
+- M3：typecheck、lint、test:cov（512 个测试；行 96.5%、分支 92.1%、函数 92.4%、语句 94.5%）、check:ids（88/88）全过；M3 上没开窗口。
+- hwy-pc：test:e2e 89 个通过（U-03 只在 Mac 上跑），含 X-01 / G-01 新加的商店版 Codex 数据目录和快捷方式清单；打包后驱动（m1-drive）一遍通过。
+- 截图里能看到的变化：win-05、win-06、win-11 切换成功后画中画关了，最上层卡的「换」露出来；win-29 设置页上不再留着删分身的提示。
