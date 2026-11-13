@@ -267,13 +267,19 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   };
 }
 
-/** 「一次性打开登录页」: one small window per URL, all on the browser partition, so one login serves the app */
-export function openLoginWindows(urls: string[]): BrowserWindow[] {
-  return urls.map((url, i) => {
+/** 「一次性打开登录页」: one small window per vendor, titled「CodexBuddy 登录：<厂商>」, all on the browser partition, so
+ *  one login serves the app. onUrl reports every page each window lands on (login detection) */
+export function openLoginWindows(targets: { url: string; name: string }[], onUrl: (index: number, url: string) => void = () => {}): BrowserWindow[] {
+  return targets.map(({ url, name }, i) => {
     const w = new BrowserWindow({
-      width: 480, height: 720, x: 40 + i * 30, y: 40 + i * 30, title: 'CodexBuddy 登录',
+      width: 480, height: 720, x: 40 + i * 30, y: 40 + i * 30, title: `CodexBuddy 登录：${name}`,
       webPreferences: { partition: BROWSER_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false },
     });
+    // Keep our title: the page's own <title> would replace it
+    w.on('page-title-updated', e => e.preventDefault());
+    const report = () => onUrl(i, w.webContents.getURL());
+    w.webContents.on('did-navigate', report);
+    w.webContents.on('did-navigate-in-page', report);
     void w.loadURL(url).catch(() => undefined);
     return w;
   });

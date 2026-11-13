@@ -9,7 +9,7 @@ import { createRightBrowser, type RightBrowser } from '../../electron/main/brows
 import {
   consoleHosts, createKeyScript, defaultKeyResponse, defaultLoggedIn, extractKey, makeVendor,
 } from '../../electron/vendors/base';
-import { VENDORS, batchLoginTargets, vendorsWith } from '../../electron/vendors/index';
+import { VENDORS, batchLoginTargets, loginWindowTargets, vendorsWith } from '../../electron/vendors/index';
 import type { BrowserDriver } from '../../electron/vendors/types';
 import { startVendorServer } from '../fakes/vendor-server.mjs';
 import { fakeHost, type FakeHost } from './browser-fake-host';
@@ -250,5 +250,8 @@ describe('vendor details', () => {
     expect(t.inApp).toContain(providerOf('zhipu').loginUrl);
     expect(t.external).toEqual([providerOf('openai').loginUrl]);
     expect(vendorsWith(parseEndpoints(undefined))).toEqual(VENDORS);
+    const named = loginWindowTargets(VENDORS);
+    expect(named.map(t => t.name)).toEqual(['DeepSeek', '智谱', 'Kimi', 'Qwen', 'MiniMax', '混元']);
+    expect(named.map(t => t.url)).toEqual(t.inApp);
   });
 });

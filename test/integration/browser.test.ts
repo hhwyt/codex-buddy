@@ -326,10 +326,21 @@ describe('electron view host', () => {
     expect(() => h.destroy()).not.toThrow();
   });
 
-  test('B-07 一次性打开 7 家登录页：都用同一个独立分区', () => {
-    const ws = openLoginWindows(['https://a.example/login', 'https://b.example/fail']) as any[];
+  test('B-07 一次性打开 7 家登录页：都用同一个独立分区，标题写厂商，换页面时报告网址', async () => {
+    const seen: [number, string][] = [];
+    const ws = openLoginWindows([{ url: 'https://a.example/login', name: '智谱' }, { url: 'https://b.example/fail', name: 'Kimi' }], (i, u) => seen.push([i, u])) as any[];
     expect(ws).toHaveLength(2);
     for (const w of ws) expect(w.opts.webPreferences.partition).toBe(BROWSER_PARTITION);
+    expect(ws.map(w => w.opts.title)).toEqual(['CodexBuddy 登录：智谱', 'CodexBuddy 登录：Kimi']);
+    await Promise.resolve();
     expect(ws[0].webContents.url).toBe('https://a.example/login');
+    expect(seen).toEqual([[0, 'https://a.example/login']]);
+    ws[1].webContents.url = 'https://b.example/console';
+    ws[1].webContents.emit('did-navigate-in-page');
+    expect(seen.at(-1)).toEqual([1, 'https://b.example/console']);
+    const e = { prevented: false, preventDefault() { this.prevented = true; } };
+    ws[0].emit('page-title-updated', e);
+    expect(e.prevented).toBe(true);
+    openLoginWindows([{ url: 'https://c.example/', name: 'X' }]);
   });
 });

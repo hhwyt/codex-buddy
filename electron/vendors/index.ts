@@ -25,6 +25,11 @@ export function vendorsWith(e: Endpoints): Record<BuiltinVendorId, Vendor> {
   return out;
 }
 
+/** The six in-app login windows: vendor, card name and login page */
+export function loginWindowTargets(vendors: Record<BuiltinVendorId, Vendor>): { vendor: BuiltinVendorId; name: string; url: string }[] {
+  return Object.values(vendors).filter(v => !v.provider.officialAccount).map(v => ({ vendor: v.id, name: v.provider.name, url: v.provider.loginUrl }));
+}
+
 /** 「一次性打开 7 家登录页」: six open in CodexBuddy's own browser partition, OpenAI in the system browser */
 export function batchLoginTargets(vendors: Record<BuiltinVendorId, Vendor>): { inApp: string[]; external: string[] } {
   const all = Object.values(vendors).map(v => v.provider);

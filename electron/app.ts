@@ -1,6 +1,9 @@
 // CodexBuddy main process entry: builds the real pieces and hands them to main/services.ts (every IPC handler).
 // CODEXBUDDY_SANDBOX=<dir>: every path inside <dir> and Codex replaced by the sandbox stand-ins (tests, e2e).
 // CODEXBUDDY_ENDPOINTS=<json>: external addresses pointed at fake servers (core/endpoints.ts).
+// Real-vendor test runs (sandbox, no fake servers, Windows): CODEXBUDDY_REAL_CODEX=1 uses the real Store Codex next to
+// the user's own (platform/sandbox-real-win.ts); CODEXBUDDY_LOGIN_WINDOWS=1 opens the six login pages at start and keeps
+// <sandbox>/login-status.json up to date (which vendor is logged in).
 import { app, safeStorage, session, shell, type BrowserWindow } from 'electron';
 import * as nfs from 'node:fs';
 import * as path from 'node:path';
@@ -8,7 +11,7 @@ import { parseEndpoints, withEndpoints } from './core/endpoints';
 import { PROVIDERS } from './core/providers';
 import { validateRemote } from './core/remote';
 import { startBridge } from './main/bridge-server';
-import { BROWSER_PARTITION, browserHandlers, createRightBrowser, electronViewHost } from './main/browser';
+import { BROWSER_PARTITION, browserHandlers, createRightBrowser, electronViewHost, openLoginWindows } from './main/browser';
 import { aesCipher, loadDataKey, plainWrap } from './main/cipher';
 import { registerIpc, sendEvent } from './main/ipc';
 import type { ConnectionView } from './main/ipc-contract';
@@ -20,10 +23,12 @@ import { createMacClone, runCommand } from './platform/clone-mac';
 import { createWinClone } from './platform/clone-win';
 import { sandboxRoot } from './platform/sandbox';
 import { sandboxClone, sandboxPlatform, sandboxWinZhPs1, sandboxZh } from './platform/sandbox-codex';
+import { realSandboxWin } from './platform/sandbox-real-win';
+import { createNodeWinShell } from './platform/win';
 import { createMacZh } from './platform/zh-mac';
 import { createWinZh } from './platform/zh-win';
 import type { Clone, Platform, ZhLauncher } from './platform/types';
-import { vendorsWith } from './vendors';
+import { loginWindowTargets, vendorsWith } from './vendors';
 
 const os: 'mac' | 'win' = process.platform === 'win32' ? 'win' : 'mac';
 const sandbox = sandboxRoot();
@@ -34,6 +39,7 @@ if (sandbox) app.setPath('userData', path.join(sandbox, 'electron-user-data'));
 // Test runs (sandbox + fake servers): the window stays off screen (m1-decisions 2026-11-13); on Windows an off-screen
 // window counts as hidden and would stop painting, which screenshots need
 const testMode = !!sandbox && !!process.env.CODEXBUDDY_ENDPOINTS;
+const realCodex = !!sandbox && !testMode && os === 'win' && process.env.CODEXBUDDY_REAL_CODEX === '1';
 if (testMode) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 // In a sandbox nothing is ever opened or launched: every open / reveal / external link goes to <sandbox>/opened.log
@@ -45,6 +51,13 @@ const openExternal = async (url: string) => { if (sandbox) record('external', ur
 
 function buildPlatform(): { platform: Platform; clone: Clone; zh: ZhLauncher } {
   const base = pickPlatform();
+  if (realCodex) {
+    const local = process.env.LOCALAPPDATA || path.join(base.paths.home, 'AppData', 'Local');
+    return realSandboxWin(base, {
+      shell: createNodeWinShell(), appData: path.join(base.paths.home, 'AppData', 'Roaming'),
+      alias: path.join(local, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe'),
+    });
+  }
   const platform = sandbox ? sandboxPlatform(base, { root: sandbox, env: process.env, open, reveal }) : base;
   // In a sandbox nothing is registered with LaunchServices
   const run = sandbox ? (cmd: string, args: string[]) => (cmd.endsWith('lsregister') ? Promise.resolve('') : runCommand(cmd, args)) : runCommand;
@@ -123,6 +136,18 @@ async function main(): Promise<void> {
   win = createMainWindow(os, { offscreen: testMode });
   win.on('closed', () => { win = null; });
   win.webContents.once('did-finish-load', () => { void services.startup().catch(() => undefined); });
+  if (sandbox && !testMode && process.env.CODEXBUDDY_LOGIN_WINDOWS === '1') {
+    const targets = loginWindowTargets(vendors);
+    const status = targets.map(t => ({ vendor: t.vendor, name: t.name, url: t.url, loggedIn: false }));
+    const statusFile = path.join(sandbox, 'login-status.json');
+    const write = () => nfs.writeFileSync(statusFile, JSON.stringify({ at: new Date().toISOString(), status }, null, 2));
+    openLoginWindows(targets, (i, url) => {
+      status[i].url = url;
+      status[i].loggedIn = vendors[targets[i].vendor].isLoggedIn(url);
+      write();
+    });
+    write();
+  }
   const poll = setInterval(() => services.pollModel(), 2000);
   app.on('before-quit', () => { clearInterval(poll); void bridge.close(); });
 }
