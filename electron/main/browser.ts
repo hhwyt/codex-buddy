@@ -1,6 +1,7 @@
 // The right-side browser (PRD §3.6) with picture-in-picture. Owner: A4.
-// B-01 PiP bottom right while automating; B-02 expanded for scan / pay: the window widens ~480px, or covers the right
-// half when the screen is too narrow; B-03 click PiP or 🌐 → expand, can shrink back; B-04 only ✕ closes, page
+// B-01 PiP bottom right while automating; B-02 expanded for scan / pay: the window widens ~480px (as much as the screen
+// has room for, at least 400px; it slides left if its right edge would leave the screen), or covers the right half
+// when the screen is too narrow; B-03 click PiP or 🌐 → expand, can shrink back; B-04 only ✕ closes, page
 // switches leave it alone; B-05 read-only address bar, back and reload; B-06 closed at start; B-07 own session
 // partition (persist:codexbuddy-browser), never the user's Chrome. Every request host is logged as「网页里连过的」
 // (main/net.ts). The page draws the chrome (address bar, ✕, PiP bar); this file only places the web view under it.
@@ -9,6 +10,8 @@ import type { BrowserDriver } from '../vendors/types';
 
 export const BROWSER_PARTITION = 'persist:codexbuddy-browser';
 export const EXPANDED_EXTRA_WIDTH = 480;
+/** Less room than this on the screen and the expanded browser covers the right half instead of widening */
+export const MIN_WIDEN = 400;
 /** Height of the address bar the page draws above the expanded view */
 export const CHROME_BAR_HEIGHT = 53;
 /** PiP box drawn by the page (ui/pip.css): 320×210, 16px from the bottom right, 30px title bar + 1px line.
@@ -32,7 +35,20 @@ export function viewBounds(mode: BrowserMode, content: Size, widened: boolean): 
   return { x: content.width - width, y: CHROME_BAR_HEIGHT, width, height: content.height - CHROME_BAR_HEIGHT };
 }
 
-export const canWiden = (contentWidth: number, screenWidth: number) => contentWidth + EXPANDED_EXTRA_WIDTH <= screenWidth;
+/** How much the window grows for the expanded browser: ~480px, less on a screen just short of that (a 1440px-wide
+ *  screen fits 980 + 460), 0 when under MIN_WIDEN is left. A widened view stays 480px, the last few px over the page */
+export function widenBy(contentWidth: number, screenWidth: number): number {
+  const room = Math.min(EXPANDED_EXTRA_WIDTH, screenWidth - contentWidth);
+  return room >= MIN_WIDEN ? room : 0;
+}
+
+/** x for a window that grew past the screen's right edge: slide it left, never past the left edge. null = leave it.
+ *  A window that was off screen (test runs park it at -30000) stays where it is */
+export function keepOnScreen(before: Bounds, after: Bounds, area: Bounds): number | null {
+  const right = area.x + area.width;
+  if (before.x < area.x || before.x >= right || after.x + after.width <= right) return null;
+  return Math.max(area.x, right - after.width);
+}
 
 /** The Electron side of the browser, kept thin so the controller is testable without Electron */
 export interface ViewHost {
@@ -73,7 +89,8 @@ interface RespWaiter { match: RegExp; resolve: (body: string) => void; reject: (
 export function createRightBrowser(makeHost: () => ViewHost, onState: (s: BrowserState) => void = () => {}): RightBrowser {
   let host: ViewHost | null = null;
   let mode: BrowserMode = 'pip';
-  let widened = false;
+  /** px the window grew for the expanded browser; 0 = not widened */
+  let widenedBy = 0;
   const urlWaiters = new Set<UrlWaiter>();
   const respWaiters = new Set<RespWaiter>();
 
@@ -81,7 +98,7 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
     open: !!host, mode, url: host?.currentUrl() ?? '', canGoBack: host?.canGoBack() ?? false,
   });
   const emit = () => onState(state());
-  const place = () => { if (host) host.setBounds(viewBounds(mode, host.contentSize(), widened)); };
+  const place = () => { if (host) host.setBounds(viewBounds(mode, host.contentSize(), widenedBy > 0)); };
 
   const checkUrl = (url: string) => {
     for (const w of [...urlWaiters]) if (w.pred(url)) { urlWaiters.delete(w); w.done(true); }
@@ -107,12 +124,12 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
     const h = ensureHost();
     mode = m;
     const { width } = h.contentSize();
-    if (m === 'expanded' && !widened && canWiden(width, h.screenWidth())) {
-      h.setContentWidth(width + EXPANDED_EXTRA_WIDTH);
-      widened = true;
-    } else if (m === 'pip' && widened) {
-      h.setContentWidth(width - EXPANDED_EXTRA_WIDTH);
-      widened = false;
+    if (m === 'expanded' && !widenedBy) {
+      widenedBy = widenBy(width, h.screenWidth());
+      if (widenedBy) h.setContentWidth(width + widenedBy);
+    } else if (m === 'pip' && widenedBy) {
+      h.setContentWidth(width - widenedBy);
+      widenedBy = 0;
     }
     place();
     emit();
@@ -160,8 +177,8 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
     close() {
       if (!host) return;
       const h = host;
-      if (widened) h.setContentWidth(h.contentSize().width - EXPANDED_EXTRA_WIDTH);
-      widened = false;
+      if (widenedBy) h.setContentWidth(h.contentSize().width - widenedBy);
+      widenedBy = 0;
       mode = 'pip';
       host = null;
       h.destroy();
@@ -192,6 +209,8 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   const onResize = () => { for (const cb of resizeCbs) cb(); };
   win.on('resize', onResize);
 
+  /** x the window had before it slid left to widen on screen; put back when it narrows again */
+  let slidFrom: number | null = null;
   const urls = new Map<string, string>();
   try {
     wc.debugger.attach('1.3');
@@ -222,7 +241,19 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
     exec: <T>(script: string) => wc.executeJavaScript(script, true) as Promise<T>,
     setBounds: b => view.setBounds(b),
     contentSize: () => { const [width, height] = win.getContentSize(); return { width, height }; },
-    setContentWidth: width => { const [, height] = win.getContentSize(); win.setContentSize(width, height); },
+    setContentWidth: width => {
+      const [oldWidth, height] = win.getContentSize();
+      const before = win.getBounds();
+      win.setContentSize(width, height);
+      const after = win.getBounds();
+      if (width < oldWidth) {
+        if (slidFrom !== null) win.setPosition(slidFrom, after.y);
+        slidFrom = null;
+        return;
+      }
+      const x = keepOnScreen(before, after, screen.getDisplayMatching(before).workArea);
+      if (x !== null) { slidFrom = before.x; win.setPosition(x, after.y); }
+    },
     screenWidth: () => screen.getDisplayMatching(win.getBounds()).workArea.width,
     onNavigate: cb => { navCbs.push(cb); },
     onResponse: cb => { respCbs.push(cb); },

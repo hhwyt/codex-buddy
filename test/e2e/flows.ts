@@ -42,7 +42,12 @@ export const fakeScan = (app: ElectronApplication, vendor: string) =>
   inWebContents(app, `/${vendor}/login`, `document.getElementById('fake-login').click(); true`);
 
 /** Bounding boxes of every card, by vendor */
+/** Waits until no card is mid-move (the pile slides when cards reorder and when the picture-in-picture opens or closes) */
+export const cardsSettled = (page: Page) => page.waitForFunction(() =>
+  !document.getAnimations().some(a => a instanceof CSSTransition && (a.effect as KeyframeEffect | null)?.target instanceof HTMLElement && ((a.effect as KeyframeEffect).target as HTMLElement).classList.contains('card')));
+
 export async function cardBoxes(page: Page, vendors: string[]): Promise<Record<string, { x: number; y: number; width: number; height: number }>> {
+  await cardsSettled(page);
   const out: Record<string, { x: number; y: number; width: number; height: number }> = {};
   for (const v of vendors) {
     const b = await page.getByTestId(TID.models.card(v)).boundingBox();
@@ -51,7 +56,7 @@ export async function cardBoxes(page: Page, vendors: string[]): Promise<Record<s
   return out;
 }
 
-/** The card on top of the pile (order[0]): fully visible, lowest on screen (model-page-final.html) */
+/** The card on top of the pile (order[0]): at the top of the page, whole once one is in use (model-page-top.html) */
 export async function frontCard(page: Page): Promise<string> {
   return (await wallet(page)).order[0];
 }
@@ -60,7 +65,7 @@ export async function frontCard(page: Page): Promise<string> {
 export async function dragCardTo(page: Page, vendor: string, toY: number, onMove?: () => Promise<void>): Promise<void> {
   const box = (await page.getByTestId(TID.models.card(vendor)).boundingBox())!;
   const x = box.x + box.width / 2;
-  const y = box.y + 20; // the visible header strip
+  const y = box.y + 45; // the visible head: below the 22px tucked under the card above
   await page.mouse.move(x, y);
   await page.mouse.down();
   const steps = 12;
@@ -75,14 +80,14 @@ export async function dragCardTo(page: Page, vendor: string, toY: number, onMove
 export async function dragToFront(page: Page, vendor: string): Promise<void> {
   const front = await frontCard(page);
   const fb = (await page.getByTestId(TID.models.card(front)).boundingBox())!;
-  await dragCardTo(page, vendor, fb.y + 20);
+  await dragCardTo(page, vendor, fb.y + 45);
 }
 
 /** Switches to a vendor by clicking its card, scanning the fake QR code when a login page shows up */
 export async function switchTo(run: Launched, vendor: string, opts: { expectOk?: boolean; via?: 'click' | 'drag' } = {}): Promise<void> {
   const { page, app } = run;
   if (opts.via === 'drag') await dragToFront(page, vendor);
-  else await page.getByTestId(TID.models.card(vendor)).click({ position: { x: 60, y: 20 } });
+  else await page.getByTestId(TID.models.card(vendor)).click({ position: { x: 60, y: 45 } });
   if (vendor !== 'openai') {
     // Login is only needed the first time; ignore when the vendor needs none
     await fakeScan(app, vendor).catch(() => undefined);

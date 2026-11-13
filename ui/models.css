@@ -1,6 +1,14 @@
 /* Model page: cards (pile and spread), mode switch, dialogs. Owner: A5. Only var(--…) colors (UI-00).
-   Sizes from ui-design/model-page-final.html: card 380×240, 50px head, spread 3 columns at 0.6. */
-.models { position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 4px; }
+   Sizes from ui-design/model-page-top.html: card 380×240; below the top card each one shows a 72px head, 22px of it
+   tucked under the card above; spread 3 columns at 0.6.
+   --stack-x: where the pile's centre sits. While the picture-in-picture (320px wide, 16px from the bottom right,
+   ui/pip.css) is open the pile moves left so the top card's 换 and 余额 · 去充值 › stay clear of it. The stage ends 32px
+   (page padding) left of the window edge and the PiP starts 336px from it, so card right ≤ 100% − 304px − 16px gap,
+   centre ≤ 100% − 510px; never past the stage's left edge (190px = half a card) */
+.models { --stack-x: 50%; position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 4px; }
+.pip-open .models.switch { --stack-x: max(190px, min(50%, calc(100% - 510px))); }
+.models.switch .guide, .models.switch .add { align-self: flex-start; margin-left: calc(var(--stack-x) - 190px); transition: margin-left .4s cubic-bezier(.2, .8, .2, 1); }
+.models .guide { width: 380px; font-size: 17px; font-weight: 600; text-align: center; }
 
 /* 切换｜分身 */
 .models .mode { display: flex; background: var(--selected); border-radius: var(--pill); padding: 3px; font-size: 13px; }
@@ -8,15 +16,18 @@
 .models .mode-seg[aria-selected="true"] { background: var(--bg); color: var(--ink); font-weight: 500; box-shadow: 0 1px 3px var(--shadow); }
 .models.busy .mode-seg { cursor: default; }
 
-.models .stage { position: relative; width: 100%; transition: height .5s cubic-bezier(.2, .8, .2, 1); }
+.models .stage { position: relative; width: 100%; isolation: isolate; transition: height .5s cubic-bezier(.2, .8, .2, 1); }
 
 .card {
-  position: absolute; left: 50%; top: 0; width: 380px; height: 240px; border-radius: var(--r-lg); padding: 18px 20px;
+  position: absolute; left: var(--stack-x); top: 0; width: 380px; height: 240px; border-radius: var(--r-lg); padding: 18px 20px;
   display: flex; flex-direction: column; align-items: stretch; text-align: left; font: inherit; color: var(--face-ink); user-select: none; touch-action: none; transform-origin: 0 0;
-  transition: transform .5s cubic-bezier(.2, .8, .2, 1), box-shadow .35s; box-shadow: 0 -4px 14px var(--shadow); cursor: grab; outline: none;
+  transition: transform .5s cubic-bezier(.2, .8, .2, 1), left .4s cubic-bezier(.2, .8, .2, 1), box-shadow .35s; box-shadow: 0 -4px 14px var(--shadow); cursor: grab; outline: none;
 }
 .card:focus-visible { box-shadow: 0 0 0 2px var(--blue); }
 .card.cur { box-shadow: 0 -8px 24px var(--shadow), 0 22px 50px var(--shadow); }
+/* below the top card: only the head shows, its content moved down past the 22px tucked under the card above */
+.models.switch .card:not(.whole) .top { margin-top: 14px; }
+.models.switch .card:not(.whole):not(.drag) { clip-path: inset(0 0 calc(100% - 72px) 0 round var(--r-lg)); }
 .card.drag { transition: none; cursor: grabbing; box-shadow: 0 30px 70px var(--shadow); z-index: 999 !important; }
 .card.light { color: var(--face-ink-light); }
 .face-deepseek { background: var(--face-deepseek); }

@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const fx = vi.hoisted(() => ({ views: [] as any[], windows: [] as any[], screenWidth: 1920, attachThrows: false }));
+const area = () => ({ x: 0, y: 0, width: fx.screenWidth, height: 1040 });
 
 vi.mock('electron', async () => {
   const { EventEmitter: EE } = await import('node:events');
@@ -40,6 +41,7 @@ vi.mock('electron', async () => {
   }
   class BrowserWindow extends EE {
     size = [980, 680];
+    pos = [0, 0];
     destroyed = false;
     children: unknown[] = [];
     webContents = new FakeWebContents();
@@ -50,17 +52,18 @@ vi.mock('electron', async () => {
     constructor(public opts?: any) { super(); fx.windows.push(this); }
     getContentSize() { return [...this.size]; }
     setContentSize(w: number, h: number) { this.size = [w, h]; }
-    getBounds() { return { x: 0, y: 0, width: this.size[0], height: this.size[1] }; }
+    getBounds() { return { x: this.pos[0], y: this.pos[1], width: this.size[0], height: this.size[1] }; }
+    setPosition(x: number, y: number) { this.pos = [x, y]; }
     isDestroyed() { return this.destroyed; }
     loadURL(u: string) { return this.webContents.loadURL(u); }
   }
-  return { WebContentsView, BrowserWindow, screen: { getDisplayMatching: () => ({ workArea: { width: fx.screenWidth } }) } };
+  return { WebContentsView, BrowserWindow, screen: { getDisplayMatching: () => ({ workArea: area() }) } };
 });
 
 import { BrowserWindow } from 'electron';
 import {
-  BROWSER_PARTITION, BrowserClosed, browserHandlers, canWiden, createRightBrowser, electronViewHost, openLoginWindows,
-  viewBounds, type BrowserState, type RightBrowser,
+  BROWSER_PARTITION, BrowserClosed, browserHandlers, createRightBrowser, electronViewHost, keepOnScreen, openLoginWindows,
+  viewBounds, widenBy, type BrowserState, type RightBrowser,
 } from '../../electron/main/browser';
 import { fakeHost, type FakeHost } from './browser-fake-host';
 
@@ -114,9 +117,23 @@ describe('right-side browser', () => {
     expect(host.size.width).toBe(980 + 480);
   });
 
+  test('B-02 屏幕差一点不够 480px 时按屏幕能放下的加宽（1440 宽的屏加 460）', async () => {
+    host.screen = 1440;
+    expect(widenBy(980, 1440)).toBe(460);
+    await rb.open('https://bigmodel.cn/login', { mode: 'expanded' });
+    expect(host.size.width).toBe(1440);
+    expect(host.bounds).toEqual({ x: 960, y: 53, width: 480, height: 627 });
+    rb.show('pip');
+    expect(host.size.width).toBe(980);
+    rb.show('expanded');
+    rb.close();
+    expect(host.size.width).toBe(980);
+  });
+
   test('B-02 屏幕不够宽时改成盖住右半边', async () => {
     host.screen = 1280;
-    expect(canWiden(980, 1280)).toBe(false);
+    expect(widenBy(980, 1280)).toBe(0);
+    expect(widenBy(980, 1380)).toBe(400);
     await rb.open('https://bigmodel.cn/login', { mode: 'expanded' });
     expect(host.size.width).toBe(980);
     expect(host.bounds).toEqual({ x: 490, y: 53, width: 490, height: 627 });
@@ -221,6 +238,35 @@ describe('electron view host', () => {
     h.destroy();
     expect(w.children).toEqual([]);
     expect(fx.views[0].webContents.closed).toBe(true);
+  });
+
+  test('B-02 真窗口：加宽后右边出了屏幕就往左挪，缩回时挪回原处；在屏幕外的测试窗口不挪', async () => {
+    fx.screenWidth = 1440;
+    const w = win();
+    w.pos = [230, 100];
+    const b = createRightBrowser(() => electronViewHost(w));
+    await b.open('https://bigmodel.cn/login', { mode: 'expanded' });
+    expect(w.size).toEqual([1440, 680]);
+    expect(w.pos).toEqual([0, 100]);
+    b.setMode('pip');
+    expect(w.size).toEqual([980, 680]);
+    expect(w.pos).toEqual([230, 100]);
+    b.close();
+    const off = win();
+    off.pos = [-30000, -30000];
+    const c = createRightBrowser(() => electronViewHost(off));
+    await c.open('https://bigmodel.cn/login', { mode: 'expanded' });
+    expect(off.size).toEqual([1440, 680]);
+    expect(off.pos).toEqual([-30000, -30000]);
+    c.close();
+    expect(off.size).toEqual([980, 680]);
+  });
+
+  test('B-02 keepOnScreen：没出屏幕不挪，比屏幕还宽就贴左边', () => {
+    const scr = { x: 0, y: 0, width: 1440, height: 900 };
+    expect(keepOnScreen({ x: 100, y: 0, width: 980, height: 680 }, { x: 100, y: 0, width: 1440 - 100, height: 680 }, scr)).toBeNull();
+    expect(keepOnScreen({ x: 300, y: 0, width: 980, height: 680 }, { x: 300, y: 0, width: 1460, height: 680 }, scr)).toBe(0);
+    expect(keepOnScreen({ x: 1500, y: 0, width: 980, height: 680 }, { x: 1500, y: 0, width: 1460, height: 680 }, scr)).toBeNull();
   });
 
   test('B-01 B-02 真窗口：画中画、放大加宽、关掉缩回', async () => {

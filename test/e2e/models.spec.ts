@@ -1,11 +1,12 @@
-// Model page, switch mode: M-01..M-23 and M-28 (approved-spec §3 模型叠卡 M), model-page-final.html. Owner: A7.
-// Pile geometry (model-page-final.html): order[0] is the card in use, fully visible at the bottom of the pile; back
-// cards show 50px headers above it. "Drag to the top of the pile" = drag down onto the front card.
+// Model page, switch mode: M-01..M-23 and M-28 (approved-spec §3 模型叠卡 M), model-page-top.html. Owner: A7.
+// Pile geometry (model-page-top.html, read top to bottom): order[0] is the card in use, whole at the top of the page;
+// the others below it show 72px heads, each tucked 22px under the one above. "Drag to the top" = drag up onto it.
+// Set CODEXBUDDY_SHOTS_DIR to also save the page as PNGs (docs/screenshots/topdown-*.png).
 import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { TID } from '../../ui/testids';
-import { cardBoxes, dragCardTo, dragToFront, fakeScan, finishOnboarding, inWebContents, switchTo, webContentsUrls } from './flows';
+import { cardBoxes, cardsSettled, dragCardTo, dragToFront, fakeScan, finishOnboarding, inWebContents, switchTo, webContentsUrls } from './flows';
 import {
   codexHome, configToml, launch, readText, sandboxApps, seedCodex, seedUserData, setCodexRunning, setCodexScenario,
   tomlValue, VENDOR_IDS, vendorState, wallet, type Launched,
@@ -23,9 +24,8 @@ async function ready(env: Record<string, string> = {}): Promise<Launched> {
   return run;
 }
 const card = (v: string) => run.page.getByTestId(TID.models.card(v));
-/** The card drawn on top of the pile right now (highest data-row): the page moves it before main saves the order */
-const uiFront = () => run.page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-vendor][data-row]')]
-  .sort((a, b) => Number(b.dataset.row) - Number(a.dataset.row))[0]?.dataset.vendor ?? null);
+/** The card drawn on top of the pile right now (data-row 0): the page moves it before main saves the order */
+const uiFront = () => run.page.evaluate(() => document.querySelector<HTMLElement>('[data-vendor][data-row="0"]')?.dataset.vendor ?? null);
 const authKey = () => /"OPENAI_API_KEY"\s*:\s*"([^"]+)"/.exec(readText(path.join(codexHome(run.sandbox), 'auth.json')) ?? '')?.[1] ?? null;
 const lastKey = (v: string) => (vendorState(run.vendors).keys[v] ?? []).at(-1) ?? null;
 const browserEvents = async () => {
@@ -49,12 +49,18 @@ test('M-01 第一次进来所有卡都在且没有正在用的', async () => {
   expect(w.order.slice(0, 7)).toEqual([...VENDOR_IDS]);
   for (const v of VENDOR_IDS) await expect(card(v)).toBeAttached();
   await expect(run.page.getByTestId(TID.models.addVendor)).toBeVisible();
+  // a「选一个模型」line on top; no card is drawn whole, so none looks like it is already in use
+  await expect(run.page.getByTestId(TID.models.guide)).toHaveText('选一个模型');
+  await expect(run.page.locator('.card.whole')).toHaveCount(0);
+  await expect(run.page.getByText('✓ 能用')).toHaveCount(0);
+  const g = (await run.page.getByTestId(TID.models.guide).boundingBox())!;
+  for (const v of VENDOR_IDS) expect((await card(v).boundingBox())!.y).toBeGreaterThan(g.y);
 });
 
 test('M-02 点后面的卡抽到最上层并开始切换', async () => {
   await ready();
   const events = await browserEvents();
-  await card('kimi').click({ position: { x: 60, y: 20 } });
+  await card('kimi').click({ position: { x: 60, y: 45 } });
   await expect.poll(uiFront).toBe('kimi');
   await fakeScan(run.app, 'kimi');
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('kimi');
@@ -80,7 +86,7 @@ test('M-04 拖动途中其他卡让位', async () => {
   let during: typeof before = {};
   const front = (await wallet(run.page)).order[0];
   const fb = (await card(front).boundingBox())!;
-  await dragCardTo(run.page, 'hunyuan', fb.y + 20, async () => { during = await cardBoxes(run.page, others); });
+  await dragCardTo(run.page, 'hunyuan', fb.y + 45, async () => { during = await cardBoxes(run.page, others); });
   const moved = others.filter(v => during[v] && Math.abs(during[v].y - before[v].y) > 1);
   expect(moved.length).toBeGreaterThan(0);
 });
@@ -90,7 +96,7 @@ test('M-05 拖了但没到最上层只调整顺序，不切换也不改配置', 
   const toml = configToml(run.sandbox);
   const before = await wallet(run.page);
   const box = (await card('kimi').boundingBox())!;
-  await dragCardTo(run.page, 'kimi', box.y + 20 + 50); // one header lower, still behind the front card
+  await dragCardTo(run.page, 'kimi', box.y + 45 + 50); // one head lower, still below the top card
   await expect.poll(async () => (await wallet(run.page)).order.join()).not.toBe(before.order.join());
   const after = await wallet(run.page);
   expect(after.order[0]).toBe(before.order[0]);
@@ -101,9 +107,9 @@ test('M-05 拖了但没到最上层只调整顺序，不切换也不改配置', 
 
 test('M-06 切换中再点别的卡不响应', async () => {
   await ready();
-  await card('zhipu').click({ position: { x: 60, y: 20 } }); // waits on the QR scan: switching is in progress
+  await card('zhipu').click({ position: { x: 60, y: 45 } }); // waits on the QR scan: switching is in progress
   await inWebContents(run.app, '/zhipu/login', 'true');
-  await card('kimi').click({ force: true, position: { x: 60, y: 20 } });
+  await card('kimi').click({ force: true, position: { x: 60, y: 45 } });
   await run.page.waitForTimeout(500);
   expect(await uiFront()).toBe('zhipu');
   expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/kimi/login'));
@@ -119,7 +125,7 @@ test('M-07 测试连通没通过卡退回原位且配置逐字节没变', async 
   const order = (await wallet(run.page)).order;
   run.vendors.setScenario('401', 'kimi');
   setCodexScenario(run.sandbox, '401');
-  await card('kimi').click({ position: { x: 60, y: 20 } });
+  await card('kimi').click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'kimi').catch(() => undefined);
   await expect.poll(async () => (await wallet(run.page)).order.join(), { timeout: 30_000 }).toBe(order.join());
   const w = await wallet(run.page);
@@ -131,7 +137,7 @@ test('M-07 测试连通没通过卡退回原位且配置逐字节没变', async 
 test('M-08 智谱第一次用：右侧浏览器放大到登录页，扫码后自动建 Key 并能用', async () => {
   await ready();
   const events = await browserEvents();
-  await card('zhipu').click({ position: { x: 60, y: 20 } });
+  await card('zhipu').click({ position: { x: 60, y: 45 } });
   await expect.poll(async () => (await events()).some(e => e.open && e.mode === 'expanded' && e.url.includes('/zhipu/login')), { timeout: 20_000 }).toBe(true);
   await fakeScan(run.app, 'zhipu');
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('zhipu');
@@ -146,7 +152,7 @@ test('M-08 智谱第一次用：右侧浏览器放大到登录页，扫码后自
 test('M-09 扫码中关掉右侧浏览器等于取消，什么都没改', async () => {
   await ready();
   const toml = configToml(run.sandbox);
-  await card('zhipu').click({ position: { x: 60, y: 20 } });
+  await card('zhipu').click({ position: { x: 60, y: 45 } });
   await inWebContents(run.app, '/zhipu/login', 'true');
   await run.page.getByTestId(TID.browser.close).click();
   await expect.poll(async () => (await wallet(run.page)).active).toBeNull();
@@ -157,7 +163,7 @@ test('M-09 扫码中关掉右侧浏览器等于取消，什么都没改', async 
 test('M-10 建 Key 失败弹窗写原因，再试一次', async () => {
   await ready();
   run.vendors.setScenario('keyfail', 'zhipu');
-  await card('zhipu').click({ position: { x: 60, y: 20 } });
+  await card('zhipu').click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'zhipu');
   const dlg = run.page.getByTestId(TID.dialog.root);
   await expect(dlg).toBeVisible({ timeout: 30_000 });
@@ -196,7 +202,7 @@ test('M-13 余额不够，充值页放大，充完再试一次', async () => {
   const events = await browserEvents();
   run.vendors.setScenario('balance', 'kimi');
   setCodexScenario(run.sandbox, 'balance');
-  await card('kimi').click({ position: { x: 60, y: 20 } });
+  await card('kimi').click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'kimi').catch(() => undefined);
   await expect.poll(async () => (await events()).some(e => e.mode === 'expanded' && e.url.includes('/kimi/recharge')), { timeout: 30_000 }).toBe(true);
   run.vendors.setScenario('ok', 'kimi');
@@ -210,7 +216,7 @@ test('M-14 免费模型被限速，卡上提示并给出换个模型', async () 
   await ready();
   run.vendors.setScenario('429', 'zhipu');
   setCodexScenario(run.sandbox, '429');
-  await card('zhipu').click({ position: { x: 60, y: 20 } });
+  await card('zhipu').click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'zhipu').catch(() => undefined);
   await expect(run.page.getByTestId(TID.models.rateLimitSwap('zhipu'))).toBeVisible({ timeout: 30_000 });
   await expect(card('zhipu')).toContainText('限速');
@@ -221,7 +227,7 @@ test('M-15 Codex 用不了时一键修复，已经做过的步骤跳过', async 
   await ready();
   await switchTo(run, 'deepseek');
   setCodexScenario(run.sandbox, 'broken');
-  await card('kimi').click({ position: { x: 60, y: 20 } });
+  await card('kimi').click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'kimi').catch(() => undefined);
   await expect(run.page.getByTestId(TID.models.repair)).toBeVisible({ timeout: 30_000 });
   setCodexScenario(run.sandbox, 'ok');
@@ -290,7 +296,7 @@ test('M-19 其他厂商：填写后测试连通并加一张卡', async () => {
 
 test('M-20 第一次成功弹窗显示从零到能用 N 秒，有打开 Codex 和关注行', async () => {
   await ready();
-  await card('deepseek').click({ position: { x: 60, y: 20 } });
+  await card('deepseek').click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'deepseek').catch(() => undefined);
   const dlg = run.page.getByTestId(TID.firstSuccess.root);
   await expect(dlg).toBeVisible({ timeout: 30_000 });
@@ -316,7 +322,7 @@ test('M-21 Codex 开着时切换多提示一句重新打开，不替用户关 Co
 
 test('M-22 OpenAI 官方账号在系统浏览器里登录', async () => {
   await ready();
-  await card('openai').click({ position: { x: 60, y: 20 } });
+  await card('openai').click({ position: { x: 60, y: 45 } });
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('openai');
   expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/openai/login'));
   expect(readText(path.join(codexHome(run.sandbox), 'auth.json'))).toContain('tokens');
@@ -326,7 +332,7 @@ test('M-23 重启 App 后卡片顺序和正在用的那张不变', async () => {
   await ready();
   await switchTo(run, 'deepseek');
   const box = (await card('minimax').boundingBox())!;
-  await dragCardTo(run.page, 'minimax', box.y + 20 + 50);
+  await dragCardTo(run.page, 'minimax', box.y + 45 + 50);
   const before = await wallet(run.page);
   run = await run.relaunch();
   await expect(run.page.getByTestId(TID.models.root)).toBeVisible();
@@ -344,4 +350,44 @@ test('M-28 在 Codex 里换了模型，卡片上的模型名跟着变', async ()
   const toml = configToml(run.sandbox);
   await run.page.getByTestId(TID.models.cardModel('zhipu')).click({ force: true });
   expect(configToml(run.sandbox)).toBe(toml);
+});
+
+test('M-02 从上往下：切到智谱、再切到 Kimi，最近用的排上面；画中画不挡最上面那张卡的换和去充值', async () => {
+  await ready();
+  const shot = async (name: string) => {
+    const dir = process.env.CODEXBUDDY_SHOTS_DIR;
+    if (!dir) return;
+    await run.page.waitForTimeout(3_000); // toasts gone, cards settled
+    await run.page.screenshot({ path: path.join(dir, `topdown-${name}.png`) });
+  };
+  const top = async (v: string) => {
+    await expect.poll(uiFront).toBe(v);
+    await expect(card(v)).toHaveClass(/\bwhole\b/);
+  };
+  await shot('1-first');
+  await switchTo(run, 'zhipu');
+  await top('zhipu');
+  await expect(run.page.getByTestId(TID.models.guide)).toBeHidden();
+  await shot('2-zhipu');
+  await switchTo(run, 'kimi');
+  await top('kimi');
+  expect((await wallet(run.page)).order.slice(0, 2)).toEqual(['kimi', 'zhipu']); // the one used before comes second
+  const boxes = await cardBoxes(run.page, ['kimi', 'zhipu']);
+  expect(boxes.zhipu.y - boxes.kimi.y).toBeCloseTo(240 - 22, 0);
+  await shot('3-kimi');
+  // gift credit → 先用着: the recharge page stays in the picture-in-picture while DeepSeek is the card in use
+  run.vendors.setScenario('trial', 'deepseek');
+  await switchTo(run, 'deepseek');
+  await run.page.getByTestId(TID.models.tryLater).click();
+  const pip = run.page.getByTestId(TID.browser.pip);
+  await expect(pip).toBeVisible();
+  await cardsSettled(run.page); // the pile slides left
+  const p = (await pip.boundingBox())!;
+  for (const id of [TID.models.changeKey('deepseek'), TID.models.recharge('deepseek')]) {
+    const b = (await run.page.getByTestId(id).boundingBox())!;
+    const apart = b.x + b.width <= p.x || p.x + p.width <= b.x || b.y + b.height <= p.y || p.y + p.height <= b.y;
+    expect(apart, id).toBe(true);
+  }
+  expect((await card('deepseek').boundingBox())!.x + 380).toBeLessThanOrEqual(p.x);
+  await shot('4-pip');
 });

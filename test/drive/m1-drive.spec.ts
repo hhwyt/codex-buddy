@@ -127,7 +127,7 @@ test('M1 drive: every step on the packaged app', async () => {
   await shot(page, '03-models-first', '装好直接进模型页：7 张卡叠在一起，没有正在用的');
 
   // 2. First vendor: login page enlarged → scan → key → test → first success dialog
-  await page.getByTestId(TID.models.card('deepseek')).click({ position: { x: 60, y: 20 } });
+  await page.getByTestId(TID.models.card('deepseek')).click({ position: { x: 60, y: 45 } });
   await expect.poll(() => webContentsUrls(run.app), { timeout: 20_000 }).toContainEqual(expect.stringContaining('/deepseek/login'));
   await page.waitForTimeout(500);
   await shot(page, '04-login-enlarged', '第一次用 DeepSeek：右侧浏览器放大到登录页');
@@ -160,7 +160,7 @@ test('M1 drive: every step on the packaged app', async () => {
   await switchTo(run, 'deepseek');
   const toml = configToml(run.sandbox);
   setCodexScenario(run.sandbox, 'unreachable');
-  await page.getByTestId(TID.models.card('kimi')).click({ position: { x: 60, y: 20 } });
+  await page.getByTestId(TID.models.card('kimi')).click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'kimi').catch(() => undefined);
   await page.waitForTimeout(250);
   await shot(page, '13-failing', '测不通的那一刻（卡在最上层测试连通）');
@@ -172,7 +172,7 @@ test('M1 drive: every step on the packaged app', async () => {
   // A wrong key is said in a dialog (没拿到 Key / 再试一次)
   run.vendors.setScenario('401', 'kimi');
   setCodexScenario(run.sandbox, '401');
-  await page.getByTestId(TID.models.card('kimi')).click({ position: { x: 60, y: 20 } });
+  await page.getByTestId(TID.models.card('kimi')).click({ position: { x: 60, y: 45 } });
   await expect(page.getByTestId(TID.dialog.root)).toBeVisible({ timeout: 30_000 });
   await shot(page, '14b-key-failed', 'Key 不对：弹窗写原因，「再试一次」「先不了」');
   await page.getByTestId(TID.dialog.cancel).click();
@@ -181,7 +181,7 @@ test('M1 drive: every step on the packaged app', async () => {
   // 5. 余额不够 → the recharge page opens enlarged → 再试一次
   run.vendors.setScenario('balance', 'kimi');
   setCodexScenario(run.sandbox, 'balance');
-  await page.getByTestId(TID.models.card('kimi')).click({ position: { x: 60, y: 20 } });
+  await page.getByTestId(TID.models.card('kimi')).click({ position: { x: 60, y: 45 } });
   await expect.poll(() => webContentsUrls(run.app), { timeout: 30_000 }).toContainEqual(expect.stringContaining('/kimi/recharge'));
   await page.waitForTimeout(500);
   await shot(page, '15-no-balance', '余额不够：充值页在右侧放大，卡上「去充值」「再试一次」');
@@ -195,7 +195,7 @@ test('M1 drive: every step on the packaged app', async () => {
   // 6. 被限速 → 换个模型
   run.vendors.setScenario('429', 'qwen');
   setCodexScenario(run.sandbox, '429');
-  await page.getByTestId(TID.models.card('qwen')).click({ position: { x: 60, y: 20 } });
+  await page.getByTestId(TID.models.card('qwen')).click({ position: { x: 60, y: 45 } });
   await expect(page.getByTestId(TID.models.rateLimitSwap('qwen'))).toBeVisible({ timeout: 30_000 });
   await shot(page, '17-rate-limited', '被限速：卡上提示，给出「换个模型」');
   run.vendors.setScenario('ok', 'qwen');

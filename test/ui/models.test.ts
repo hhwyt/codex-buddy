@@ -38,10 +38,18 @@ describe('叠卡', () => {
     for (const v of ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai']) expect(card(v)).toBeTruthy();
     expect(document.querySelectorAll('.card.cur').length).toBe(0);
     expect(document.body.textContent).not.toContain('✓ 能用');
-    expect(rowOf('deepseek')).toBe(6); // order[0] sits at the bottom of the pile, fully visible
-    expect(rowOf('zhipu')).toBe(5);
-    expect(card('zhipu').style.transform).toContain('250px');
+    // nothing in use: a「选一个模型」line on top, every card only a head, so the top one does not look in use
+    expect(q(TID.models.guide)!.hidden).toBe(false);
+    expect(q(TID.models.guide)!.textContent).toBe('选一个模型');
+    expect(document.querySelectorAll('.card.whole').length).toBe(0);
+    expect(rowOf('deepseek')).toBe(0); // read top to bottom: order[0] at the top
+    expect(rowOf('zhipu')).toBe(1);
+    expect(card('deepseek').style.transform).toBe('translate(-190px, 0px)');
+    expect(card('zhipu').style.transform).toBe('translate(-190px, 50px)');
+    expect(text('deepseek')).toContain('按用量付费');
+    expect(q(TID.models.cardModel('deepseek'))!.textContent).toBe('—');
     expect(q(TID.models.changeKey('deepseek'))).toBeNull();
+    expect(q(TID.models.recharge('deepseek'))).toBeNull();
     expect(q(TID.models.addVendor)?.textContent).toBe('＋ 其他厂商');
     expect(readFileSync('ui/index.html', 'utf8')).toContain('href="models.css"');
   });
@@ -53,11 +61,15 @@ describe('叠卡', () => {
     tap(card('kimi'));
     await settle();
     expect(api.callsOf('switch:start')).toEqual([{ vendor: 'kimi' }]);
-    expect(rowOf('kimi')).toBe(6);
+    expect(rowOf('kimi')).toBe(0);
+    expect(rowOf('deepseek')).toBe(1); // the one in use so far comes second
     expect(text('kimi')).toContain('扫码登录');
     gate.resolve({ ok: true });
     await settle();
     expect(text('kimi')).toContain('✓ 能用');
+    expect(card('kimi').classList.contains('whole')).toBe(true);
+    expect(card('deepseek').classList.contains('whole')).toBe(false);
+    expect(card('deepseek').style.transform).toBe('translate(-190px, 218px)'); // tucked 22px under the top card
     expect(card('kimi').classList.contains('cur')).toBe(true);
     expect(api.callsOf('wallet:reorder')[0].order[0]).toBe('kimi');
     expect(toastText()).toContain('已切换到 Kimi');
@@ -77,43 +89,75 @@ describe('叠卡', () => {
     expect(api.callsOf('switch:start')).toEqual([{ vendor: 'qwen' }]);
   });
 
-  it('M-03 把后面的卡拖到最上层 → 切换', async () => {
+  it('M-03 把下面的卡拖到最上面 → 切换', async () => {
     await mount(walletOf({ active: 'deepseek' }));
     expect(rowOf('qwen')).toBe(3);
-    drag(card('qwen'), 150);
+    expect(card('qwen').style.transform).toBe('translate(-190px, 318px)');
+    drag(card('qwen'), -250);
     await settle();
     expect(api.callsOf('switch:start')).toEqual([{ vendor: 'qwen' }]);
-    expect(rowOf('qwen')).toBe(6);
+    expect(rowOf('qwen')).toBe(0);
+    expect(rowOf('deepseek')).toBe(1);
+  });
+
+  it('M-03 第一次进来把卡拖到最上面也切换', async () => {
+    await mount();
+    expect(card('zhipu').style.transform).toBe('translate(-190px, 50px)');
+    drag(card('zhipu'), -50);
+    await settle();
+    expect(api.callsOf('switch:start')).toEqual([{ vendor: 'zhipu' }]);
+    expect(q(TID.models.guide)!.hidden).toBe(true);
+    expect(card('zhipu').classList.contains('whole')).toBe(true);
+  });
+
+  it('M-05 第一次进来拖到中间只调顺序，引导还在', async () => {
+    await mount();
+    drag(card('deepseek'), 120);
+    await settle();
+    expect(api.callsOf('switch:start')).toEqual([]);
+    expect(rowOf('deepseek')).toBe(0); // dragging the top card down puts it back
+    drag(card('minimax'), -100);
+    await settle();
+    expect(api.callsOf('switch:start')).toEqual([]);
+    expect(rowOf('minimax')).toBe(2);
+    expect(api.callsOf('wallet:reorder')[0].order.slice(0, 3)).toEqual(['deepseek', 'zhipu', 'minimax']);
+    expect(q(TID.models.guide)!.hidden).toBe(false);
   });
 
   it('M-04 拖动途中，其他卡让位', async () => {
     await mount(walletOf({ active: 'deepseek' }));
-    expect(rowOf('minimax')).toBe(2);
-    drag(card('qwen'), -50, { release: false });
-    expect(rowOf('minimax')).toBe(3); // minimax moved down to make room
+    expect(rowOf('minimax')).toBe(4);
+    drag(card('qwen'), 50, { release: false });
+    expect(rowOf('minimax')).toBe(3); // minimax moved up to make room
+    expect(rowOf('qwen')).toBe(4);
     expect(card('qwen').classList.contains('drag')).toBe(true);
     card('qwen').dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientY: 50 }));
     await settle();
     expect(card('qwen').classList.contains('drag')).toBe(false);
   });
 
-  it('M-05 拖了但没到最上层不切换，只调整顺序', async () => {
+  it('M-05 拖了但没到最上面不切换，只调整顺序', async () => {
     await mount(walletOf({ active: 'deepseek' }));
-    drag(card('qwen'), 100);
+    drag(card('qwen'), -100);
     await settle();
     expect(api.callsOf('switch:start')).toEqual([]);
     const [{ order }] = api.callsOf('wallet:reorder');
     expect(order[0]).toBe('deepseek');
     expect(order[1]).toBe('qwen');
-    expect(rowOf('deepseek')).toBe(6);
+    expect(rowOf('deepseek')).toBe(0);
+    expect(rowOf('qwen')).toBe(1);
   });
 
-  it('M-05 把最上层的卡往后拖不会切到别的卡', async () => {
+  it('M-05 把最上面的卡往下拖不会切到别的卡', async () => {
     await mount(walletOf({ active: 'deepseek' }));
-    drag(card('deepseek'), -100);
+    drag(card('deepseek'), 300);
     await settle();
     expect(api.callsOf('switch:start')).toEqual([]);
-    expect(rowOf('deepseek')).toBe(6);
+    expect(rowOf('deepseek')).toBe(0);
+    drag(card('deepseek'), 60); // stays in the top half: still on top
+    await settle();
+    expect(api.callsOf('switch:start')).toEqual([]);
+    expect(api.callsOf('wallet:reorder')).toEqual([]);
   });
 
   it('M-05 拖动不到 4 像素算点击', async () => {
@@ -150,8 +194,8 @@ describe('叠卡', () => {
     expect(toastText()).toBe('连不上，原来的配置没动');
     await new Promise(r => setTimeout(r, 450));
     expect(card('openai').classList.contains('shake')).toBe(false);
-    expect(rowOf('openai')).toBe(0);
-    expect(rowOf('deepseek')).toBe(6);
+    expect(rowOf('openai')).toBe(6);
+    expect(rowOf('deepseek')).toBe(0);
     expect(api.callsOf('wallet:reorder')).toEqual([]);
   });
 
@@ -205,7 +249,7 @@ describe('叠卡', () => {
     api.emit('browser', { open: false, mode: 'expanded', url: '', canGoBack: false });
     await settle();
     expect(api.callsOf('switch:cancel').length).toBe(1);
-    expect(rowOf('deepseek')).toBe(6);
+    expect(rowOf('deepseek')).toBe(0);
     expect(toastText()).toBe('取消了，什么都没改');
     expect(api.callsOf('wallet:reorder')).toEqual([]);
   });
@@ -217,7 +261,7 @@ describe('叠卡', () => {
     tap(card('zhipu'));
     await settle();
     expect(q(TID.dialog.root)?.textContent).toContain('官网没让建 Key');
-    expect(rowOf('deepseek')).toBe(6);
+    expect(rowOf('deepseek')).toBe(0);
     click(TID.dialog.confirm);
     await settle();
     expect(api.callsOf('switch:start').length).toBe(2);
@@ -312,6 +356,16 @@ describe('叠卡', () => {
     await settle();
     expect(toastText()).toBe('修不好');
     expect(api.callsOf('switch:start').length).toBe(1);
+  });
+
+  it('M-16 进来时 Codex 已经被删了：最上面那张直接给「重新安装」，不显示选一个模型', async () => {
+    api = fakeApi(walletOf());
+    api.handle('app:state', () => ({ codexInstalled: false }));
+    cleanup = (await renderModels({ api, root, go: () => {} })) as () => void;
+    await settle();
+    expect(q(TID.models.reinstall)).toBeTruthy();
+    expect(card('deepseek').classList.contains('whole')).toBe(true);
+    expect(q(TID.models.guide)!.hidden).toBe(true);
   });
 
   it('M-16 Codex 被删了 →「重新安装」', async () => {
@@ -478,9 +532,10 @@ describe('叠卡', () => {
   it('M-23 卡片顺序和正在用的那张按主进程给的来', async () => {
     const order = ['kimi', 'deepseek', 'zhipu', 'qwen', 'minimax', 'hunyuan', 'openai'];
     await mount(walletOf({ active: 'kimi', order }));
-    expect(rowOf('kimi')).toBe(6);
-    expect(rowOf('deepseek')).toBe(5);
+    expect(rowOf('kimi')).toBe(0);
+    expect(rowOf('deepseek')).toBe(1);
     expect(card('kimi').classList.contains('cur')).toBe(true);
+    expect(q(TID.models.guide)!.hidden).toBe(true);
   });
 
   it('M-28 在 Codex 里换了模型，卡片上的模型名跟着变（只显示，不能点）', async () => {
@@ -569,7 +624,7 @@ describe('分身', () => {
     expect(api.callsOf('switch:start')).toEqual([]);
     click(TID.models.modeSwitch);
     expect(page.dataset.mode).toBe('switch');
-    expect(rowOf('kimi')).toBe(6);
+    expect(rowOf('kimi')).toBe(0);
     expect(card('kimi').classList.contains('cur')).toBe(true);
   });
 

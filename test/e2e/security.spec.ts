@@ -65,7 +65,7 @@ test('S-04 连过的网站实时更新，分 CodexBuddy 连过的和网页里连
   await expect(webSites).toBeVisible();
   await run.page.getByTestId(TID.security.close).click();
   // DeepSeek: the key is made in the web page (网页里连过的); CodexBuddy itself then asks DeepSeek for the balance
-  await run.page.getByTestId(TID.models.card('deepseek')).click({ position: { x: 60, y: 20 } });
+  await run.page.getByTestId(TID.models.card('deepseek')).click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'deepseek');
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('deepseek');
   await run.page.keyboard.press('Escape'); // first-success dialog

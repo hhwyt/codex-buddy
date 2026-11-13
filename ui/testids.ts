@@ -30,6 +30,7 @@ export const TID = {
     root: 'models-root',
     modeSwitch: 'mode-switch', // 切换 C-09
     modeClone: 'mode-clone', // 分身 C-09
+    guide: 'models-guide', // 选一个模型 on the first visit M-01
     card: (v: string) => `card-${v}`,
     cardModel: (v: string) => `card-model-${v}`, // M-28 display only
     changeKey: (v: string) => `card-change-key-${v}`, // 换 M-17

@@ -1,4 +1,4 @@
-// One bank-card face on the model page. Owner: A5. Layout and wording from ui-design/model-page-final.html.
+// One bank-card face on the model page. Owner: A5. Layout and wording from ui-design/model-page-top.html.
 // Colors come from tokens.css (--face-<id>) through the .face-<id> class; nothing here writes a color value.
 import type { CardView } from '../../electron/main/ipc-contract.js';
 import { h } from '../dom.js';
@@ -6,7 +6,9 @@ import { TID } from '../testids.js';
 
 export const CARD_WIDTH = 380;
 export const CARD_HEIGHT = 240; // 380 / 1.586
-export const CARD_PEEK = 50; // how much of each card's head shows above the one in front of it
+export const CARD_PEEK = 50; // step between card heads in the pile
+export const CARD_TUCK = 22; // how far each head tucks under the card above it
+export const CARD_HEAD = 72; // a card below the top shows only this much (PEEK + TUCK); the rest is clipped
 
 const BUILTIN = ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'];
 const LIGHT = new Set(['openai']);

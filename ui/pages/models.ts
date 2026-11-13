@@ -1,11 +1,13 @@
-// models page. Owner: A5. M-01..M-28, C-01..C-10 叠卡（切换）和摊开（分身），照 ui-design/model-page-final.html
-// Switch mode: cards in a pile, order[0] on top (fully visible, at the bottom of the pile), the others show a 50px head.
-// Click a card behind or drag it to the top → switch. Drag that stops short of the top → only reorder (M-05).
+// models page. Owner: A5. M-01..M-28, C-01..C-10 叠卡（切换）和摊开（分身）
+// Switch mode reads top to bottom (ui-design/model-page-top.html): order[0], the card in use, lies at the top, whole and
+// above the rest; each other card is tucked 22px under the one above it and shows only its head. Most recently used
+// first. Click a card below or drag it to the top → switch. Drag that stops short of the top → only reorder (M-05).
+// Nothing in use yet (first visit): a「选一个模型」line on top and every card as a head only, so none looks in use.
 // Clone mode: the same cards spread in 3 columns, each one an App of its own.
 import type { CardView, Outcome, VendorKey, WalletView } from '../../electron/main/ipc-contract.js';
 import type { BuddyApi } from '../api.js';
 import { confirmRemoveClone, customVendor, firstSuccess, keyFailed } from '../components/card-actions.js';
-import { CARD_HEIGHT, CARD_PEEK, CARD_WIDTH, cardFace, faceClass, isLight, type CardActions, type FrontState } from '../components/card.js';
+import { CARD_HEAD, CARD_HEIGHT, CARD_PEEK, CARD_TUCK, CARD_WIDTH, cardFace, faceClass, isLight, type CardActions, type FrontState } from '../components/card.js';
 import { toast } from '../components/toast.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
@@ -47,11 +49,12 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     h('button', { type: 'button', class: 'mode-seg', 'data-m': m, 'data-testid': testid, onclick: () => setMode(m) }, text);
   const modeBar = h('div', { class: 'mode', role: 'tablist' },
     modeBtn('switch', '切换', TID.models.modeSwitch), modeBtn('clone', '分身', TID.models.modeClone));
+  const guide = h('div', { class: 'guide sw-only', 'data-testid': TID.models.guide }, '选一个模型');
   const stage = h('div', { class: 'stage' });
   const hint = h('div', { class: 'reopen-hint', 'data-testid': TID.models.reopenHint }, '重新打开 Codex 生效');
   hint.hidden = true;
   const add = h('button', { class: 'add sw-only', type: 'button', 'data-testid': TID.models.addVendor, onclick: () => { void addVendor(); } }, '＋ 其他厂商');
-  const page = h('div', { class: `models ${mode}`, 'data-testid': TID.models.root, 'data-mode': mode }, modeBar, stage, hint, add);
+  const page = h('div', { class: `models ${mode}`, 'data-testid': TID.models.root, 'data-mode': mode }, modeBar, guide, stage, hint, add);
   root.replaceChildren(page);
 
   const card = (v: VendorKey): CardView => wallet.cards.find(c => c.vendor === v)!;
@@ -93,13 +96,31 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     };
   }
 
+  /** The top card shows whole once something is in use or being switched to; before that every card is a head */
+  const wholeTop = () => wallet.active !== null || front !== null || switching;
+
+  /** y of the card at index i of the pile */
+  function slotY(i: number): number {
+    if (!wholeTop()) return i * CARD_PEEK;
+    return i === 0 ? 0 : CARD_HEIGHT - CARD_TUCK + (i - 1) * CARD_PEEK;
+  }
+
+  /** Index in the pile a card dragged to y lands on */
+  function slotAt(y: number): number {
+    const last = order.length - 1;
+    if (!wholeTop()) return Math.max(0, Math.min(last, Math.round(y / CARD_PEEK)));
+    if (y < CARD_HEIGHT / 2) return 0;
+    return Math.max(1, Math.min(last, 1 + Math.round((y - (CARD_HEIGHT - CARD_TUCK)) / CARD_PEEK)));
+  }
+
   function paint(v: VendorKey, i: number): void {
     const c = card(v);
     const el = els.get(v)!;
-    const isFront = mode === 'switch' && i === 0;
+    const isFront = mode === 'switch' && i === 0 && wholeTop();
     el.replaceChildren(...cardFace(c, {
       front: isFront, inUse: wallet.active === v, state: isFront ? front : null, cloneState: cloneState(c), actions: actionsFor(v),
     }));
+    el.classList.toggle('whole', isFront);
     el.classList.toggle('cur', isFront && wallet.active === v);
   }
 
@@ -113,16 +134,17 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     page.className = `models ${mode}${switching ? ' busy' : ''}`;
     page.dataset.mode = mode;
     for (const b of modeBar.querySelectorAll<HTMLElement>('.mode-seg')) b.setAttribute('aria-selected', String(b.dataset.m === mode));
+    guide.hidden = mode !== 'switch' || wholeTop();
     if (mode === 'switch') {
       order.forEach((v, i) => {
         const el = els.get(v)!;
         paint(v, i);
         el.classList.remove('todo');
-        const row = i === 0 ? n - 1 : n - 1 - i; // visual row: 0 = deepest, at the top of the pile
-        el.dataset.row = String(row);
-        if (v !== skip) { ys.set(v, row * CARD_PEEK); place(el, -CARD_WIDTH / 2, row * CARD_PEEK); el.style.zIndex = String(row + 1); }
+        el.dataset.row = String(i); // 0 = top of the page
+        // the whole top card lies above everything; below it, each card under the one above
+        if (v !== skip) { ys.set(v, slotY(i)); place(el, -CARD_WIDTH / 2, slotY(i)); el.style.zIndex = String(i === 0 ? n + 1 : n - i); }
       });
-      stage.style.height = `${(n - 1) * CARD_PEEK + CARD_HEIGHT}px`;
+      stage.style.height = `${n > 1 ? slotY(n - 1) + CARD_HEAD : CARD_HEIGHT}px`;
     } else {
       const cw = CARD_WIDTH * SPREAD_SCALE, ch = CARD_HEIGHT * SPREAD_SCALE;
       const rank = (c: CardView) => ({ orig: 0, made: 1, making: 2, todo: 3 })[cloneState(c)];
@@ -275,9 +297,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
       if (Math.abs(ev.clientY - startY) > 4) moved = true;
       const y = y0 + ev.clientY - startY;
       place(el, -CARD_WIDTH / 2, y);
-      const n = order.length;
-      const row = Math.max(0, Math.min(n - 1, Math.round(y / CARD_PEEK)));
-      const i = row === n - 1 ? 0 : n - 1 - row;
+      const i = slotAt(y);
       const rest = order.filter(k => k !== v);
       rest.splice(i, 0, v);
       if (rest.join() !== order.join()) { order = rest; layout(v); } // the others make room (M-04)

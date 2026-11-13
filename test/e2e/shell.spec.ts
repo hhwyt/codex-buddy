@@ -117,7 +117,7 @@ test('H-03 代码、网络请求、界面里都不出现 humanslive', async () =
   run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
   run.app.context().on('request', req => urls.push(req.url()));
   await finishOnboarding(run.page);
-  await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 20 } });
+  await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'zhipu');
   await nav.help(run.page);
   expect(urls.filter(u => /humanslive/i.test(u))).toEqual([]);
