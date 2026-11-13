@@ -3,6 +3,7 @@
 // browser). Onboarding is full width without the left column. First screen: model page when already configured
 // (O-06), else onboarding. Switching pages never touches the right-side browser (B-04).
 import { windowApi, type BuddyApi } from './api.js';
+import { mountBrowser } from './components/pip.js';
 import { h } from './dom.js';
 import { renderHelp } from './pages/help.js';
 import { renderModels } from './pages/models.js';
@@ -56,6 +57,7 @@ export async function createApp(root: HTMLElement, api: BuddyApi): Promise<App> 
     route: () => current,
   };
   watchUpdates(api, root);
+  mountBrowser(api, root);
   await app.go(state.configured ? 'models' : 'onboarding');
   return app;
 }

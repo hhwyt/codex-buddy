@@ -10,9 +10,10 @@ import type { BrowserDriver } from '../vendors/types';
 export const BROWSER_PARTITION = 'persist:codexbuddy-browser';
 export const EXPANDED_EXTRA_WIDTH = 480;
 /** Height of the address bar the page draws above the expanded view */
-export const CHROME_BAR_HEIGHT = 40;
-/** PiP box drawn by the page: 300×200, 18px from the bottom right, 26px title bar */
-export const PIP = { width: 300, height: 200, margin: 18, bar: 26 };
+export const CHROME_BAR_HEIGHT = 53;
+/** PiP box drawn by the page (ui/pip.css): 320×210, 16px from the bottom right, 30px title bar + 1px line.
+ *  The view sits inside the 1px border */
+export const PIP = { width: 318, height: 208, margin: 17, bar: 31 };
 
 export type BrowserMode = 'pip' | 'expanded';
 export interface Bounds { x: number; y: number; width: number; height: number }

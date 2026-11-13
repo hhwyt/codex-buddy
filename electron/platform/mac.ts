@@ -1,7 +1,7 @@
 // Mac platform. Owner: A2.
 // Codex on Mac = /Applications/ChatGPT.app (bundle id com.openai.codex); CLI at
 // Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex (spike (a)). Install = download the official dmg and
-// copy the app into /Applications (never in tests: sandbox paths put it at <sandbox>/Applications/Test-ChatGPT.app).
+// copy the app into /Applications (never in tests: sandbox paths put it at <sandbox>/Applications/ChatGPT.app).
 // Never modify ChatGPT.app. 还原 removes Codex only when CodexBuddy installed it (marker file), always through guard.ts.
 import { execFile } from 'node:child_process';
 import * as nfs from 'node:fs';
@@ -36,9 +36,8 @@ export const MAC_CODEX_BUNDLE_ID = 'com.openai.codex';
 export const MAC_CODEX_DMG_URL = 'https://persistent.oaistatic.com/codex-app-prod/Codex.dmg';
 export const macCli = (app: string) => path.join(app, 'Contents', 'Resources', 'codex-cli', 'CodexCLI.app', 'Contents', 'MacOS', 'codex');
 
-/** Where Codex lives: the real /Applications/ChatGPT.app, or Test-ChatGPT.app inside a sandbox */
-export const macCodexAppPath = (paths: Paths) =>
-  paths.appsDir === '/Applications' ? MAC_CODEX_APP : path.join(paths.appsDir, 'Test-ChatGPT.app');
+/** Where Codex lives: ChatGPT.app in the apps folder (/Applications, or <sandbox>/Applications in a sandbox) */
+export const macCodexAppPath = (paths: Paths) => path.join(paths.appsDir, 'ChatGPT.app');
 
 export type Exec = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
 

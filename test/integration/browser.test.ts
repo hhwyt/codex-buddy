@@ -101,7 +101,7 @@ describe('right-side browser', () => {
 
   test('B-01 后台自动操作时显示画中画（右下角）', async () => {
     await rb.open('https://bigmodel.cn/keys', { mode: 'pip' });
-    expect(host.bounds).toEqual({ x: 980 - 18 - 300, y: 680 - 18 - 200 + 26, width: 300, height: 174 });
+    expect(host.bounds).toEqual({ x: 980 - 17 - 318, y: 680 - 17 - 208 + 31, width: 318, height: 177 });
     expect(host.size.width).toBe(980);
     expect(rb.state()).toMatchObject({ open: true, mode: 'pip', url: 'https://bigmodel.cn/keys' });
   });
@@ -109,7 +109,7 @@ describe('right-side browser', () => {
   test('B-02 要扫码或付款时自动放大，窗口加宽约 480px', async () => {
     await rb.open('https://bigmodel.cn/login', { mode: 'expanded' });
     expect(host.size.width).toBe(980 + 480);
-    expect(host.bounds).toEqual({ x: 980, y: 40, width: 480, height: 640 });
+    expect(host.bounds).toEqual({ x: 980, y: 53, width: 480, height: 627 });
     rb.show('expanded');
     expect(host.size.width).toBe(980 + 480);
   });
@@ -119,8 +119,8 @@ describe('right-side browser', () => {
     expect(canWiden(980, 1280)).toBe(false);
     await rb.open('https://bigmodel.cn/login', { mode: 'expanded' });
     expect(host.size.width).toBe(980);
-    expect(host.bounds).toEqual({ x: 490, y: 40, width: 490, height: 640 });
-    expect(viewBounds('expanded', { width: 981, height: 600 }, false)).toEqual({ x: 490, y: 40, width: 491, height: 560 });
+    expect(host.bounds).toEqual({ x: 490, y: 53, width: 490, height: 627 });
+    expect(viewBounds('expanded', { width: 981, height: 600 }, false)).toEqual({ x: 490, y: 53, width: 491, height: 547 });
   });
 
   test('B-03 点画中画或 🌐 → 放大；放大后能缩回画中画', async () => {
@@ -192,7 +192,7 @@ describe('right-side browser', () => {
   test('B-02 窗口大小变了，网页跟着放好', async () => {
     await rb.open('https://x.example/', { mode: 'pip' });
     host.resize(1200, 800);
-    expect(host.bounds).toEqual({ x: 1200 - 318, y: 800 - 218 + 26, width: 300, height: 174 });
+    expect(host.bounds).toEqual({ x: 1200 - 335, y: 800 - 225 + 31, width: 318, height: 177 });
   });
 
   test('M-08 等登录：已经在登录后的页面就直接算成功；等不到算超时', async () => {
@@ -228,13 +228,13 @@ describe('electron view host', () => {
     const b = createRightBrowser(() => electronViewHost(w));
     await b.open('https://bigmodel.cn/login', { mode: 'expanded' });
     expect(w.size).toEqual([1460, 680]);
-    expect(fx.views[0].bounds).toEqual({ x: 980, y: 40, width: 480, height: 640 });
+    expect(fx.views[0].bounds).toEqual({ x: 980, y: 53, width: 480, height: 627 });
     expect(b.state()).toMatchObject({ url: 'https://bigmodel.cn/login', canGoBack: true });
     b.setMode('pip');
     expect(w.size).toEqual([980, 680]);
     w.size = [1000, 700];
     w.emit('resize');
-    expect(fx.views[0].bounds).toEqual({ x: 1000 - 318, y: 700 - 218 + 26, width: 300, height: 174 });
+    expect(fx.views[0].bounds).toEqual({ x: 1000 - 335, y: 700 - 225 + 31, width: 318, height: 177 });
     b.back();
     b.reload();
     expect(fx.views[0].webContents.history.back).toBe(1);

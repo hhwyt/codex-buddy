@@ -100,8 +100,8 @@ afterEach(async () => {
 const platform = () => createMacPlatform(paths, { exec: fakeExec, downloadUrl: url });
 const app = () => macCodexAppPath(paths);
 
-test('O-02 沙盒里 Codex 装成 Test-ChatGPT.app，真机路径是 /Applications/ChatGPT.app', () => {
-  expect(app()).toBe(path.join(root, 'Applications', 'Test-ChatGPT.app'));
+test('O-02 沙盒里 Codex 装成 <沙盒>/Applications/ChatGPT.app，真机路径是 /Applications/ChatGPT.app', () => {
+  expect(app()).toBe(path.join(root, 'Applications', 'ChatGPT.app'));
   expect(macCodexAppPath(macPaths('/Users/x'))).toBe(MAC_CODEX_APP);
   expect(macCli(MAC_CODEX_APP)).toBe('/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex');
   const real = macPaths('/Users/x');
@@ -273,11 +273,11 @@ test('G-01 还原：我们装的 Codex 卸掉，~/.codex 和 Codex 数据目录�
 test('G-01 删除都经过 guard：Codex 路径指向数据目录时拒绝删除', async () => {
   const evil: Paths = { ...paths, appsDir: paths.home };
   const p = createMacPlatform({ ...evil, appsDir: path.join(paths.codexHome) }, { exec: fakeExec, downloadUrl: url });
-  makeApp(path.join(paths.codexHome, 'Test-ChatGPT.app'));
+  makeApp(path.join(paths.codexHome, 'ChatGPT.app'));
   fs.mkdirSync(paths.buddyDir, { recursive: true });
   fs.writeFileSync(path.join(paths.buddyDir, 'installed-codex.json'), '{}');
   await expect(p.uninstallCodex()).rejects.toThrow(GuardError);
-  expect(fs.existsSync(path.join(paths.codexHome, 'Test-ChatGPT.app'))).toBe(true);
+  expect(fs.existsSync(path.join(paths.codexHome, 'ChatGPT.app'))).toBe(true);
 });
 
 test('O-01 下载地址：默认官方，CODEXBUDDY_ENDPOINTS 可以指到假下载源', () => {
