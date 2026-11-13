@@ -18,6 +18,8 @@ export const CHROME_BAR_HEIGHT = 53;
  *  The view sits inside the 1px border */
 export const PIP = { width: 318, height: 208, margin: 17, bar: 31 };
 
+export const WEBRTC_POLICY = 'disable_non_proxied_udp';
+
 export type BrowserMode = 'pip' | 'expanded';
 export interface Bounds { x: number; y: number; width: number; height: number }
 export interface Size { width: number; height: number }
@@ -198,6 +200,9 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   });
   win.contentView.addChildView(view);
   const wc = view.webContents;
+  // Official pages that use WebRTC would open UDP ports on every network card (a Windows Firewall prompt, and the local
+  // IPs leak): only proxied UDP, i.e. none
+  wc.setWebRTCIPHandlingPolicy(WEBRTC_POLICY);
   // Official pages that open a popup (OAuth, QR) stay in the same view
   wc.setWindowOpenHandler(({ url }) => { void wc.loadURL(url).catch(() => undefined); return { action: 'deny' }; });
   const navCbs: ((url: string) => void)[] = [];
@@ -275,6 +280,8 @@ export function openLoginWindows(targets: { url: string; name: string }[], onUrl
       width: 480, height: 720, x: 40 + i * 30, y: 40 + i * 30, title: `CodexBuddy 登录：${name}`,
       webPreferences: { partition: BROWSER_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false },
     });
+    w.removeMenu();
+    w.webContents.setWebRTCIPHandlingPolicy(WEBRTC_POLICY);
     // Keep our title: the page's own <title> would replace it
     w.on('page-title-updated', e => e.preventDefault());
     const report = () => onUrl(i, w.webContents.getURL());

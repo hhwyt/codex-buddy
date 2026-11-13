@@ -184,13 +184,17 @@ describe('switching', () => {
   test('M-02 切换：拿 Key → 测通 → 保存，卡片到最上层，第一次弹从零到能用', async () => {
     const b = build();
     await installed_(b);
+    // Before any switch the 智谱 tag already says 免费 (its default model), 混元 按用量付费: the tag never flips on switching
+    const before = (await b.h['wallet:get'](undefined as never)).cards;
+    expect(before.find(c => c.vendor === 'zhipu')).toMatchObject({ model: null, free: true });
+    expect(before.find(c => c.vendor === 'hunyuan')).toMatchObject({ model: null, free: false, paid: true });
     clock += 42_000;
     const r = await b.h['switch:start']({ vendor: 'zhipu' });
     expect(r).toMatchObject({ ok: true, firstTime: true, seconds: 42, running: false });
     const w = await b.h['wallet:get'](undefined as never);
     expect(w.active).toBe('zhipu');
     expect(w.order[0]).toBe('zhipu');
-    expect(w.cards.find(c => c.vendor === 'zhipu')).toMatchObject({ model: expect.any(String), keyTail: expect.stringMatching(/^.{4}$/) });
+    expect(w.cards.find(c => c.vendor === 'zhipu')).toMatchObject({ model: expect.any(String), free: true, keyTail: expect.stringMatching(/^.{4}$/) });
     const again = await b.h['switch:start']({ vendor: 'zhipu' });
     expect(again).toMatchObject({ ok: true, firstTime: false });
     expect(again.seconds).toBeUndefined();

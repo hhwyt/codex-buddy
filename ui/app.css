@@ -1,7 +1,7 @@
 /* Shell layout and shared components. Only var(--…) colors (UI-00). Owner: Base; page styles go in their own
    section below, one block per page agent. */
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html, body, #app { margin: 0; height: 100%; }
 body {
   background: var(--bg); color: var(--ink); font-family: var(--font); letter-spacing: var(--tracking);
   font-size: 14px; -webkit-font-smoothing: antialiased; user-select: none; overflow: hidden;

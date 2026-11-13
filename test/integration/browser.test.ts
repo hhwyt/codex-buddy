@@ -15,6 +15,8 @@ vi.mock('electron', async () => {
     history = { back: 0, canGoBack: () => true, goBack: () => { this.history.back++; } };
     navigationHistory = { canGoBack: () => this.history.canGoBack(), goBack: () => this.history.goBack() };
     reloads = 0;
+    webrtc = '';
+    setWebRTCIPHandlingPolicy(p: string) { this.webrtc = p; }
     debugger = Object.assign(new EE(), {
       attached: false,
       attach: () => { if (fx.attachThrows) throw new Error('already attached'); (this.debugger as any).attached = true; },
@@ -55,6 +57,8 @@ vi.mock('electron', async () => {
     getBounds() { return { x: this.pos[0], y: this.pos[1], width: this.size[0], height: this.size[1] }; }
     setPosition(x: number, y: number) { this.pos = [x, y]; }
     isDestroyed() { return this.destroyed; }
+    menuRemoved = false;
+    removeMenu() { this.menuRemoved = true; }
     loadURL(u: string) { return this.webContents.loadURL(u); }
   }
   return { WebContentsView, BrowserWindow, screen: { getDisplayMatching: () => ({ workArea: area() }) } };
@@ -233,6 +237,7 @@ describe('electron view host', () => {
     const w = win();
     const h = electronViewHost(w);
     expect(fx.views[0].opts.webPreferences).toMatchObject({ partition: BROWSER_PARTITION, sandbox: true, nodeIntegration: false });
+    expect(fx.views[0].webContents.webrtc).toBe('disable_non_proxied_udp');
     expect(BROWSER_PARTITION).toBe('persist:codexbuddy-browser');
     expect(w.children).toContain(fx.views[0]);
     h.destroy();
@@ -332,6 +337,7 @@ describe('electron view host', () => {
     expect(ws).toHaveLength(2);
     for (const w of ws) expect(w.opts.webPreferences.partition).toBe(BROWSER_PARTITION);
     expect(ws.map(w => w.opts.title)).toEqual(['CodexBuddy 登录：智谱', 'CodexBuddy 登录：Kimi']);
+    expect(ws.every(w => w.menuRemoved && w.webContents.webrtc === 'disable_non_proxied_udp')).toBe(true);
     await Promise.resolve();
     expect(ws[0].webContents.url).toBe('https://a.example/login');
     expect(seen).toEqual([[0, 'https://a.example/login']]);

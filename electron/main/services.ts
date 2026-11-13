@@ -303,7 +303,8 @@ export function createServices(d: ServiceDeps) {
       const p = providerOf(v)!;
       const models = modelsOf(p);
       const model = v === st.active && live.model ? live.model : st.active === v && p.officialAccount ? null : st.models[v] ?? null;
-      const entry = models.find(m => m.slug === model);
+      // Not picked yet: the model a switch would start with (智谱 = its free model), so the tag does not change on switching
+      const entry = models.find(m => m.slug === (model ?? p.defaultModel));
       return {
         vendor: v, name: p.name, model, free: !!entry?.free, paid: !p.officialAccount && models.some(m => !m.free),
         keyTail: st.keys[v]?.tail ?? null, cloneMade: clones.includes(v),
