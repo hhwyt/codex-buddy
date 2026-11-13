@@ -48,5 +48,5 @@ Codex 0.166 读到 `wire_api = "chat"` 直接报错退出：「`wire_api = "chat
 - 汉化：Mac 上用调试端口打开 enable_i18n——**通**（2026-11-13，集成时实测）。做法：把 /Applications/ChatGPT.app 用 APFS clone 复制到沙盒，改名 Test-ChatGPT.app、换 bundle id（local.codexbuddy.test-chatgpt）、关自动更新、ad-hoc 重签名；用 `electron/platform/zh-mac.ts` 的 zh-runner.js 原样启动它（CODEX_HOME、--user-data-dir 都在沙盒里，--use-mock-keychain）。runner 在 127.0.0.1 随机端口上连上调试端口、给页面打补丁，Node 自带的 WebSocket 能连上（没被 origin 检查挡住）。页面文字变成「登录 ChatGPT / 继续登录 / 使用其他方式登录 / 注册」，`document.documentElement.lang = zh-CN`。截图 `docs/screenshots/m1-spike-zh-debug-port.png`。分身同理（同一个 runner，C-03：它和正开着的 ChatGPT 同时在跑，互不影响）。真 ChatGPT.app 没启动、没改；前后跑 `scripts/m3-guard.sh` 完全一样。
 - 只用 `open --args` 传调试端口（主 App 的汉化启动器）这条没测：要用 `open` 就会经过 LaunchServices，在 M3 上可能把参数交给正在开着的真 ChatGPT，所以没试；runner 对分身用的是直接启动可执行文件，已测通。
 - 转接层 R-01：真 CLI 经过转接层完成一轮对话和一次工具调用。
-- e2e：`test/e2e/shell.spec.ts` 已写，未跑（`npm run test:e2e`）。
+- e2e：2026-11-13 在 hwy-pc（Windows 11，站主远程桌面会话）跑完：89 过、1 跳过（U-03 只在没签名的 Mac 上跑）；打包后的 App 由 test/drive 逐步驱动通过，见 docs/m1-behavior-check.md。Windows 截图基线（*-win32.png）在这次生成并提交。
 - `npm run dist:mac` 未跑。
