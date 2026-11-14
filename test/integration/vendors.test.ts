@@ -92,7 +92,9 @@ describe('key ladder', () => {
       hasCookie: async () => false,
     };
     const v = makeVendor(providerOf('kimi'), { timeouts: { loginMs: 2000, createMs: 400, settleMs: 30 } });
-    expect(await v.obtainKey(driver)).toEqual({ ok: true, key: 'sk-settledsettledsettled', level: 2 });
+    let created = 0;
+    expect(await v.obtainKey(driver, () => { created++; })).toEqual({ ok: true, key: 'sk-settledsettledsettled', level: 2 });
+    expect(created).toBe(1);
     expect(waits).toHaveLength(2);
   });
 

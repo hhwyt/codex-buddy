@@ -214,6 +214,9 @@ describe('叠卡', () => {
     tap(card('zhipu'));
     await settle();
     expect(text('zhipu')).toContain('扫码登录');
+    // Level 2: logged in, the key is made on the official page
+    api.emit('step', { flow: 'switch', id: 'create', state: 'start', text: '在右边的官方页面点「创建」' });
+    expect(text('zhipu')).toContain('点右边的「创建」');
     api.emit('step', { flow: 'switch', id: 'test', state: 'start', text: '测试连通' });
     expect(text('zhipu')).toContain('测试连通');
     api.emit('step', { flow: 'switch', id: 'login', state: 'start', text: '' });

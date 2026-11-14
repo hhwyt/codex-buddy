@@ -365,10 +365,10 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     api.on('wallet', w => { if (switching || dragging) { pendingWallet = w; return; } applyWallet(w); }),
     api.on('step', s => {
       if (s.flow !== 'switch' || !switching || !front) return;
-      const kind = /login|scan/.test(s.id) ? 'login' : /test/.test(s.id) ? 'test' : null;
+      const kind = /login|scan/.test(s.id) ? 'login' : s.id === 'create' ? 'create' : /test/.test(s.id) ? 'test' : null;
       if (kind && front.kind !== kind) { front = { kind }; layout(); }
     }),
-    api.on('browser', b => { if (!b.open && switching && front?.kind === 'login') void api.invoke('switch:cancel'); }),
+    api.on('browser', b => { if (!b.open && switching && (front?.kind === 'login' || front?.kind === 'create')) void api.invoke('switch:cancel'); }),
   ];
 
   syncCards();

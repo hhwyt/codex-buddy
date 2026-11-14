@@ -16,6 +16,7 @@ const LIGHT = new Set(['openai']);
 /** What the front card is doing, drawn on its face (approved-spec §1: 状态都显示在最上层那张卡上) */
 export type FrontState =
   | { kind: 'login' } // 扫码登录
+  | { kind: 'create' } // 点右边的「创建」(level 2: the key is made on the official page)
   | { kind: 'test' } // 测试连通
   | { kind: 'fail' } // ✗ 连不上 (before the card shakes back)
   | { kind: 'balance' } // 余额不够 M-13
@@ -67,6 +68,7 @@ function tag(c: CardView): string {
 function status(c: CardView, o: FaceOptions): HTMLElement {
   const s = o.front ? o.state : null;
   if (s?.kind === 'login') return h('span', { class: 'st' }, spin(), '扫码登录');
+  if (s?.kind === 'create') return h('span', { class: 'st' }, spin(), '点右边的「创建」');
   if (s?.kind === 'test') return h('span', { class: 'st' }, spin(), '测试连通');
   if (s?.kind === 'fail') return h('span', { class: 'st bad' }, '✗ 连不上');
   if (s?.kind === 'balance') return h('span', { class: 'st bad' }, '余额不够');

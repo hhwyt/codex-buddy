@@ -76,7 +76,7 @@ const fakeBrowser = (): BrowserDriver & { close(): void; closed: number; opens: 
 function fakeVendors(): Record<BuiltinVendorId, Vendor> {
   return Object.fromEntries(PROVIDERS.map(p => [p.id, {
     id: p.id, provider: p, isLoggedIn: () => true,
-    obtainKey: async () => keyOutcome[p.id] ?? { ok: true, key: `sk-${p.id}-${randomBytes(4).toString('hex')}abcd`, level: 1 },
+    obtainKey: async (_b: unknown, onCreate?: () => void) => { onCreate?.(); return keyOutcome[p.id] ?? { ok: true, key: `sk-${p.id}-${randomBytes(4).toString('hex')}abcd`, level: 1 }; },
     openRecharge: async (b: BrowserDriver) => { if (!p.rechargeUrl) return false; await b.open(p.rechargeUrl, { mode: 'expanded' }); return true; },
     openKeyManagement: async (b: BrowserDriver) => { await b.open(p.keysUrl, { mode: 'expanded' }); },
   } satisfies Vendor])) as unknown as Record<BuiltinVendorId, Vendor>;

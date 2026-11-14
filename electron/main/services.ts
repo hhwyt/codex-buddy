@@ -214,7 +214,8 @@ export function createServices(d: ServiceDeps) {
     const vendor = isBuiltin(v) ? d.vendors[v] : null;
     if (!vendor) return { ok: false, kind: 'paste-key', reason: '粘贴这一家的 Key' };
     emit({ id: 'login', state: 'start', text: '扫码登录' });
-    const r = await vendor.obtainKey(d.browser);
+    // Level 2: the user creates the key on the official page; the card says so (it no longer says 扫码登录)
+    const r = await vendor.obtainKey(d.browser, () => emit({ id: 'create', state: 'start', text: '在右边的官方页面点「创建」' }));
     if (!r.ok) {
       emit({ id: 'login', state: 'fail', text: r.reason === 'cancelled' ? '取消了' : '没拿到 Key' });
       if (r.reason === 'cancelled') return { ok: false, kind: 'cancelled', reason: '取消了' };

@@ -162,7 +162,7 @@ export function makeVendor(provider: ProviderInfo, details: VendorDetails = {}):
     id: provider.id,
     provider,
     isLoggedIn,
-    obtainKey: async (browser: BrowserDriver): Promise<KeyOutcome> => {
+    obtainKey: async (browser: BrowserDriver, onCreate?: () => void): Promise<KeyOutcome> => {
       if (provider.officialAccount) return { ok: false, reason: 'failed', detail: 'OpenAI 官方账号在 Codex 里登录，不用 Key' };
       try {
         const cookie = details.loginCookie;
@@ -179,6 +179,7 @@ export function makeVendor(provider: ProviderInfo, details: VendorDetails = {}):
           if (r.ok) return { ok: true, key: r.key, level: 1 };
           if (!r.fallthrough) return { ok: false, reason: 'failed', detail: r.detail };
         }
+        onCreate?.();
         return await level2(browser, provider, keyResponse, timeouts.createMs);
       } catch (e) {
         if (isClosed(e)) return { ok: false, reason: 'cancelled' };

@@ -27,8 +27,9 @@ export type KeyOutcome =
 export interface Vendor {
   id: BuiltinVendorId;
   provider: ProviderInfo;
-  /** Login if needed, then get a key through the 3-level ladder (M-08, M-10, M-17) */
-  obtainKey(browser: BrowserDriver): Promise<KeyOutcome>;
+  /** Login if needed, then get a key through the 3-level ladder (M-08, M-10, M-17). onCreate: level 2 starts, the
+   *  user has to click「创建」on the official page */
+  obtainKey(browser: BrowserDriver, onCreate?: () => void): Promise<KeyOutcome>;
   /** Detects a logged-in page from its URL */
   isLoggedIn(url: string): boolean;
   /** Opens the recharge page expanded; returns false for vendors without one (M-18) */
