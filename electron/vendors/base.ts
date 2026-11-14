@@ -46,11 +46,15 @@ export function defaultKeyResponse(p: ProviderInfo): RegExp {
   return new RegExp(`^https?://(${consoleHosts(p).map(escapeRe).join('|')})/.*(api[-_]?keys?|apikey|keys?|token)`, 'i');
 }
 
-const KEYISH_FIELD = /key|secret|token/i;
+const KEYISH_FIELD = /key|secret/i;
+const TOKEN_FIELD = /token/i;
 const KEYISH_VALUE = /^[A-Za-z0-9._-]{20,}$/;
 const SK = /\bsk-[A-Za-z0-9._-]{16,}/;
+const SK_WHOLE = /^sk-[A-Za-z0-9._-]{16,}$/;
 
-/** Finds an unmasked key in a response body (JSON field named like key/secret/token, or an sk-… string) */
+/** Finds an unmasked key in a response body. An sk-… value wins wherever it is (Kimi answers createApiKey with
+ *  { key: "ak-…" (the key's id), auth: "sk-…" (the key) }); then a field named like key / secret (智谱, MiniMax keys
+ *  have no sk- prefix); a field named token only as the last resort */
 export function extractKey(body: string): string | null {
   let parsed: unknown;
   try {
@@ -58,18 +62,22 @@ export function extractKey(body: string): string | null {
   } catch {
     return SK.exec(body)?.[0] ?? null;
   }
+  const fields: [string, string][] = [];
   const stack: unknown[] = [parsed];
   while (stack.length) {
     const v = stack.pop();
     if (Array.isArray(v)) stack.push(...v);
     else if (v && typeof v === 'object') {
       for (const [k, val] of Object.entries(v)) {
-        if (typeof val === 'string' && KEYISH_FIELD.test(k) && KEYISH_VALUE.test(val)) return val;
-        if (val && typeof val === 'object') stack.push(val);
+        if (typeof val === 'string') fields.push([k, val]);
+        else if (val && typeof val === 'object') stack.push(val);
       }
     }
   }
-  return SK.exec(body)?.[0] ?? null;
+  return fields.find(([, val]) => SK_WHOLE.test(val))?.[1]
+    ?? fields.find(([k, val]) => KEYISH_FIELD.test(k) && KEYISH_VALUE.test(val))?.[1]
+    ?? fields.find(([k, val]) => TOKEN_FIELD.test(k) && KEYISH_VALUE.test(val))?.[1]
+    ?? null;
 }
 
 /** Script run in the console page: same-origin POST with the page's cookies; returns status and body */

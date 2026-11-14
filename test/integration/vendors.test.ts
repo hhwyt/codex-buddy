@@ -255,6 +255,9 @@ describe('vendor details', () => {
     expect(extractKey('<html>nothing</html>')).toBeNull();
     expect(extractKey('{"nested":[[{"token":"eyJhbGciOiJIUzI1NiJ9.payload_part.sig"}]]}')).toBe('eyJhbGciOiJIUzI1NiJ9.payload_part.sig');
     expect(extractKey('{"a":1}')).toBeNull();
+    // Kimi's createApiKey: data.key is the key's id (ak-…), data.auth is the key
+    expect(extractKey('{"data":{"key":"ak-0000example0000key1","auth":"sk-kimikimikimikimikimikimi","user_id":"user0000example00000"}}')).toBe('sk-kimikimikimikimikimikimi');
+    expect(extractKey('{"access_token":"eyJhbGciOiJIUzI1NiJ9.aaaa.bbbb","apiKey":"0123456789abcdef0123.ABCDEFGH"}')).toBe('0123456789abcdef0123.ABCDEFGH');
   });
 
   test('M-08 第二级只看厂商控制台上和 Key 有关的响应', () => {
