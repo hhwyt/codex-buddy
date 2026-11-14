@@ -19,6 +19,7 @@ export const CHROME_BAR_HEIGHT = 53;
 export const PIP = { width: 318, height: 208, margin: 17, bar: 31 };
 
 export const WEBRTC_POLICY = 'disable_non_proxied_udp';
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 /** Official login pages hide the WeChat QR code under ~800px (智谱, MiniMax, measured 2026-11-13): the page always lays out
  *  at least this wide and is zoomed down to fit the view, so the QR code is there in PiP and expanded alike */
 export const MIN_PAGE_WIDTH = 820;
@@ -75,7 +76,8 @@ export interface ViewHost {
   setContentWidth(width: number): void;
   screenWidth(): number;
   onNavigate(cb: (url: string) => void): void;
-  /** Every finished response; body() reads it lazily (only for the ones a vendor flow waits for) */
+  /** Every finished response to a request that is not a read (POST, PUT…); body() reads it lazily (only for the ones a
+   *  vendor flow waits for) */
   onResponse(cb: (url: string, body: () => Promise<string>) => void): void;
   onResize(cb: () => void): void;
   destroy(): void;
@@ -240,8 +242,12 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   } catch {
     // Already attached (DevTools open): level-2 capture is skipped, the ladder falls back to paste
   }
-  wc.debugger.on('message', (_e, method, params: { requestId: string; response?: { url: string } }) => {
-    if (method === 'Network.responseReceived' && params.response) urls.set(params.requestId, params.response.url);
+  /** Requests that change something (POST, PUT, PATCH…): a key is only ever handed out by the request that creates it.
+   *  Page loads and GET calls also carry key-looking values (session tokens, masked lists) and are not reported */
+  const writes = new Set<string>();
+  wc.debugger.on('message', (_e, method, params: { requestId: string; request?: { method: string }; response?: { url: string } }) => {
+    if (method === 'Network.requestWillBeSent' && params.request && !READ_METHODS.has(params.request.method.toUpperCase())) writes.add(params.requestId);
+    else if (method === 'Network.responseReceived' && params.response && writes.delete(params.requestId)) urls.set(params.requestId, params.response.url);
     else if (method === 'Network.loadingFinished') {
       const url = urls.get(params.requestId);
       if (!url) return;

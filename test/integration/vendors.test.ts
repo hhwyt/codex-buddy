@@ -234,7 +234,8 @@ describe('vendor details', () => {
     expect(VENDORS.deepseek.isLoggedIn('https://platform.deepseek.com/api_keys')).toBe(true);
     expect(consoleHosts(providerOf('openai'))).toEqual(['platform.openai.com']);
     // Every login page reads as logged out, so the flow waits for the scan (百炼's console URL looks the same logged out)
-    for (const v of Object.values(VENDORS)) if (!v.provider.officialAccount) expect(v.isLoggedIn(v.provider.loginUrl)).toBe(false);
+    // (Kimi opens its console, which sends a logged-out visitor to /login itself: the settle wait covers it)
+    for (const v of Object.values(VENDORS)) if (!v.provider.officialAccount && v.id !== 'kimi') expect(v.isLoggedIn(v.provider.loginUrl)).toBe(false);
     expect(VENDORS.qwen.isLoggedIn('https://bailian.console.aliyun.com/')).toBe(true);
   });
 

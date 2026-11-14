@@ -253,6 +253,8 @@ export function createServices(d: ServiceDeps) {
       if (!result.ok) {
         const kind = result.code ? FAIL_KIND[result.code] : undefined;
         if (result.code === 'rate-limit' && !st.rateLimited.includes(v)) { st.rateLimited.push(v); save(); }
+        // A key the vendor refuses is not kept: the next try gets a new one instead of failing the same way
+        if (result.code === 'auth' && st.keys[v]) { delete st.keys[v]; save(); }
         return { ok: false, reason: result.reason, ...(kind ? { kind } : {}), result };
       }
       st.rateLimited = st.rateLimited.filter(x => x !== v);

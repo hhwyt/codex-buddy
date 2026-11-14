@@ -30,7 +30,8 @@ export function fakeHost(opts: { width?: number; height?: number; screen?: numbe
     if (cookie) headers.set('cookie', cookie);
     const r = await fetch(url, { ...init, headers });
     const text = await r.text();
-    for (const cb of resp) cb(url, async () => text);
+    // Like the real capture: only requests that are not reads are reported
+    if (!['GET', 'HEAD', 'OPTIONS'].includes((init.method ?? 'GET').toUpperCase())) for (const cb of resp) cb(url, async () => text);
     return new Response(text, { status: r.status });
   };
   const go = (url: string) => { current = url; host.history.push(url); for (const cb of nav) cb(url); };

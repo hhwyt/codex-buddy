@@ -282,6 +282,8 @@ describe('switching', () => {
     expect(b.browser.opens.at(-1)).toBe(PROVIDERS.find(p => p.id === 'deepseek')!.rechargeUrl);
     scenario('401');
     expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'key-failed' });
+    // The refused key is dropped: the next try fetches a new one
+    expect(b.svc.state().keys.deepseek).toBeUndefined();
     scenario('429');
     expect(await b.h['switch:start']({ vendor: 'kimi' })).toMatchObject({ ok: false, kind: 'rate-limited' });
     expect(await b.h['switch:start']({ vendor: 'kimi' })).toMatchObject({ kind: 'rate-limited' });

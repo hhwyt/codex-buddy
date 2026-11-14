@@ -326,6 +326,12 @@ describe('electron view host', () => {
     const dbg = fx.views[0].webContents.debugger;
     expect(dbg.attached).toBe(true);
     const p = b.waitForResponse(/api_keys/, 1000);
+    const sent = (requestId: string, method: string) => dbg.emit('message', {}, 'Network.requestWillBeSent', { requestId, request: { method } });
+    // A GET of the key list (masked keys, session tokens) is never a new key: not reported
+    sent('g1', 'GET');
+    dbg.emit('message', {}, 'Network.responseReceived', { requestId: 'g1', response: { url: 'https://platform.deepseek.com/api/api_keys' } });
+    dbg.emit('message', {}, 'Network.loadingFinished', { requestId: 'g1' });
+    for (const id of ['r1', 'r2', 'b64']) sent(id, 'post');
     dbg.emit('message', {}, 'Network.responseReceived', { requestId: 'r1', response: { url: 'https://platform.deepseek.com/static.js' } });
     dbg.emit('message', {}, 'Network.loadingFinished', { requestId: 'r1' });
     dbg.emit('message', {}, 'Network.loadingFinished', { requestId: 'unknown' });
