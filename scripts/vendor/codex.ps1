@@ -651,7 +651,7 @@ try {
   }
   # A free port picked by the system; Chromium binds DevTools to 127.0.0.1 only
   $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0); $listener.Start(); $port = $listener.LocalEndpoint.Port; $listener.Stop()
-  $codexProcessId = [CodexActivator]::Activate($appUserModelId, "--remote-debugging-port=$port")
+  $codexProcessId = [CodexActivator]::Activate($appUserModelId, "--remote-debugging-port=$port --lang=zh-CN")
   Log "codex $($package.Version) started: pid=$codexProcessId port=$port"
   $browserUrl = $null
   for ($i = 0; $i -lt 300 -and -not $browserUrl; $i++) {

@@ -287,7 +287,8 @@ async function main() {
     log('codex already running: bringing it forward'); start([]); return;
   }
   const port = await freePort();
-  start(['--remote-debugging-port=' + port]);
+  // --lang: Codex follows the system language once the switch is on; an English Windows or macOS would stay English
+  start(['--remote-debugging-port=' + port, '--lang=zh-CN']);
   let wsUrl = null;
   const deadline = Date.now() + (config.waitMs || 30000);
   while (!wsUrl && Date.now() < deadline) {
