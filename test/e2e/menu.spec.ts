@@ -85,7 +85,7 @@ test('R-01 Codex 经过转接层能完成一轮对话和一次工具调用', asy
   const { baseUrl } = route();
   expect(new URL(baseUrl).hostname).toBe('127.0.0.1');
   expect(baseUrl).not.toContain(run.vendors.vendorUrl('deepseek'));
-  const model = tomlValue(configToml(run.sandbox), 'model') ?? 'deepseek-chat';
+  const model = tomlValue(configToml(run.sandbox), 'model') ?? 'deepseek-flash';
   const plain = await responses(model, '你好');
   expect(plain.status).toBe(200);
   expect(plain.body).toContain('response.output_text.delta');

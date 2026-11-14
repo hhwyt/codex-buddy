@@ -16,6 +16,7 @@ vi.mock('electron', async () => {
     navigationHistory = { canGoBack: () => this.history.canGoBack(), goBack: () => this.history.goBack() };
     reloads = 0;
     webrtc = '';
+    session = { cookies: { get: async ({ name }: { name: string }) => (name === 'login_ticket' ? [{ name }] : []) } };
     setWebRTCIPHandlingPolicy(p: string) { this.webrtc = p; }
     zoom = 1;
     setZoomFactor(f: number) { this.zoom = f; }
@@ -322,9 +323,13 @@ describe('electron view host', () => {
   test('M-08 第二级：从页面网络响应里读到 Key（含 base64）', async () => {
     const w = win();
     const b = createRightBrowser(() => electronViewHost(w));
+    await expect(b.hasCookie('https://x.example/', 'login_ticket')).rejects.toThrow(BrowserClosed);
     await b.open('https://platform.deepseek.com/api_keys', { mode: 'expanded' });
     const dbg = fx.views[0].webContents.debugger;
     expect(dbg.attached).toBe(true);
+    // Logins a URL cannot tell are read from the partition's cookies (百炼)
+    expect(await b.hasCookie('https://bailian.console.aliyun.com/', 'login_ticket')).toBe(true);
+    expect(await b.hasCookie('https://bailian.console.aliyun.com/', 'other')).toBe(false);
     const p = b.waitForResponse(/api_keys/, 1000);
     const sent = (requestId: string, method: string) => dbg.emit('message', {}, 'Network.requestWillBeSent', { requestId, request: { method } });
     // A GET of the key list (masked keys, session tokens) is never a new key: not reported

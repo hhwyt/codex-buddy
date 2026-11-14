@@ -16,6 +16,8 @@ export interface BrowserDriver {
   /** Resolves true once the predicate on the URL holds (login detected), false if the user closed the browser (M-09) */
   waitForUrl(predicate: (url: string) => boolean, timeoutMs: number): Promise<boolean>;
   setMode(mode: 'pip' | 'expanded'): void;
+  /** Whether the browser's login store holds a cookie with this name for this URL (logins a URL cannot tell) */
+  hasCookie(url: string, name: string): Promise<boolean>;
 }
 
 export type KeyOutcome =

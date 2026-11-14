@@ -58,7 +58,7 @@ function codexHome(baseUrl: string): string {
   const home = path.join(root, 'home');
   fs.mkdirSync(home);
   fs.writeFileSync(path.join(home, 'config.toml'), [
-    'model_provider = "deepseek"', 'model = "deepseek-chat"', 'approval_policy = "never"', 'sandbox_mode = "read-only"', '',
+    'model_provider = "deepseek"', 'model = "deepseek-flash"', 'approval_policy = "never"', 'sandbox_mode = "read-only"', '',
     '[model_providers.deepseek]', 'name = "DeepSeek"', `base_url = "${baseUrl}"`, 'wire_api = "responses"', 'requires_openai_auth = true', '',
   ].join('\n'));
   fs.writeFileSync(path.join(home, 'auth.json'), JSON.stringify({ OPENAI_API_KEY: KEY }));
@@ -96,7 +96,7 @@ describe.skipIf(!fs.existsSync(CLI))('真 Codex CLI 经过转接层', () => {
     expect(r.out).toContain('你好，我是转接层');
     const sent = vendor.requests[vendor.requests.length - 1];
     expect(sent.auth).toBe(`Bearer ${KEY}`);
-    expect(sent.body.model).toBe('deepseek-chat');
+    expect(sent.body.model).toBe('deepseek-flash');
     expect(sent.body.messages[0].role).toBe('system');
     expect(r.err + r.out).not.toContain(KEY);
   }, 90_000);

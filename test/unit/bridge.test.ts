@@ -17,8 +17,8 @@ describe('responsesToChat', () => {
         { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: '请说' }] },
         'junk',
       ],
-    }, 'deepseek-chat');
-    expect(out.model).toBe('deepseek-chat');
+    }, 'deepseek-flash');
+    expect(out.model).toBe('deepseek-flash');
     expect(out.stream).toBe(true);
     expect(out.stream_options).toEqual({ include_usage: true });
     expect(out.messages).toEqual([
@@ -153,10 +153,10 @@ const types = (events: Any[]) => events.map(e => e.type);
 
 describe('createStreamTranslator', () => {
   test('R-01 流式文字：created、增量、done、completed 带用量', () => {
-    const t = tr('r1', { model: 'deepseek-chat', createdAt: 1 });
+    const t = tr('r1', { model: 'deepseek-flash', createdAt: 1 });
     const a = t.push({ choices: [{ index: 0, delta: { role: 'assistant', content: '你' } }] });
     expect(types(a)).toEqual(['response.created', 'response.output_item.added', 'response.content_part.added', 'response.output_text.delta']);
-    expect(a[0].response).toMatchObject({ id: 'r1', created_at: 1, model: 'deepseek-chat', status: 'in_progress' });
+    expect(a[0].response).toMatchObject({ id: 'r1', created_at: 1, model: 'deepseek-flash', status: 'in_progress' });
     expect(types(t.push({ choices: [{ index: 0, delta: { content: '好' }, finish_reason: 'stop' }] }))).toEqual(['response.output_text.delta']);
     expect(t.push({ choices: [], usage: { prompt_tokens: 3, completion_tokens: 2, prompt_tokens_details: { cached_tokens: 1 }, completion_tokens_details: { reasoning_tokens: 1 } } })).toEqual([]);
     expect(t.push({ choices: [{ index: 0 }] })).toEqual([]);

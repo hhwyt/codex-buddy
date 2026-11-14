@@ -33,21 +33,21 @@ describe('转接服务', () => {
   test('R-01 流式文字：转成 Responses 事件，Key 原样带给厂商', async () => {
     const v = await vendor();
     const b = await bridgeWith({ deepseek: v.vendorUrl('deepseek') + '/v1/' });
-    const res = await post(`${b.baseUrlFor('deepseek')}/responses`, { model: 'deepseek-chat', input: '你好', stream: true });
+    const res = await post(`${b.baseUrlFor('deepseek')}/responses`, { model: 'deepseek-flash', input: '你好', stream: true });
     expect(res.headers.get('content-type')).toContain('text/event-stream');
     const ev = events(await res.text());
     expect(ev[0].type).toBe('response.created');
     expect(ev.find(e => e.type === 'response.output_text.delta').delta).toBe('好了');
     expect(ev[ev.length - 1]).toMatchObject({ type: 'response.completed', response: { usage: { total_tokens: 2 } } });
     const sent = v.state.requests[v.state.requests.length - 1];
-    expect(sent).toMatchObject({ path: '/v1/chat/completions', auth: 'Bearer sk-fake-1', model: 'deepseek-chat' });
+    expect(sent).toMatchObject({ path: '/v1/chat/completions', auth: 'Bearer sk-fake-1', model: 'deepseek-flash' });
     expect(sent.body.messages).toEqual([{ role: 'user', content: '你好' }]);
   });
 
   test('R-01 流式工具调用转成 function_call', async () => {
     const v = await vendor();
     const b = await bridgeWith({ kimi: v.vendorUrl('kimi') + '/v1' });
-    const res = await post(`${b.baseUrlFor('kimi')}/responses`, { model: 'kimi-k2-0905-preview', input: 'CALL_TOOL', tools: [{ type: 'function', name: 'shell', parameters: {} }] });
+    const res = await post(`${b.baseUrlFor('kimi')}/responses`, { model: 'kimi-k2.7-code', input: 'CALL_TOOL', tools: [{ type: 'function', name: 'shell', parameters: {} }] });
     const done = events(await res.text()).pop();
     expect(done.response.output[0]).toMatchObject({ type: 'function_call', call_id: 'call_1', name: 'shell', arguments: '{"command":["echo","hi"]}' });
   });

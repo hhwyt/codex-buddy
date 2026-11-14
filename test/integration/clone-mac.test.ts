@@ -159,13 +159,13 @@ describe.runIf(onMac)('分身 Mac（真工具，假 App）', () => {
     const deepseek = providerOf('deepseek');
     const catalog = path.join(info.codexHome, 'codexbuddy-models.json');
     fs.writeFileSync(catalog, JSON.stringify(buildCatalog(deepseek.models)));
-    const lines = setCatalogLine(['model_provider = "deepseek"', 'model = "deepseek-chat"'], catalog);
+    const lines = setCatalogLine(['model_provider = "deepseek"', 'model = "deepseek-flash"'], catalog);
     fs.writeFileSync(path.join(info.codexHome, 'config.toml'), joinLines(lines));
     fs.writeFileSync(path.join(info.codexHome, 'auth.json'), '{"OPENAI_API_KEY":"sk-fake-000000"}');
     const probe = path.join(root, 'probe');
     expect(runLauncher(info.appPath, probe)).toContain('好了');
     const log = JSON.parse(fs.readFileSync(probe + '.log', 'utf8').trim().split('\n').pop()!);
-    expect(log.catalog).toEqual(['deepseek-chat', 'deepseek-reasoner']);
+    expect(log.catalog).toEqual(['deepseek-flash', 'deepseek-v4-pro']);
     expect(log.key).toBe('****0000');
     // A model from another vendor is not in the clone's menu
     fs.writeFileSync(path.join(info.codexHome, 'config.toml'), joinLines(setCatalogLine(['model_provider = "deepseek"', 'model = "glm-5"'], catalog)));
@@ -199,12 +199,12 @@ describe.runIf(onMac)('分身 Mac（真工具，假 App）', () => {
     const first = await clone.make(spec());
     fs.mkdirSync(path.join(first.codexHome, 'sessions'), { recursive: true });
     fs.writeFileSync(path.join(first.codexHome, 'sessions', 'old.jsonl'), 'old chat');
-    fs.writeFileSync(path.join(first.codexHome, 'config.toml'), 'model = "deepseek-chat"\n');
+    fs.writeFileSync(path.join(first.codexHome, 'config.toml'), 'model = "deepseek-flash"\n');
     await clone.remove('deepseek');
     const again = await clone.make(spec());
     expect(again.codexHome).toBe(first.codexHome);
     expect(fs.readFileSync(path.join(again.codexHome, 'sessions', 'old.jsonl'), 'utf8')).toBe('old chat');
-    expect(fs.readFileSync(path.join(again.codexHome, 'config.toml'), 'utf8')).toBe('model = "deepseek-chat"\n');
+    expect(fs.readFileSync(path.join(again.codexHome, 'config.toml'), 'utf8')).toBe('model = "deepseek-flash"\n');
     // Making it again while it exists rebuilds the app and keeps the data too
     await clone.make(spec());
     expect(fs.readFileSync(path.join(again.codexHome, 'sessions', 'old.jsonl'), 'utf8')).toBe('old chat');

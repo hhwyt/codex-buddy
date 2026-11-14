@@ -80,6 +80,7 @@ export interface ViewHost {
    *  vendor flow waits for) */
   onResponse(cb: (url: string, body: () => Promise<string>) => void): void;
   onResize(cb: () => void): void;
+  hasCookie(url: string, name: string): Promise<boolean>;
   destroy(): void;
 }
 
@@ -189,6 +190,10 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
       });
     },
     setMode(m) { if (host) applyMode(m); },
+    async hasCookie(url, name) {
+      if (!host) throw new BrowserClosed();
+      return host.hasCookie(url, name);
+    },
     show(m) { applyMode(m); },
     back() { if (host?.canGoBack()) host.goBack(); },
     reload() { host?.reload(); },
@@ -287,6 +292,7 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
     onNavigate: cb => { navCbs.push(cb); },
     onResponse: cb => { respCbs.push(cb); },
     onResize: cb => { resizeCbs.push(cb); },
+    hasCookie: async (url, name) => (await wc.session.cookies.get({ url, name })).length > 0,
     destroy: () => {
       win.off('resize', onResize);
       try { wc.debugger.detach(); } catch { /* not attached */ }

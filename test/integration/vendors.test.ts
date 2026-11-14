@@ -10,6 +10,7 @@ import {
   consoleHosts, createKeyScript, defaultKeyResponse, defaultLoggedIn, extractKey, makeVendor,
 } from '../../electron/vendors/base';
 import { VENDORS, batchLoginTargets, loginWindowTargets, vendorsWith } from '../../electron/vendors/index';
+import { QWEN_LOGIN_COOKIE } from '../../electron/vendors/qwen';
 import type { BrowserDriver } from '../../electron/vendors/types';
 import { startVendorServer } from '../fakes/vendor-server.mjs';
 import { fakeHost, type FakeHost } from './browser-fake-host';
@@ -88,10 +89,36 @@ describe('key ladder', () => {
         return pred(url);
       },
       setMode: () => {},
+      hasCookie: async () => false,
     };
     const v = makeVendor(providerOf('kimi'), { timeouts: { loginMs: 2000, createMs: 400, settleMs: 30 } });
     expect(await v.obtainKey(driver)).toEqual({ ok: true, key: 'sk-settledsettledsettled', level: 2 });
     expect(waits).toHaveLength(2);
+  });
+
+  test('M-08 百炼：看登录 cookie，不看网址；已登录直接去 Key 页，没登录等扫码出现 cookie', async () => {
+    const opened: string[] = [];
+    let cookie = true;
+    const driver: BrowserDriver = {
+      open: async u => { opened.push(u); }, url: () => 'https://bailian.console.aliyun.com/', setMode: () => {},
+      evaluate: async () => { throw new Error('no level 1'); },
+      waitForResponse: async () => '{"data":{"apiKey":"sk-qwenqwenqwenqwenqwen"}}',
+      waitForUrl: async () => { throw new Error('URL is not used'); },
+      hasCookie: async (url, name) => { expect([url, name]).toEqual([QWEN_LOGIN_COOKIE.url, QWEN_LOGIN_COOKIE.name]); return cookie; },
+    };
+    expect(await VENDORS.qwen.obtainKey(driver)).toEqual({ ok: true, key: 'sk-qwenqwenqwenqwenqwen', level: 2 });
+    expect(opened).toEqual([providerOf('qwen').keysUrl]);
+    // Logged out: the login page opens, the cookie shows up after the scan
+    cookie = false;
+    opened.length = 0;
+    setTimeout(() => { cookie = true; }, 50);
+    const v = makeVendor(providerOf('qwen'), { loginCookie: QWEN_LOGIN_COOKIE, timeouts: { loginMs: 3000, createMs: 400 } });
+    expect(await v.obtainKey(driver)).toMatchObject({ ok: true, level: 2 });
+    expect(opened).toEqual([providerOf('qwen').loginUrl, providerOf('qwen').keysUrl]);
+    // Never scanned: cancelled
+    cookie = false;
+    const slow = makeVendor(providerOf('qwen'), { loginCookie: QWEN_LOGIN_COOKIE, timeouts: { loginMs: 30, createMs: 400 } });
+    expect(await slow.obtainKey(driver)).toEqual({ ok: false, reason: 'cancelled' });
   });
 
   test('M-10 建 Key 失败 → 返回原因 → 再试一次能成', async () => {
@@ -177,7 +204,7 @@ describe('key ladder', () => {
       open: async u => { calls.push(u); }, url: () => 'http://127.0.0.1:1/zhipu/keys', setMode: () => {},
       evaluate: async () => { throw new Error('script error'); },
       waitForResponse: async () => { const e = new Error('closed'); e.name = 'BrowserClosed'; throw e; },
-      waitForUrl: async () => true, ...over,
+      waitForUrl: async () => true, hasCookie: async () => true, ...over,
     });
     const v = makeVendor(withEndpoints(providerOf('zhipu'), endpoints()), { createKeyUrl: 'http://127.0.0.1:1/zhipu/api/keys', loggedIn: () => true });
     expect(await v.obtainKey(driver({}))).toEqual({ ok: false, reason: 'cancelled' });

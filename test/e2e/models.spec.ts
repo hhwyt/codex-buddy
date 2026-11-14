@@ -284,7 +284,7 @@ test('M-19 其他厂商：填写后测试连通并加一张卡', async () => {
   await run.page.getByTestId(TID.models.addVendor).click();
   await run.page.getByTestId(TID.models.customName).fill('自建');
   await run.page.getByTestId(TID.models.customBaseUrl).fill(`${run.vendors.vendorUrl('deepseek')}/v1`);
-  await run.page.getByTestId(TID.models.customModel).fill('deepseek-chat');
+  await run.page.getByTestId(TID.models.customModel).fill('deepseek-flash');
   await run.page.getByTestId(TID.models.customKey).fill('sk-e2e-custom-0000000000001234');
   await run.page.getByTestId(TID.models.customSubmit).click();
   await expect.poll(async () => (await wallet(run.page)).cards.some(c => c.vendor.startsWith('custom-') && c.name === '自建'), { timeout: 30_000 }).toBe(true);

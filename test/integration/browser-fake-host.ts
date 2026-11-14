@@ -60,6 +60,7 @@ export function fakeHost(opts: { width?: number; height?: number; screen?: numbe
     onNavigate: cb => { nav.push(cb); },
     onResponse: cb => { resp.push(cb); },
     onResize: cb => { resize.push(cb); },
+    hasCookie: async (_url, name) => cookie.split('; ').some(c => c.split('=')[0] === name),
     destroy() { host.destroyed = true; },
     async userLogsIn() {
       cookie = 'fake_login=1';

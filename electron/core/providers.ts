@@ -7,10 +7,11 @@ import type { BuiltinVendorId, ProviderInfo } from './types';
 export const PROVIDERS: ProviderInfo[] = [
   {
     id: 'deepseek', name: 'DeepSeek',
-    baseUrl: 'https://api.deepseek.com/v1', wireApi: 'chat', defaultModel: 'deepseek-chat',
+    // 2026-11-13: GET /models on a real key lists only these two (deepseek-chat / -reasoner still answer, as old names)
+    baseUrl: 'https://api.deepseek.com/v1', wireApi: 'chat', defaultModel: 'deepseek-flash',
     models: [
-      { slug: 'deepseek-chat', name: 'DeepSeek Chat', free: false, reasoning: [] },
-      { slug: 'deepseek-reasoner', name: 'DeepSeek Reasoner', free: false, reasoning: [] },
+      { slug: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', free: false, reasoning: [] },
+      { slug: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', free: false, reasoning: [] },
     ],
     loginUrl: 'https://platform.deepseek.com/sign_in', keysUrl: 'https://platform.deepseek.com/api_keys',
     rechargeUrl: 'https://platform.deepseek.com/top_up', hosts: ['api.deepseek.com', 'platform.deepseek.com'],
@@ -30,11 +31,14 @@ export const PROVIDERS: ProviderInfo[] = [
   },
   {
     id: 'kimi', name: 'Kimi',
-    baseUrl: 'https://api.moonshot.cn/v1', wireApi: 'chat', defaultModel: 'kimi-k2-0905-preview',
+    // 2026-11-13: GET /models on a real key; kimi-k2-0905-preview and the other K2 previews answer 404 now
+    baseUrl: 'https://api.moonshot.cn/v1', wireApi: 'chat', defaultModel: 'kimi-k2.7-code',
     models: [
-      { slug: 'kimi-k2-0905-preview', name: 'Kimi K2', free: false, reasoning: [] },
-      { slug: 'kimi-k2-turbo-preview', name: 'Kimi K2 Turbo', free: false, reasoning: [] },
-      { slug: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', free: false, reasoning: [] },
+      { slug: 'kimi-k2.7-code', name: 'Kimi K2.7 Code', free: false, reasoning: [] },
+      { slug: 'kimi-k2.7-code-highspeed', name: 'Kimi K2.7 Code 高速版', free: false, reasoning: [] },
+      { slug: 'kimi-k3.1-pro', name: 'Kimi K3.1 Pro', free: false, reasoning: [] },
+      { slug: 'kimi-k3', name: 'Kimi K3', free: false, reasoning: [] },
+      { slug: 'kimi-k2.6', name: 'Kimi K2.6', free: false, reasoning: [] },
     ],
     // 2026-11-13: the console moved to platform.kimi.com (platform.moonshot.cn redirects there). Its /login page does not
     // leave for the console when already logged in, so the console is opened: logged out, its own script goes to /login

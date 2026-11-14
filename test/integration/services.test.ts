@@ -68,7 +68,7 @@ const fakeBrowser = (): BrowserDriver & { close(): void; closed: number; opens: 
     closed: 0, opens: [] as string[],
     open: async (url: string) => { b.opens.push(url); },
     url: () => '', evaluate: async <T,>() => undefined as T, waitForResponse: async () => '',
-    waitForUrl: async () => true, setMode: () => {}, close: () => { b.closed++; },
+    waitForUrl: async () => true, setMode: () => {}, close: () => { b.closed++; }, hasCookie: async () => true,
   };
   return b;
 };

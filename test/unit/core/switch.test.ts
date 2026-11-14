@@ -37,11 +37,11 @@ describe('switchVendor', () => {
   test('M-02 切换成功：备份、测试连通、保存，菜单只有这一家', async () => {
     const { fs, events, deps } = setup();
     const r = await switchVendor(req('deepseek'), deps);
-    expect(r).toMatchObject({ ok: true, reply: '好了', model: 'deepseek-chat', backupDir: '/u/backups/20261113000000-deepseek' });
+    expect(r).toMatchObject({ ok: true, reply: '好了', model: 'deepseek-flash', backupDir: '/u/backups/20261113000000-deepseek' });
     expect(events.map(e => `${e.id}:${e.state}`)).toEqual(['backup:start', 'backup:done', 'write:start', 'write:done', 'test:start', 'test:done', 'save:start', 'save:done']);
     const lines = splitLines(fs.readText(`${HOME}/config.toml`));
     expect(getValue(lines, '', 'model_provider')).toBe('deepseek');
-    expect(getValue(lines, '', 'model')).toBe('deepseek-chat');
+    expect(getValue(lines, '', 'model')).toBe('deepseek-flash');
     expect(getValue(lines, '', 'model_catalog_json')).toBe(`${HOME}/${CATALOG_FILE}`);
     expect(getValue(lines, 'model_providers.deepseek', 'wire_api')).toBe('responses');
     expect(getValue(lines, 'projects."/x"', 'trust_level')).toBe('trusted');

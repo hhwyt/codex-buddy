@@ -55,7 +55,7 @@ describe('叠卡', () => {
   });
 
   it('M-02 点后面的卡 → 抽到最上层 → 开始切换', async () => {
-    await mount(walletOf({ active: 'deepseek' }, { deepseek: { keyTail: '7c21', model: 'deepseek-chat' } }));
+    await mount(walletOf({ active: 'deepseek' }, { deepseek: { keyTail: '7c21', model: 'deepseek-flash' } }));
     const gate = deferred<any>();
     api.handle('switch:start', () => gate.promise);
     tap(card('kimi'));

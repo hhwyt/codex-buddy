@@ -14,6 +14,9 @@ export interface VendorDetails {
   createKeyUrl?: string;
   /** Level 2: response URL pattern that may carry a freshly created key; default: key-ish paths on console hosts */
   keyResponse?: RegExp;
+  /** Login told by a cookie instead of the URL: for a console that shows a logged-out visitor the same URL (百炼),
+   *  whose login page also stays put when already logged in */
+  loginCookie?: { url: string; name: string };
   /** How long to wait for the user (login scan, clicking「创建」) */
   timeouts?: { loginMs: number; createMs: number; settleMs?: number };
 }
@@ -102,6 +105,17 @@ async function waitLoggedIn(browser: BrowserDriver, isLoggedIn: (url: string) =>
   }
 }
 
+/** Waits for the login cookie (checked every second); false on timeout */
+async function waitCookie(browser: BrowserDriver, c: { url: string; name: string }, ms: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (await browser.hasCookie(c.url, c.name)) return true;
+    await new Promise(r => setTimeout(r, COOKIE_POLL_MS));
+  }
+  return false;
+}
+const COOKIE_POLL_MS = 1000;
+
 type Level1 = { ok: true; key: string } | { ok: false; fallthrough: boolean; detail?: string };
 
 async function level1(browser: BrowserDriver, url: string): Promise<Level1> {
@@ -151,10 +165,13 @@ export function makeVendor(provider: ProviderInfo, details: VendorDetails = {}):
     obtainKey: async (browser: BrowserDriver): Promise<KeyOutcome> => {
       if (provider.officialAccount) return { ok: false, reason: 'failed', detail: 'OpenAI 官方账号在 Codex 里登录，不用 Key' };
       try {
-        if (!isLoggedIn(browser.url())) {
+        const cookie = details.loginCookie;
+        const loggedIn = cookie ? await browser.hasCookie(cookie.url, cookie.name).catch(() => false) : isLoggedIn(browser.url());
+        if (!loggedIn) {
           // M-08: login page expanded so the user can scan; closing the browser = cancel (M-09)
           await browser.open(provider.loginUrl, { mode: 'expanded' });
-          if (!(await waitLoggedIn(browser, isLoggedIn, timeouts.loginMs, timeouts.settleMs ?? 0))) return { ok: false, reason: 'cancelled' };
+          const ok = cookie ? await waitCookie(browser, cookie, timeouts.loginMs) : await waitLoggedIn(browser, isLoggedIn, timeouts.loginMs, timeouts.settleMs ?? 0);
+          if (!ok) return { ok: false, reason: 'cancelled' };
         }
         browser.setMode('pip');
         if (details.createKeyUrl) {
