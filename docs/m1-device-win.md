@@ -3,9 +3,52 @@
 - 机器：hwy-pc（Windows 11），站主远程桌面登录的会话 2。App 是 `electron-builder --win dir` 打出的 `release\win-unpacked\CodexBuddy.exe`。
 - 方式：沙盒 `CODEXBUDDY_SANDBOX=C:\Users\hwy\CodexBuddy-Test` + 新加的 `CODEXBUDDY_REAL_CODEX=1`（[electron/platform/sandbox-real-win.ts](../electron/platform/sandbox-real-win.ts)）：路径都在沙盒里，Codex 是真的商店版，用沙盒自己的 CODEX_HOME 和 `--user-data-dir`，跟站主自己开着的 Codex 同时跑；不装、不卸、不关站主的 Codex。没有设 `CODEXBUDDY_ENDPOINTS`，连的都是官方网站。
 - 驱动：[test/drive/real-win/](../test/drive/real-win/README.md)（Playwright `_electron` 在桌面会话里启动 App，按 data-testid 点；截图 = 整个窗口，含右侧浏览器）。
-- 代码基准 b4da962，实测中修到 e507d27。
+- 代码基准 b4da962；第 1 轮修到 e507d27，第 2 轮（a1529c6 起）修到 c7c6250。
 
-## 结论
+## 结论（第 2 轮，2026-11-13 晚，代码到 c7c6250）
+
+| 部分 | 结果 |
+|---|---|
+| DeepSeek | **通过**：已登录 → 第 2 级拿 Key（官方页点「Create new API key」，App 从页面响应接住）→ 测试连通 → 保存。菜单 2 个模型（DeepSeek V4.1 Flash、DeepSeek V4 Pro，都标「付费」），每个都回了「好」；换 Key 通过；余额够，没碰到充值 |
+| Kimi | **通过**（修了 4 处才通）：第 2 级拿 Key。菜单 5 个模型（K2.7 Code、K2.7 Code 高速版、K3.1 Pro、K3、K2.6，都标「付费」），每个都回了「好」。账户是 Tier0，**每分钟只能发 3 次**，连发会 429（累计充值 50 元解锁 Tier1，站主定）|
+| Qwen（百炼） | 08:40 时其实是登录着的（有阿里云登录 cookie、页面显示站主名字），但阿里云的登录票据是会话 cookie，我重启 App 装新包后就没了，**需要站主重新扫码**；本轮没测成。登录判断已改成看这个 cookie |
+| 智谱、MiniMax、混元 | 未登录，跳过 |
+| OpenAI 官方 | 未登录（要系统浏览器登 ChatGPT），跳过 |
+| Codex 模型菜单只有这一家 | 通过：读 config.toml 和 codexbuddy-models.json；在真 Codex 界面里打开左下角菜单只有 DeepSeek 的 2 个（截图 36），Kimi 分身里只有 Kimi 的 5 个（截图 44） |
+| 分身 | DeepSeek、Kimi 都做成分身并打开：站主自己的 Codex、沙盒主 Codex、两个分身 4 个同时开着；分身界面是中文；分身菜单只有这一家；用分身的 CODEX_HOME 给每个模型发一句话都回了；删除 DeepSeek 分身只删了入口和桌面图标，数据目录哈希删前删后一样（.codex-deepseek 3352 个文件），`Codex (DeepSeek)` 数据目录还在 |
+| 汉化版 | 修后**通过**：从「ChatGPT 汉化版」打开，真 Codex 主界面是中文（截图 35）。修前补丁打上了但界面仍是英文（这台 Windows 系统语言是英文） |
+| 智谱 / MiniMax 登录页的微信二维码 | 右侧浏览器放大时两家都有二维码（截图 64、66）；画中画小窗里智谱有（65），**MiniMax 的二维码那块是白的**（67，微信二维码在 open.weixin.qq.com 的 iframe 里，缩到 0.39 倍后没画出来）。扫码是放大时做的，影响小，没改 |
+| 站主自己的 Codex 和 %USERPROFILE%\.codex | 没动：config.toml / auth.json 两轮前后 SHA256 一样，站主的 Codex 一直开着 |
+
+### 第 2 轮修的问题
+
+| 提交 | 问题 | 修法 |
+|---|---|---|
+| 84355d0 | Kimi 第 2 级接住的不是 Key（GET 请求里的会话 token 被当成 Key），测不通；测不通的 Key 一直留着，再点还是用它；Kimi 的 /login 已登录也不跳走 | 只读「新建」类请求（POST 等）的响应；被厂商拒的 Key 删掉；Kimi 登录入口改回控制台（没登录时它自己跳 /login，靠 1.5 秒稳定判断） |
+| fcc8f59 | Kimi 新建 Key 的响应里 `key` 是 Key 的 ID（ak-…），`auth` 才是 Key（sk-…） | 优先取 sk- 开头的值，再看名字像 key/secret 的字段，最后才看 token |
+| c1e103d | 百炼：控制台没登录时网址不变，阿里云登录页已登录时也不跳走，网址判断不了；DeepSeek、Kimi 的模型清单过时（Kimi K2 预览版已经 404，会报 Model not available） | 百炼看阿里云登录 cookie `login_aliyunid_ticket`；两家清单按真 Key 的 `/models` 改（App 内置一份和 remote/config.json 一起改） |
+| fdb67ab | 汉化版打开后 Codex 仍是英文：开关打开后 Codex 跟系统语言走 | 启动器加 `--lang=zh-CN`（分身、沙盒汉化版和 codex.ps1 的汉化启动器都加了） |
+| 972c211 | 已登录、等用户在官方页点「创建」时，卡上还写「扫码登录」，不知道该干什么 | 这一步卡上写「点右边的「创建」」 |
+| c7c6250 | Key 接住后官方页面会把整个 Key 显示出来，还留在画中画里（换模型、截图、共享屏幕都会露）；Kimi（付费）被限速时卡上写「免费模型被限速了」 | 接住 Key 马上关右侧浏览器；付费的家写「被限速了（每分钟能发的次数有限），稍等会恢复」 |
+
+每次修完：M3 上 `npm run lint`（含 tsc）和 `npm run test:cov` 全过（529 个测试，行 96.07%、分支 91.86%、函数 92.07%、语句 94.28%），同步到 hwy-pc 重新打包，从出问题那一步重测。
+
+### 第 2 轮还没做完 / 需要站主
+
+1. **UAC 提示**：我在 DeepSeek 分身里用脚本跳过 Codex 首次引导时，误点到了 Codex 自己的「完成 Windows 设置 → 继续」，Codex 在请求管理员权限（consent.exe 还开着）。这是系统权限，我没点，**请站主点「否」**。
+2. **Qwen 要重新扫码**（登录票据是会话 cookie，App 重启就没了；用户第一次切换成功后 Key 已存好，以后不用再登录，但「换 Key」时要重新扫）。智谱、MiniMax、混元、OpenAI 没登录。
+3. **Kimi Tier0 每分钟 3 次**：正常用 Codex 很容易被限速；要不要充到 50 元由站主定。
+4. 测试中在 DeepSeek、Kimi 账户里各新建了几个名为 CodexBuddy 的 Key（失败的重试留下的），可以在官网删掉不用的。
+5. 防火墙框、remote/config.json 未发布同第 1 轮。
+
+### 第 2 轮剩下的风险
+
+- MiniMax 微信二维码在画中画里不显示（见上）。
+- 分身摊开模式下右侧浏览器放大时，第三列卡片被盖住（页面不跟着变窄）。
+- 模型页右边常驻一条滚动条（7px），设置页的画中画会盖住「检查更新」。
+- codex.ps1 是从 codex-install-made-easy 同步来的，这次在本仓库的副本里加了 `--lang=zh-CN`，上游也要加，不然下次同步会丢。
+
+## 第 1 轮结论（2026-11-13 早）
 
 | 部分 | 结果 |
 |---|---|
@@ -34,6 +77,12 @@
 | 检查更新 | 有新版弹窗 / 已是最新 / 连不上 | 提示「连不上网，稍后再试」：网是通的，是仓库 main 上还没有 remote/config.json（jsDelivr、GitHub 都 404） | 待站主 | [31](screenshots/real-win-31-check-update.png) |
 | 帮助 | 粘报错给解释；企业微信码 | 解释对；二维码显示「连上网后显示」（同上，远程配置没发布） | 部分 | [32](screenshots/real-win-32-help.png) |
 | 一键还原 | 列出要做的事；只还原沙盒里的东西 | 列出：配置恢复、去掉汉化版图标、退出右侧浏览器登录、聊天记录留着；做完回到欢迎屏，汉化版快捷方式没了；没卸载商店版 Codex | 是 | [70](screenshots/real-win-70-restore-confirm.png) [71](screenshots/real-win-71-restored.png) |
+| 切换 DeepSeek（第 2 轮） | 第 2 级拿 Key → 测通 → 保存；菜单只有 DeepSeek | 卡上先「点右边的「创建」」，建好后 ✓ 能用；菜单 2 个，各回「好」 | 是 | [10](screenshots/real-win-10-deepseek-keypage.png) [12](screenshots/real-win-12-deepseek-switched.png) [36](screenshots/real-win-36-codex-menu-deepseek.png) |
+| 切换 Kimi（第 2 轮） | 同上 | 修后 ✓ 能用；菜单 5 个，各回「好」（每分钟 3 次，间隔着发） | 是 | [16](screenshots/real-win-16-kimi-switched.png) |
+| 换 Key（第 2 轮） | 拿新 Key，测通才替换 | DeepSeek 卡号尾号变了，测通；接住 Key 后右侧浏览器马上关 | 是 | [18](screenshots/real-win-18-change-key-create.png) [19](screenshots/real-win-19-change-key-done.png) |
+| 汉化版打开真 Codex（第 2 轮） | 主界面中文 | 修后中文 | 是 | [35](screenshots/real-win-35-codex-zh.png) |
+| 分身（第 2 轮） | 做成、和原版同时开、菜单只有这家、能回话、删除留数据 | 都符合 | 是 | [42](screenshots/real-win-42-clones-made.png) [44](screenshots/real-win-44-clone-kimi-menu.png) [45](screenshots/real-win-45-clone-remove-confirm.png) [46](screenshots/real-win-46-clone-removed.png) |
+| 智谱 / MiniMax 微信二维码（第 2 轮） | 放大和画中画都看得到 | 放大都有；画中画智谱有、MiniMax 白 | 部分 | [64](screenshots/real-win-64-zhipu-qr-expanded.png) [65](screenshots/real-win-65-zhipu-qr-pip.png) [66](screenshots/real-win-66-minimax-qr-expanded.png) [67](screenshots/real-win-67-minimax-qr-pip.png) |
 | G-01 数据保护 | 站主的 .codex 哈希不变 | config.toml F79918E5…CFEE、auth.json 6E4C3B9D…F3BB，前后一样 | 是 | — |
 
 ## 修了什么（m1/integrate）
