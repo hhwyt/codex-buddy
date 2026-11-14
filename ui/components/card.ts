@@ -59,6 +59,10 @@ const spin = () => h('span', { class: 'spin', 'aria-hidden': 'true' });
 const btn = (text: string, testid: string | null, onclick: () => void, cls = 'act') =>
   h('button', { class: cls, type: 'button', 'data-testid': testid ?? undefined, onclick: (e: Event) => { e.stopPropagation(); onclick(); } }, text);
 
+/** 智谱's free models are throttled for everyone; a paid account is held to its own per-minute limit (Kimi: 3 a minute
+ *  until 50 元 has been topped up) */
+const rateText = (c: CardView): string => (c.free ? '免费模型被限速了，稍等会恢复' : '被限速了（每分钟能发的次数有限），稍等会恢复');
+
 function tag(c: CardView): string {
   if (c.free) return '免费';
   if (c.paid) return '按用量付费';
@@ -88,7 +92,7 @@ function alertRow(c: CardView, o: FaceOptions): HTMLElement | null {
     case 'balance':
       return row('充完再试', btn('去充值', TID.models.recharge(c.vendor), a.recharge), btn('再试一次', null, a.retry, 'act strong'));
     case 'rate':
-      return row('免费模型被限速了，稍等会恢复', btn('换个模型', TID.models.rateLimitSwap(c.vendor), a.swapModel, 'act strong'));
+      return row(rateText(c), btn('换个模型', TID.models.rateLimitSwap(c.vendor), a.swapModel, 'act strong'));
     case 'broken':
       return row('Codex 用不了', btn('一键修复', TID.models.repair, a.repair, 'act strong'));
     case 'missing':
@@ -101,7 +105,7 @@ function alertRow(c: CardView, o: FaceOptions): HTMLElement | null {
     }
     default:
       if (o.inUse && o.state === null && c.note && /限速/.test(c.note)) {
-        return row('免费模型被限速了，稍等会恢复', btn('换个模型', TID.models.rateLimitSwap(c.vendor), a.swapModel, 'act strong'));
+        return row(rateText(c), btn('换个模型', TID.models.rateLimitSwap(c.vendor), a.swapModel, 'act strong'));
       }
       return null;
   }

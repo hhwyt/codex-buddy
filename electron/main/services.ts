@@ -224,6 +224,8 @@ export function createServices(d: ServiceDeps) {
     }
     emit({ id: 'login', state: 'done', text: '已登录，拿到 Key' });
     setKey(v, r.key);
+    // The official page now shows the whole key (DeepSeek, Kimi): do not leave it on screen in the small window
+    d.browser.close();
     return { ok: true, key: r.key };
   };
   const setKey = (v: string, key: string) => { st.keys[v] = { enc: enc(key), tail: keyTail(key) ?? '' }; save(); };

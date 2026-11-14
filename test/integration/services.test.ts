@@ -266,10 +266,11 @@ describe('switching', () => {
     const b = build({ balance: async p => (p.id === 'deepseek' ? { granted: 5, toppedUp: 0 } : null) });
     await installed_(b);
     expect((await b.h['switch:start']({ vendor: 'kimi' })).ok).toBe(true);
-    expect(b.browser.closed).toBe(1);
+    // Closed right after the key was caught (the official page shows the whole key), and again after the switch
+    expect(b.browser.closed).toBe(2);
     expect(b.browser.opens).toEqual([]);
     expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: true, trial: true });
-    expect(b.browser.closed).toBe(1);
+    expect(b.browser.closed).toBe(3);
     expect(b.browser.opens).toEqual([PROVIDERS.find(p => p.id === 'deepseek')!.rechargeUrl]);
   });
 

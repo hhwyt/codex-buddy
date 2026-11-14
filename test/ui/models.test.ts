@@ -328,6 +328,15 @@ describe('叠卡', () => {
     expect(toastText()).toContain('模型菜单');
   });
 
+  it('M-14 付费的家被限速（Kimi 每分钟 3 次）：不说「免费模型」', async () => {
+    await mount();
+    api.handle('switch:start', () => ({ ok: false, kind: 'rate-limited' }));
+    tap(card('kimi'));
+    await settle();
+    expect(text('kimi')).toContain('被限速了（每分钟能发的次数有限）');
+    expect(text('kimi')).not.toContain('免费模型');
+  });
+
   it('M-14 用着用着被限速：卡上的提示来自主进程', async () => {
     await mount(walletOf({ active: 'zhipu', order: ['zhipu', 'deepseek', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'] },
       { zhipu: { note: '被限速' } }));
