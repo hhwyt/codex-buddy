@@ -18,6 +18,7 @@ export const TID = {
     root: 'onb-root',
     start: 'onb-start', // 开始安装
     step: (id: string) => `onb-step-${id}`,
+    ring: 'onb-ring', // overall install progress
     fixing: 'onb-fixing', // 正在帮你修 O-08
     failure: 'onb-failure',
     retry: 'onb-retry', // 再试一次 O-03

@@ -44,8 +44,8 @@ export const renderOnboarding: Page = ({ api, root, go }) => {
   const welcome = () => view.replaceChildren(
     h('button', { class: 'btn primary onb-start', type: 'button', 'data-testid': TID.onboarding.start, onclick: () => void run() }, '开始安装'));
 
-  // Title, steps and「正在帮你修」share one left edge (a centered title over a left-aligned list looked off)
-  const installing = () => view.replaceChildren(h('div', { class: 'onb-steps' }, h('h2', { class: 'onb-head' }, '正在安装 Codex'), progress.el, fixing));
+  // ui-design/app install v5: the ring with the overall percent, the title, then the step list, all centered
+  const installing = () => view.replaceChildren(h('div', { class: 'onb-steps' }, progress.ring, h('h2', { class: 'onb-head' }, '正在安装 Codex'), progress.el, fixing));
 
   const failure = (reason: string) => view.replaceChildren(
     h('div', { class: 'onb-failure', 'data-testid': TID.onboarding.failure },
