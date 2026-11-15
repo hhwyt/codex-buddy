@@ -49,12 +49,10 @@ test('M-01 第一次进来所有卡都在且没有正在用的', async () => {
   expect(w.order.slice(0, 7)).toEqual([...VENDOR_IDS]);
   for (const v of VENDOR_IDS) await expect(card(v)).toBeAttached();
   await expect(run.page.getByTestId(TID.models.addVendor)).toBeVisible();
-  // a「选一个模型」line on top; no card is drawn whole, so none looks like it is already in use
-  await expect(run.page.getByTestId(TID.models.guide)).toHaveText('选一个模型');
-  await expect(run.page.locator('.card.whole')).toHaveCount(0);
+  // the same pile as later (model-page-top.html): the first card whole on top, but nothing says ✓ 能用
+  await expect(run.page.locator('.card.whole')).toHaveCount(1);
+  await expect(card(VENDOR_IDS[0])).toHaveClass(/\bwhole\b/);
   await expect(run.page.getByText('✓ 能用')).toHaveCount(0);
-  const g = (await run.page.getByTestId(TID.models.guide).boundingBox())!;
-  for (const v of VENDOR_IDS) expect((await card(v).boundingBox())!.y).toBeGreaterThan(g.y);
 });
 
 test('M-02 点后面的卡抽到最上层并开始切换', async () => {
@@ -368,7 +366,6 @@ test('M-02 从上往下：切到智谱、再切到 Kimi，最近用的排上面�
   await shot('1-first');
   await switchTo(run, 'zhipu');
   await top('zhipu');
-  await expect(run.page.getByTestId(TID.models.guide)).toBeHidden();
   await shot('2-zhipu');
   await switchTo(run, 'kimi');
   await top('kimi');

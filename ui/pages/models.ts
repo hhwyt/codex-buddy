@@ -5,7 +5,7 @@
 // While a switch waits on the user (login / scan / create the key on the official page) the pile stays live: picking
 // another card, the one in use, or the other mode drops that switch (switch:cancel) without a 取消了 toast (M-09).
 // Machine steps (test, apply) keep the page locked (M-06).
-// Nothing in use yet (first visit): a「选一个模型」line on top and every card as a head only, so none looks in use.
+// Nothing in use yet (first visit): the same pile, order[0] whole on top (model-page-top.html; owner 2026-11-15).
 // Clone mode: the same bank cards, scaled down and spread in 3 columns, each one an App of its own.
 import type { CardView, Outcome, VendorKey, WalletView } from '../../electron/main/ipc-contract.js';
 import type { BuddyApi } from '../api.js';
@@ -54,12 +54,11 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     h('button', { type: 'button', class: 'mode-seg', 'data-m': m, 'data-testid': testid, onclick: () => setMode(m) }, text);
   const modeBar = h('div', { class: 'mode', role: 'tablist' },
     modeBtn('switch', '切换', TID.models.modeSwitch), modeBtn('clone', '分身', TID.models.modeClone));
-  const guide = h('div', { class: 'guide sw-only', 'data-testid': TID.models.guide }, '选一个模型');
   const stage = h('div', { class: 'stage' });
   const hint = h('div', { class: 'reopen-hint', 'data-testid': TID.models.reopenHint }, '重新打开 Codex 生效');
   hint.hidden = true;
   const add = h('button', { class: 'add sw-only', type: 'button', 'data-testid': TID.models.addVendor, onclick: () => { void addVendor(); } }, '＋ 其他厂商');
-  const page = h('div', { class: `models ${mode}`, 'data-testid': TID.models.root, 'data-mode': mode }, modeBar, guide, stage, hint, add);
+  const page = h('div', { class: `models ${mode}`, 'data-testid': TID.models.root, 'data-mode': mode }, modeBar, stage, hint, add);
   root.replaceChildren(page);
 
   const card = (v: VendorKey): CardView => wallet.cards.find(c => c.vendor === v)!;
@@ -103,19 +102,14 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     };
   }
 
-  /** The top card shows whole once something is in use or being switched to; before that every card is a head */
-  const wholeTop = () => wallet.active !== null || front !== null || switching;
-
   /** y of the card at index i of the pile */
   function slotY(i: number): number {
-    if (!wholeTop()) return i * CARD_PEEK;
     return i === 0 ? 0 : CARD_HEIGHT - CARD_TUCK + (i - 1) * CARD_PEEK;
   }
 
   /** Index in the pile a card dragged to y lands on */
   function slotAt(y: number): number {
     const last = order.length - 1;
-    if (!wholeTop()) return Math.max(0, Math.min(last, Math.round(y / CARD_PEEK)));
     if (y < CARD_HEIGHT / 2) return 0;
     return Math.max(1, Math.min(last, 1 + Math.round((y - (CARD_HEIGHT - CARD_TUCK)) / CARD_PEEK)));
   }
@@ -123,7 +117,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   function paint(v: VendorKey, i: number): void {
     const c = card(v);
     const el = els.get(v)!;
-    const isFront = mode === 'switch' && i === 0 && wholeTop();
+    const isFront = mode === 'switch' && i === 0;
     el.replaceChildren(...cardFace(c, {
       front: isFront, inUse: wallet.active === v, state: isFront ? front : null, cloneState: mode === 'clone' ? cloneState(c) : null, actions: actionsFor(v),
     }));
@@ -141,7 +135,6 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     page.className = `models ${mode}${isBusy() ? ' busy' : ''}`;
     page.dataset.mode = mode;
     for (const b of modeBar.querySelectorAll<HTMLElement>('.mode-seg')) b.setAttribute('aria-selected', String(b.dataset.m === mode));
-    guide.hidden = mode !== 'switch' || wholeTop();
     if (mode === 'switch') {
       order.forEach((v, i) => {
         const el = els.get(v)!;

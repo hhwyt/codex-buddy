@@ -38,14 +38,13 @@ describe('叠卡', () => {
     for (const v of ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai']) expect(card(v)).toBeTruthy();
     expect(document.querySelectorAll('.card.cur').length).toBe(0);
     expect(document.body.textContent).not.toContain('✓ 能用');
-    // nothing in use: a「选一个模型」line on top, every card only a head, so the top one does not look in use
-    expect(q(TID.models.guide)!.hidden).toBe(false);
-    expect(q(TID.models.guide)!.textContent).toBe('选一个模型');
-    expect(document.querySelectorAll('.card.whole').length).toBe(0);
+    // nothing in use: the same pile as later, order[0] whole on top (model-page-top.html), just no ✓ / key / model
+    expect(card('deepseek').classList.contains('whole')).toBe(true);
+    expect(document.querySelectorAll('.card.whole').length).toBe(1);
     expect(rowOf('deepseek')).toBe(0); // read top to bottom: order[0] at the top
     expect(rowOf('zhipu')).toBe(1);
     expect(card('deepseek').style.transform).toBe('translate(-190px, 0px)');
-    expect(card('zhipu').style.transform).toBe('translate(-190px, 50px)');
+    expect(card('zhipu').style.transform).toBe('translate(-190px, 218px)');
     expect(text('deepseek')).toContain('按用量付费');
     expect(q(TID.models.cardModel('deepseek'))!.textContent).toBe('—');
     expect(q(TID.models.changeKey('deepseek'))).toBeNull();
@@ -102,15 +101,14 @@ describe('叠卡', () => {
 
   it('M-03 第一次进来把卡拖到最上面也切换', async () => {
     await mount();
-    expect(card('zhipu').style.transform).toBe('translate(-190px, 50px)');
-    drag(card('zhipu'), -50);
+    expect(card('zhipu').style.transform).toBe('translate(-190px, 218px)');
+    drag(card('zhipu'), -218);
     await settle();
     expect(api.callsOf('switch:start')).toEqual([{ vendor: 'zhipu' }]);
-    expect(q(TID.models.guide)!.hidden).toBe(true);
     expect(card('zhipu').classList.contains('whole')).toBe(true);
   });
 
-  it('M-05 第一次进来拖到中间只调顺序，引导还在', async () => {
+  it('M-05 第一次进来拖到中间只调顺序', async () => {
     await mount();
     drag(card('deepseek'), 120);
     await settle();
@@ -121,7 +119,6 @@ describe('叠卡', () => {
     expect(api.callsOf('switch:start')).toEqual([]);
     expect(rowOf('minimax')).toBe(2);
     expect(api.callsOf('wallet:reorder')[0].order.slice(0, 3)).toEqual(['deepseek', 'zhipu', 'minimax']);
-    expect(q(TID.models.guide)!.hidden).toBe(false);
   });
 
   it('M-04 拖动途中，其他卡让位', async () => {
@@ -469,14 +466,13 @@ describe('叠卡', () => {
     expect(api.callsOf('switch:start').length).toBe(1);
   });
 
-  it('M-16 进来时 Codex 已经被删了：最上面那张直接给「重新安装」，不显示选一个模型', async () => {
+  it('M-16 进来时 Codex 已经被删了：最上面那张直接给「重新安装」', async () => {
     api = fakeApi(walletOf());
     api.handle('app:state', () => ({ codexInstalled: false }));
     cleanup = (await renderModels({ api, root, go: () => {} })) as () => void;
     await settle();
     expect(q(TID.models.reinstall)).toBeTruthy();
     expect(card('deepseek').classList.contains('whole')).toBe(true);
-    expect(q(TID.models.guide)!.hidden).toBe(true);
   });
 
   it('M-16 Codex 被删了 →「重新安装」', async () => {
@@ -646,7 +642,6 @@ describe('叠卡', () => {
     expect(rowOf('kimi')).toBe(0);
     expect(rowOf('deepseek')).toBe(1);
     expect(card('kimi').classList.contains('cur')).toBe(true);
-    expect(q(TID.models.guide)!.hidden).toBe(true);
   });
 
   it('M-28 在 Codex 里换了模型，卡片上的模型名跟着变（只显示，不能点）', async () => {

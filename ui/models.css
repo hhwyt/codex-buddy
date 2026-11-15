@@ -7,8 +7,7 @@
    centre ≤ 100% − 510px; never past the stage's left edge (190px = half a card) */
 .models { --stack-x: 50%; position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 4px; }
 .pip-open .models.switch { --stack-x: max(190px, min(50%, calc(100% - 510px))); }
-.models.switch .guide, .models.switch .add { align-self: flex-start; margin-left: calc(var(--stack-x) - 190px); transition: margin-left .4s cubic-bezier(.2, .8, .2, 1); }
-.models .guide { width: 380px; font-size: 17px; font-weight: 600; text-align: center; }
+.models.switch .add { align-self: flex-start; margin-left: calc(var(--stack-x) - 190px); transition: margin-left .4s cubic-bezier(.2, .8, .2, 1); }
 
 /* 切换｜分身 */
 .models .mode { display: flex; background: var(--selected); border-radius: var(--pill); padding: 3px; font-size: 13px; }
@@ -70,7 +69,7 @@
 .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: models-spin .8s linear infinite; display: inline-block; }
 @keyframes models-spin { to { transform: rotate(360deg); } }
 
-/* 分身 mode: the same bank cards, scaled (the page's 选一个模型 and ＋ 其他厂商 belong to 切换 only) */
+/* 分身 mode: the same bank cards, scaled (the page's ＋ 其他厂商 belongs to 切换 only) */
 .sw-only { transition: opacity .3s; }
 .models.clone .sw-only { opacity: 0; pointer-events: none; }
 .models.clone .add { display: none; }
