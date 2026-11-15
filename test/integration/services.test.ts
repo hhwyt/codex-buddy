@@ -244,6 +244,32 @@ describe('switching', () => {
     expect(await b2.h['switch:start']({ vendor: 'openai' })).toMatchObject({ ok: false, kind: 'cancelled' });
   });
 
+  test('M-09 等 OpenAI 登录时取消：codex login 被停掉，返回 cancelled，配置不动，再切照常', async () => {
+    const b = build();
+    await installed_(b);
+    expect((await b.h['switch:start']({ vendor: 'deepseek' })).ok).toBe(true);
+    const before = configOf(b.paths.codexHome);
+    events = [];
+    scenario('login-wait'); // the user never signs in: `codex login` would wait 10 minutes
+    const loginStarted = () => events.some(e => e.event === 'step' && (e.payload as { id: string; state: string }).id === 'login' && (e.payload as { state: string }).state === 'start');
+    const started = Date.now();
+    const pending = b.h['switch:start']({ vendor: 'openai' });
+    await vi.waitFor(() => expect(loginStarted()).toBe(true));
+    const closedBefore = b.browser.closed;
+    await b.h['switch:cancel'](undefined as never);
+    expect(await pending).toMatchObject({ ok: false, kind: 'cancelled' });
+    expect(Date.now() - started).toBeLessThan(5000);
+    expect(b.browser.closed).toBe(closedBefore + 1);
+    expect(events.some(e => e.event === 'step' && (e.payload as { id: string; state: string; text: string }).state === 'fail' && (e.payload as { text: string }).text === '取消了')).toBe(true);
+    expect(configOf(b.paths.codexHome)).toBe(before);
+    expect((await b.h['wallet:get'](undefined as never)).active).toBe('deepseek');
+    expect(b.svc.state().openaiAuth).toBeNull();
+    // the cancel does not stick to the next switch
+    await b.h['switch:cancel'](undefined as never);
+    scenario('ok');
+    expect((await b.h['switch:start']({ vendor: 'openai' })).ok).toBe(true);
+  });
+
   test('M-07 测不通：配置一个字节都不变，卡片不换', async () => {
     const b = build();
     await installed_(b);

@@ -192,13 +192,14 @@ export function createServices(d: ServiceDeps) {
   };
 
   /** OpenAI official: `codex login` in the system browser, in a scratch home (M-22) */
-  const openaiLogin = async (emit: (e: StepEvent) => void): Promise<string | null> => {
+  const openaiLogin = async (emit: (e: StepEvent) => void, signal?: AbortSignal): Promise<string | null> => {
     if (st.openaiAuth) return dec(st.openaiAuth);
     emit({ id: 'login', state: 'start', text: '在浏览器里登录 OpenAI' });
     const dir = scratch();
     fs.mkdirp(dir);
     try {
-      await platform.runCodex(['login'], { codexHome: dir, timeoutMs: 10 * 60_000 });
+      await platform.runCodex(['login'], { codexHome: dir, timeoutMs: 10 * 60_000, signal });
+      if (signal?.aborted) { emit({ id: 'login', state: 'fail', text: '取消了' }); return null; }
       const auth = fs.readText(path.join(dir, 'auth.json'));
       if (!auth) { emit({ id: 'login', state: 'fail', text: '没有登录成功' }); return null; }
       st.openaiAuth = enc(auth);
@@ -231,14 +232,14 @@ export function createServices(d: ServiceDeps) {
   const setKey = (v: string, key: string) => { st.keys[v] = { enc: enc(key), tail: keyTail(key) ?? '' }; save(); };
 
   /** Writes this vendor into a Codex home (切换 or a clone) after the connectivity test */
-  const applyVendor = async (v: VendorKey, codexHome: string, flow: StepView['flow']): Promise<Outcome & { result?: SwitchResult }> => {
+  const applyVendor = async (v: VendorKey, codexHome: string, flow: StepView['flow'], signal?: AbortSignal): Promise<Outcome & { result?: SwitchResult }> => {
     const p = providerOf(v);
     if (!p) return { ok: false, reason: '没有这一家' };
     const emit = step(flow);
     let apiKey: string | null = null;
     let openaiAuth: string | null = null;
     if (p.officialAccount) {
-      openaiAuth = await openaiLogin(emit);
+      openaiAuth = await openaiLogin(emit, signal);
       if (!openaiAuth) return { ok: false, kind: 'cancelled', reason: '没有登录 OpenAI' };
     } else {
       const k = await obtainKey(v, emit);
@@ -269,11 +270,16 @@ export function createServices(d: ServiceDeps) {
     } finally { cleanScratch(dir); }
   };
 
+  /** The switch in flight; switch:cancel aborts it (stops `codex login`, M-09) */
+  let switchAbort: AbortController | null = null;
   const switchTo = async (v: VendorKey): Promise<Outcome & { seconds?: number; firstTime?: boolean; running?: boolean }> => {
     if (!(await platform.findCodex())) return { ok: false, kind: 'codex-missing', reason: '没找到 Codex' };
     await captureOriginal();
     keepOpenaiLogin();
-    const r = await applyVendor(v, paths.codexHome, 'switch');
+    const abort = new AbortController();
+    switchAbort = abort;
+    let r: Awaited<ReturnType<typeof applyVendor>>;
+    try { r = await applyVendor(v, paths.codexHome, 'switch', abort.signal); } finally { if (switchAbort === abort) switchAbort = null; }
     if (!r.ok) {
       const { result: _r, ...out } = r;
       if (out.kind === 'no-balance') await openRecharge(v); // M-13: the recharge page opens enlarged
@@ -444,7 +450,7 @@ export function createServices(d: ServiceDeps) {
     'wallet:reorder': ({ order }) => { st.order = order.filter(v => visible().includes(v)); save(); },
     'wallet:mode': ({ mode }) => { st.mode = mode; save(); },
     'switch:start': ({ vendor }) => switchTo(vendor),
-    'switch:cancel': () => { d.browser.close(); },
+    'switch:cancel': () => { switchAbort?.abort(); d.browser.close(); },
     'key:replace': async ({ vendor }) => {
       const k = await obtainKey(vendor, step('switch'), true);
       if (!('key' in k)) return k;

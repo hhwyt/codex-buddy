@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import type { CodexRunner } from '../core/types';
 
 export function codexRunner(cli: string, killTree: (pid: number) => void = pid => { try { process.kill(pid); } catch { /* gone */ } }): CodexRunner {
-  return (args, { codexHome, timeoutMs, stopEarly }) => new Promise(resolve => {
+  return (args, { codexHome, timeoutMs, stopEarly, signal }) => new Promise(resolve => {
     const child = spawn(cli, args, { cwd: codexHome, env: { ...process.env, CODEX_HOME: codexHome }, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '', timedOut = false, stopped = false;
     child.stdout!.on('data', d => { out += d; });
@@ -13,8 +13,11 @@ export function codexRunner(cli: string, killTree: (pid: number) => void = pid =
       if (!stopped && stopEarly?.(err)) { stopped = true; killTree(child.pid!); }
     });
     const timer = setTimeout(() => { timedOut = true; killTree(child.pid!); }, timeoutMs);
-    child.on('error', e => { clearTimeout(timer); resolve({ out, err: err + String(e), timedOut }); });
+    const abort = () => { if (!stopped) { stopped = true; killTree(child.pid!); } };
+    if (signal?.aborted) abort(); else signal?.addEventListener('abort', abort, { once: true });
+    const done = () => { clearTimeout(timer); signal?.removeEventListener('abort', abort); };
+    child.on('error', e => { done(); resolve({ out, err: err + String(e), timedOut }); });
     // 'exit', not 'close': Codex starts a background git fetch that inherits its pipes and can outlive it
-    child.on('exit', () => { clearTimeout(timer); setTimeout(() => resolve({ out, err, timedOut }), 100); });
+    child.on('exit', () => { done(); setTimeout(() => resolve({ out, err, timedOut }), 100); });
   });
 }

@@ -26,7 +26,7 @@ const plist = (version: string) =>
 
 /** Runs the fake Codex CLI (node script) with CODEX_HOME set; same contract as platform/run-codex.ts */
 export function fakeCodexRunner(node: string, script: string, extraEnv: NodeJS.ProcessEnv = {}): CodexRunner {
-  return (args, { codexHome, timeoutMs, stopEarly }) => new Promise(resolve => {
+  return (args, { codexHome, timeoutMs, stopEarly, signal }) => new Promise(resolve => {
     const child = spawn(node, [script, ...args], {
       cwd: codexHome, env: { ...process.env, ...extraEnv, ELECTRON_RUN_AS_NODE: '1', CODEX_HOME: codexHome }, stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -34,8 +34,11 @@ export function fakeCodexRunner(node: string, script: string, extraEnv: NodeJS.P
     child.stdout.on('data', c => { out += c; });
     child.stderr.on('data', c => { err += c; if (stopEarly?.(err)) child.kill(); });
     const timer = setTimeout(() => { timedOut = true; child.kill(); }, timeoutMs);
-    child.on('error', e => { clearTimeout(timer); resolve({ out, err: err + String(e), timedOut }); });
-    child.on('close', () => { clearTimeout(timer); resolve({ out, err, timedOut }); });
+    const abort = () => { child.kill(); };
+    if (signal?.aborted) abort(); else signal?.addEventListener('abort', abort, { once: true });
+    const done = () => { clearTimeout(timer); signal?.removeEventListener('abort', abort); };
+    child.on('error', e => { done(); resolve({ out, err: err + String(e), timedOut }); });
+    child.on('close', () => { done(); resolve({ out, err, timedOut }); });
   });
 }
 

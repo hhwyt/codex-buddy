@@ -232,6 +232,21 @@ describe('runCodex', () => {
     expect(killed).toHaveLength(1);
   });
 
+  test('M-09 取消切换（signal 中止）就用 taskkill /T 结束整棵进程树；已经中止的不再等', async () => {
+    const location = withCli('sleep 5');
+    const { platform, killed } = setup(() => ({ out: codexJson({ location }) }));
+    const abort = new AbortController();
+    const run = platform.runCodex(['login'], { codexHome: tmp(), timeoutMs: 60_000, signal: abort.signal });
+    setTimeout(() => abort.abort(), 100);
+    const r = await run;
+    expect(r.timedOut).toBe(false);
+    expect(killed).toHaveLength(1);
+    const started = Date.now();
+    await platform.runCodex(['login'], { codexHome: tmp(), timeoutMs: 60_000, signal: abort.signal });
+    expect(Date.now() - started).toBeLessThan(3000);
+    expect(killed).toHaveLength(2);
+  });
+
   test('M-16 没装 Codex：不跑，直接说还没装', async () => {
     const { platform } = setup(() => ({ out: '' }));
     expect(await platform.runCodex(['exec'], { codexHome: tmp(), timeoutMs: 1000 })).toEqual({ out: '', err: '还没装 Codex', timedOut: false });

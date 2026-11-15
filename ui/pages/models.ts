@@ -2,6 +2,9 @@
 // Switch mode reads top to bottom (ui-design/model-page-top.html): order[0], the card in use, lies at the top, whole and
 // above the rest; each other card is tucked 22px under the one above it and shows only its head. Most recently used
 // first. Click a card below or drag it to the top → switch. Drag that stops short of the top → only reorder (M-05).
+// While a switch waits on the user (login / scan / create the key on the official page) the pile stays live: picking
+// another card, the one in use, or the other mode drops that switch (switch:cancel) without a 取消了 toast (M-09).
+// Machine steps (test, apply) keep the page locked (M-06).
 // Nothing in use yet (first visit): a「选一个模型」line on top and every card as a head only, so none looks in use.
 // Clone mode: the same bank cards, scaled down and spread in 3 columns, each one an App of its own.
 import type { CardView, Outcome, VendorKey, WalletView } from '../../electron/main/ipc-contract.js';
@@ -37,6 +40,8 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   // M-16: Codex was deleted since last time → the top card offers 重新安装 right away
   let front: FrontState | null = opts.codexMissing ? { kind: 'missing' } : null;
   let switching = false;
+  /** The switch:start now running; superseded = the user picked something else while it waited on them */
+  let inflight: { vendor: VendorKey; done: Promise<void>; superseded: boolean } | null = null;
   let dragging = false;
   let pendingWallet: WalletView | null = null;
   /** order before the switch now on screen, to put the cards back when it fails */
@@ -58,7 +63,9 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   root.replaceChildren(page);
 
   const card = (v: VendorKey): CardView => wallet.cards.find(c => c.vendor === v)!;
-  const isBusy = () => switching;
+  /** A switch is waiting on the user (login / scan / create key), not on a machine step */
+  const waitingOnUser = () => inflight !== null && (front?.kind === 'login' || front?.kind === 'create');
+  const isBusy = () => switching && !waitingOnUser();
 
   function syncCards(): void {
     for (const c of wallet.cards) {
@@ -131,7 +138,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   /** skip: the card under the finger keeps its own position */
   function layout(skip?: VendorKey): void {
     const n = order.length;
-    page.className = `models ${mode}${switching ? ' busy' : ''}`;
+    page.className = `models ${mode}${isBusy() ? ' busy' : ''}`;
     page.dataset.mode = mode;
     for (const b of modeBar.querySelectorAll<HTMLElement>('.mode-seg')) b.setAttribute('aria-selected', String(b.dataset.m === mode));
     guide.hidden = mode !== 'switch' || wholeTop();
@@ -176,23 +183,51 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   // ---- switching (M-02..M-21) ----
   function pick(v: VendorKey): void {
     if (mode !== 'switch' || isBusy()) return;
+    if (waitingOnUser() && v === inflight!.vendor) { layout(); return; } // the card already being switched to
     const before = order.slice();
     order = [v, ...order.filter(k => k !== v)];
+    if (v === wallet.active && waitingOnUser()) { void backToActive(); return; }
     if (v === wallet.active && front === null) { layout(); return; }
     void switchTo(v, before);
   }
 
+  /** Stops the switch waiting on the user; resolves once its switch:start has returned */
+  async function dropPending(): Promise<void> {
+    const run = inflight!;
+    if (!run.superseded) { run.superseded = true; void api.invoke('switch:cancel'); }
+    await run.done;
+  }
+
+  async function backToActive(): Promise<void> {
+    await dropPending();
+    if (!switching) putBack();
+  }
+
   async function switchTo(v: VendorKey, before?: VendorKey[]): Promise<void> {
-    if (switching) return;
-    if (before) revertTo = before;
+    if (isBusy()) return;
+    const interrupting = waitingOnUser();
+    // the order to go back to is the one before the dropped switch
+    if (before && !interrupting) revertTo = before;
+    if (interrupting) { await dropPending(); if (switching) return; }
     if (order[0] !== v) order = [v, ...order.filter(k => k !== v)];
     switching = true;
     hint.hidden = true;
     front = { kind: card(v).keyTail ? 'test' : 'login' };
+    let finish!: () => void;
+    const run = { vendor: v, done: new Promise<void>(resolve => { finish = resolve; }), superseded: false };
+    inflight = run;
     layout();
     let r: SwitchResult;
     try { r = await api.invoke('switch:start', { vendor: v }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
     switching = false;
+    inflight = null;
+    if (run.superseded) {
+      // whoever dropped it carries on; a login that finished just before the cancel still counts
+      if (r.ok) await succeed(v, r);
+      finish();
+      return;
+    }
+    finish();
     if (r.ok) return succeed(v, r);
     const kind = typeof r.kind === 'string' ? r.kind : '';
     if (kind === 'cancelled') { putBack(); toast('取消了，什么都没改'); return; }
@@ -307,6 +342,8 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
       el.classList.remove('drag');
       dragging = false;
       if (!moved) { order = before; pick(v); return; }
+      // a switch waits on the user: a new card on top replaces it; anything else changes nothing
+      if (waitingOnUser()) { const top = order[0]!; order = before; if (top !== before[0]) pick(top); else layout(); return; }
       if (order[0] === v && v !== wallet.active) { void switchTo(v, before); return; }
       if (order[0] !== before[0] && order[0] !== wallet.active) { order = before; layout(); return; }
       layout();
@@ -321,6 +358,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   // ---- mode (C-09) ----
   function setMode(m: 'switch' | 'clone'): void {
     if (m === mode || isBusy()) return;
+    if (waitingOnUser()) void backToActive();
     mode = m;
     layout();
     void api.invoke('wallet:mode', { mode: m });
@@ -366,7 +404,9 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
       const kind = /login|scan/.test(s.id) ? 'login' : s.id === 'create' ? 'create' : /test/.test(s.id) ? 'test' : null;
       if (kind && front.kind !== kind) { front = { kind }; layout(); }
     }),
-    api.on('browser', b => { if (!b.open && switching && (front?.kind === 'login' || front?.kind === 'create')) void api.invoke('switch:cancel'); }),
+    api.on('browser', b => {
+      if (!b.open && switching && (front?.kind === 'login' || front?.kind === 'create') && !inflight?.superseded) void api.invoke('switch:cancel');
+    }),
   ];
 
   syncCards();

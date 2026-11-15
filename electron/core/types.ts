@@ -83,8 +83,9 @@ export interface Cipher {
   decrypt(data: Uint8Array): string;
 }
 
-/** Runs the Codex CLI once (real: platform spawns it; tests: test/fakes/fake-codex.mjs) */
-export type CodexRunner = (args: string[], opts: { codexHome: string; timeoutMs: number; stopEarly?: (stderr: string) => boolean }) =>
+/** Runs the Codex CLI once (real: platform spawns it; tests: test/fakes/fake-codex.mjs). signal: aborting it kills the
+ *  run (its process tree) and resolves with what it had so far */
+export type CodexRunner = (args: string[], opts: { codexHome: string; timeoutMs: number; stopEarly?: (stderr: string) => boolean; signal?: AbortSignal }) =>
   Promise<{ out: string; err: string; timedOut: boolean }>;
 
 /** What the model page shows for one card */

@@ -167,21 +167,120 @@ describe('叠卡', () => {
     expect(api.callsOf('switch:start')).toEqual([{ vendor: 'qwen' }]);
   });
 
-  it('M-06 切换中再点别的卡不响应，模式开关也不响应', async () => {
-    await mount();
+  it('M-06 测试连通时再点、再拖别的卡不响应，模式开关也不响应', async () => {
+    await mount(walletOf({}, { kimi: { keyTail: '5e08' } }));
     const gate = deferred<any>();
     api.handle('switch:start', () => gate.promise);
     tap(card('kimi'));
     await settle();
+    expect(text('kimi')).toContain('测试连通');
     tap(card('qwen'));
-    drag(card('minimax'), 300);
+    drag(card('minimax'), -400);
+    tap(card('kimi'));
     click(TID.models.modeClone);
     await settle();
     expect(api.callsOf('switch:start')).toEqual([{ vendor: 'kimi' }]);
+    expect(api.callsOf('switch:cancel')).toEqual([]);
     expect(api.callsOf('wallet:mode')).toEqual([]);
+    expect(rowOf('kimi')).toBe(0);
     expect(root.querySelector('.models')!.classList.contains('busy')).toBe(true);
     gate.resolve({ ok: true });
     await settle();
+  });
+
+  it('M-09 等 OpenAI 登录时把 DeepSeek 拖到最上面：停掉那次登录，直接切 DeepSeek，不提示取消', async () => {
+    await mount(walletOf({ active: 'kimi', order: ['kimi', 'deepseek', 'zhipu', 'qwen', 'minimax', 'hunyuan', 'openai'] }, { deepseek: { keyTail: '7c21' } }));
+    const login = deferred<any>();
+    api.handle('switch:start', ({ vendor }) => (vendor === 'openai' ? login.promise : { ok: true }));
+    api.handle('switch:cancel', () => { login.resolve({ ok: false, kind: 'cancelled', reason: '没有登录 OpenAI' }); });
+    tap(card('openai'));
+    await settle();
+    expect(rowOf('openai')).toBe(0);
+    expect(text('openai')).toContain('扫码登录');
+    expect(root.querySelector('.models')!.classList.contains('busy')).toBe(false);
+    tap(card('openai')); // the card being switched to: nothing new
+    await settle();
+    expect(api.callsOf('switch:cancel')).toEqual([]);
+    drag(card('deepseek'), -400);
+    await settle();
+    expect(api.calls.filter(c => c.channel === 'switch:start' || c.channel === 'switch:cancel').map(c => `${c.channel} ${c.args?.vendor ?? ''}`.trim()))
+      .toEqual(['switch:start openai', 'switch:cancel', 'switch:start deepseek']);
+    expect(toastText()).not.toContain('取消了');
+    expect(toastText()).toContain('已切换到 DeepSeek');
+    expect(rowOf('deepseek')).toBe(0);
+    expect(card('deepseek').classList.contains('cur')).toBe(true);
+    expect(api.callsOf('wallet:reorder').at(-1).order[0]).toBe('deepseek');
+  });
+
+  it('M-09 等扫码登录时点下面的卡也换过去；新的那次失败就回到原来的顺序', async () => {
+    await mount(walletOf({ active: 'kimi', order: ['kimi', 'deepseek', 'zhipu', 'qwen', 'minimax', 'hunyuan', 'openai'] }, { deepseek: { keyTail: '7c21' } }));
+    const login = deferred<any>();
+    api.handle('switch:start', ({ vendor }) => (vendor === 'openai' ? login.promise : { ok: false, reason: '连不上' }));
+    api.handle('switch:cancel', () => { login.resolve({ ok: false, kind: 'cancelled' }); });
+    tap(card('openai'));
+    await settle();
+    // the right-side browser closing because of our own cancel does not cancel twice
+    api.emit('step', { flow: 'switch', id: 'login', state: 'start', text: '' });
+    tap(card('deepseek'));
+    api.emit('browser', { open: false, mode: 'expanded', url: '', canGoBack: false });
+    await settle(20);
+    expect(api.callsOf('switch:cancel').length).toBe(1);
+    expect(api.callsOf('switch:start')).toEqual([{ vendor: 'openai' }, { vendor: 'deepseek' }]);
+    await new Promise(r => setTimeout(r, 450)); // the failed card shakes, then goes back
+    expect(rowOf('kimi')).toBe(0);
+    expect(rowOf('deepseek')).toBe(1);
+    expect(toastText()).not.toContain('取消了');
+  });
+
+  it('M-09 等登录时点正在用的那张或切到分身：停掉那次切换，回到正在用的，不提示取消', async () => {
+    await mount(walletOf({ active: 'kimi', order: ['kimi', 'deepseek', 'zhipu', 'qwen', 'minimax', 'hunyuan', 'openai'] }));
+    let login = deferred<any>();
+    api.handle('switch:start', () => login.promise);
+    api.handle('switch:cancel', () => { login.resolve({ ok: false, kind: 'cancelled' }); });
+    tap(card('zhipu'));
+    await settle();
+    api.emit('step', { flow: 'switch', id: 'create', state: 'start', text: '在右边的官方页面点「创建」' });
+    expect(text('zhipu')).toContain('点右边的「创建」');
+    tap(card('kimi'));
+    await settle();
+    expect(api.callsOf('switch:cancel').length).toBe(1);
+    expect(api.callsOf('switch:start')).toEqual([{ vendor: 'zhipu' }]);
+    expect(rowOf('kimi')).toBe(0);
+    expect(card('kimi').classList.contains('cur')).toBe(true);
+    expect(toastText()).not.toContain('取消了');
+    expect(api.callsOf('wallet:reorder')).toEqual([]);
+    // the same while waiting, from the 切换｜分身 switch
+    login = deferred<any>();
+    tap(card('qwen'));
+    await settle();
+    click(TID.models.modeClone);
+    await settle();
+    expect(api.callsOf('switch:cancel').length).toBe(2);
+    expect(api.callsOf('wallet:mode')).toEqual([{ mode: 'clone' }]);
+    expect(q(TID.models.root)!.dataset.mode).toBe('clone');
+    click(TID.models.modeSwitch);
+    expect(rowOf('kimi')).toBe(0);
+    expect(toastText()).not.toContain('取消了');
+  });
+
+  it('M-09 等登录时拖动但最上面没换：不取消，也不存顺序；登录恰好成功也照常切过去', async () => {
+    await mount(walletOf({ active: 'kimi', order: ['kimi', 'deepseek', 'zhipu', 'qwen', 'minimax', 'hunyuan', 'openai'] }));
+    const login = deferred<any>();
+    api.handle('switch:start', ({ vendor }) => (vendor === 'openai' ? login.promise : { ok: true }));
+    // the login finished just before the cancel arrived
+    api.handle('switch:cancel', () => { login.resolve({ ok: true }); });
+    tap(card('openai'));
+    await settle();
+    drag(card('qwen'), -60);
+    await settle();
+    expect(api.callsOf('switch:cancel')).toEqual([]);
+    expect(api.callsOf('wallet:reorder')).toEqual([]);
+    expect(rowOf('openai')).toBe(0);
+    tap(card('hunyuan'));
+    await settle(20);
+    expect(api.callsOf('switch:start')).toEqual([{ vendor: 'openai' }, { vendor: 'hunyuan' }]);
+    expect(rowOf('hunyuan')).toBe(0);
+    expect(toastText()).toContain('已切换到 混元');
   });
 
   it('M-07 测试连通没通过 → 卡抖一下退回原位', async () => {

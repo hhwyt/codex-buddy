@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Fake Codex CLI. Owner: Base. Behaves like `codex exec --ephemeral --skip-git-repo-check <prompt>` and `codex login`
 // as far as CodexBuddy can tell, reading $CODEX_HOME/config.toml and auth.json.
-// Scenario: FAKE_CODEX_SCENARIO = ok | 401 | 429 | balance | timeout | unreachable | model | broken (default ok)
+// Scenario: FAKE_CODEX_SCENARIO = ok | 401 | 429 | balance | timeout | unreachable | model | broken (default ok);
+//   for `codex login`: login-fail | login-wait (never signs in, waits to be killed)
 //   or a file $CODEX_HOME/../fake-codex-scenario (lets a test change it between runs).
 // Model check: when config.toml has model_catalog_json, the model must be one of its slugs, else it fails like the
 // real CLI does: "unexpected status 404 Not Found: Model not available: <model>" (spike (a)).
@@ -36,6 +37,8 @@ const fail = (lines, code = 1) => { for (const l of lines) process.stderr.write(
 if (args[0] === '--version') { console.log('codex-cli 0.166.0-fake'); process.exit(0); }
 if (args[0] === 'login') {
   if (scenario === 'login-fail') process.exit(1);
+  // the user has not signed in yet in the system browser: wait until killed (switch:cancel)
+  if (scenario === 'login-wait') await new Promise(() => setInterval(() => {}, 1e9));
   fs.writeFileSync(path.join(home, 'auth.json'), JSON.stringify({ tokens: { access_token: 'fake-access', refresh_token: 'fake-refresh', id_token: 'fake-id' } }));
   process.exit(0);
 }
