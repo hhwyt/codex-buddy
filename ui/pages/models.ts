@@ -3,7 +3,7 @@
 // above the rest; each other card is tucked 22px under the one above it and shows only its head. Most recently used
 // first. Click a card below or drag it to the top → switch. Drag that stops short of the top → only reorder (M-05).
 // Nothing in use yet (first visit): a「选一个模型」line on top and every card as a head only, so none looks in use.
-// Clone mode: the same cards spread in 3 columns, each one an App of its own.
+// Clone mode: the same bank cards, scaled down and spread in 3 columns, each one an App of its own.
 import type { CardView, Outcome, VendorKey, WalletView } from '../../electron/main/ipc-contract.js';
 import type { BuddyApi } from '../api.js';
 import { confirmRemoveClone, customVendor, firstSuccess, keyFailed } from '../components/card-actions.js';
@@ -118,7 +118,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     const el = els.get(v)!;
     const isFront = mode === 'switch' && i === 0 && wholeTop();
     el.replaceChildren(...cardFace(c, {
-      front: isFront, inUse: wallet.active === v, state: isFront ? front : null, cloneState: cloneState(c), actions: actionsFor(v),
+      front: isFront, inUse: wallet.active === v, state: isFront ? front : null, cloneState: mode === 'clone' ? cloneState(c) : null, actions: actionsFor(v),
     }));
     el.classList.toggle('whole', isFront);
     el.classList.toggle('cur', isFront && wallet.active === v);
@@ -139,7 +139,6 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
       order.forEach((v, i) => {
         const el = els.get(v)!;
         paint(v, i);
-        el.classList.remove('todo');
         el.dataset.row = String(i); // 0 = top of the page
         // the whole top card lies above everything; below it, each card under the one above
         if (v !== skip) { ys.set(v, slotY(i)); place(el, -CARD_WIDTH / 2, slotY(i)); el.style.zIndex = String(i === 0 ? n + 1 : n - i); }
@@ -153,7 +152,6 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
       list.forEach((c, i) => {
         const el = els.get(c.vendor)!;
         paint(c.vendor, order.indexOf(c.vendor));
-        el.classList.toggle('todo', rank(c) === 3);
         delete el.dataset.row;
         place(el, x0 + (i % SPREAD_COLS) * (cw + SPREAD_GAP), Math.floor(i / SPREAD_COLS) * (ch + SPREAD_GAP), SPREAD_SCALE);
         el.style.zIndex = String(10 + i);

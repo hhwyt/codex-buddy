@@ -628,8 +628,6 @@ describe('分身', () => {
     expect(ys[0]).toContain(', 0px)');
     expect(ys[1]).toContain(', 0px)');
     expect(ys[3]).toContain(', 162px)');
-    expect(card('zhipu').classList.contains('todo')).toBe(true);
-    expect(card('deepseek').classList.contains('todo')).toBe(false);
     click(TID.models.modeClone); // same mode: nothing
     tap(card('qwen')); // no switching in clone mode
     await settle();
@@ -638,6 +636,37 @@ describe('分身', () => {
     expect(page.dataset.mode).toBe('switch');
     expect(rowOf('kimi')).toBe(0);
     expect(card('kimi').classList.contains('cur')).toBe(true);
+  });
+
+  it('C-09 分身模式的卡和切换模式最上层那张是同一张银行卡：颜色、logo、名字、右上角标签、卡号点、MODEL，只是缩小', async () => {
+    await mount(walletOf({ active: 'deepseek' }, { deepseek: { model: 'deepseek-flash', cloneMade: true }, minimax: { model: 'MiniMax-M2' } }));
+    // reference: the whole top card in 切换 mode
+    const shape = (el: HTMLElement) => [...el.children].map(c => c.className);
+    const sw = card('deepseek');
+    expect(sw.className).toContain('face-deepseek');
+    expect(shape(sw)).toEqual(['top', 'num', 'bot']);
+    click(TID.models.modeClone);
+    await settle();
+    for (const v of ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai']) {
+      const el = card(v);
+      // same element classes as a 切换 card: the vendor face, nothing that fades a clone not made yet
+      expect(el.className.split(' ').filter(c => c !== 'light').sort()).toEqual(['card', `face-${v}`]);
+      expect(el.style.transform).toContain('scale(0.6)');
+      expect(shape(el)).toEqual(['top', 'num', 'alert', 'bot']);
+      expect([...el.querySelector('.top')!.children].map(c => c.className)).toEqual(['logo', 'name', 'st-wrap']);
+      expect(el.querySelector('.num')!.textContent).toBe('•••• •••• ••••');
+      expect(el.querySelector('.bot .lbl')!.textContent).toBe('Model');
+      // the clone's actions sit where the switch card puts its own, styled like its buttons
+      expect(el.querySelectorAll('.alert button.act').length).toBeGreaterThan(0);
+    }
+    expect(q(TID.models.cardModel('minimax'))!.textContent).toBe('MiniMax-M2');
+    expect(card('deepseek').querySelector('.st-wrap')!.textContent).toBe('分身');
+    expect(card('openai').querySelector('.st-wrap')!.textContent).toBe('原来的');
+    expect(card('kimi').querySelector('.st-wrap')!.textContent).toBe('按用量付费'); // not made yet: the same tag as in 切换
+    expect(q(TID.models.cloneMake('kimi'))!.className).toBe('act strong');
+    expect(q(TID.models.cloneRemove('deepseek'))!.className).toBe('act quiet');
+    const css = readFileSync('ui/models.css', 'utf8');
+    expect(css).not.toMatch(/\.todo|saturate|filter:|cl-only|clbtn/);
   });
 
   it('C-09 上次停在分身模式，进来就是摊开的', async () => {
@@ -754,7 +783,7 @@ describe('卡面', () => {
       { front: false, inUse: false, state: null, cloneState: 'orig', actions });
     expect(nodes.map(n => n.textContent).join('')).not.toContain('付费');
     const noted = cardFace({ vendor: 'kimi', name: 'Kimi', model: null, free: false, paid: true, keyTail: null, cloneMade: false, note: '快到上限了' },
-      { front: true, inUse: true, state: null, cloneState: 'todo', actions });
+      { front: true, inUse: true, state: null, cloneState: null, actions });
     expect(noted.map(n => n.textContent).join('')).toContain('快到上限了');
   });
 

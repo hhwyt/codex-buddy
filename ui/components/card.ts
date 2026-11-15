@@ -46,7 +46,8 @@ export interface FaceOptions {
   /** The card is the one in use (wallet.active) */
   inUse: boolean;
   state: FrontState | null;
-  cloneState: 'made' | 'making' | 'todo' | 'orig';
+  /** 分身 mode: where this card's clone stands (the face stays the 切换 bank card, only the actions differ); null in 切换 */
+  cloneState: 'made' | 'making' | 'todo' | 'orig' | null;
   actions: CardActions;
 }
 
@@ -70,6 +71,8 @@ function tag(c: CardView): string {
 }
 
 function status(c: CardView, o: FaceOptions): HTMLElement {
+  if (o.cloneState === 'orig') return h('span', { class: 'st quiet' }, '原来的');
+  if (o.cloneState === 'made') return h('span', { class: 'st quiet' }, '分身');
   const s = o.front ? o.state : null;
   if (s?.kind === 'login') return h('span', { class: 'st' }, spin(), '扫码登录');
   if (s?.kind === 'create') return h('span', { class: 'st' }, spin(), '点右边的「创建」');
@@ -83,8 +86,9 @@ function status(c: CardView, o: FaceOptions): HTMLElement {
   return h('span', { class: 'st quiet' }, tag(c));
 }
 
-/** The row of buttons a problem state puts on the front card */
+/** The row of buttons a problem state puts on the front card; in 分身 mode the clone's actions, in the same place */
 function alertRow(c: CardView, o: FaceOptions): HTMLElement | null {
+  if (o.cloneState) return cloneRow(c, o);
   if (!o.front) return null;
   const a = o.actions;
   const row = (text: string, ...buttons: HTMLElement[]) => h('div', { class: 'alert' }, h('span', { class: 'alert-text' }, text), ...buttons);
@@ -118,36 +122,29 @@ function logo(c: CardView): HTMLElement {
 
 function cloneRow(c: CardView, o: FaceOptions): HTMLElement {
   const a = o.actions;
-  let right: HTMLElement;
-  if (o.cloneState === 'orig') right = btn('打开 ChatGPT', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'clbtn');
-  else if (o.cloneState === 'made') right = btn('打开', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'clbtn');
-  else if (o.cloneState === 'making') right = h('span', { class: 'clbtn make' }, spin(), '正在复制');
-  else right = btn('做成分身', TID.models.cloneMake(c.vendor), a.cloneMake, 'clbtn make');
-  const left = o.cloneState === 'made' || o.cloneState === 'orig' ? '自己的聊天记录' : '';
-  return h('div', { class: 'cl-row cl-only' },
-    h('span', { class: 'cl-note' }, left),
-    h('span', { class: 'cl-btns' },
-      o.cloneState === 'made' ? btn('删除', TID.models.cloneRemove(c.vendor), a.cloneRemove, 'act quiet') : null,
-      right));
+  const note = o.cloneState === 'made' || o.cloneState === 'orig' ? '自己的聊天记录' : '';
+  const row = (...items: HTMLElement[]) => h('div', { class: 'alert' }, h('span', { class: 'alert-text' }, note), ...items);
+  switch (o.cloneState) {
+    case 'orig': return row(btn('打开 ChatGPT', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'act strong'));
+    case 'made': return row(btn('删除', TID.models.cloneRemove(c.vendor), a.cloneRemove, 'act quiet'), btn('打开', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'act strong'));
+    case 'making': return row(h('span', { class: 'st' }, spin(), '正在复制'));
+    default: return row(btn('做成分身', TID.models.cloneMake(c.vendor), a.cloneMake, 'act strong'));
+  }
 }
 
 /** Children of one card element (the element itself is owned by the page so it can animate) */
 export function cardFace(c: CardView, o: FaceOptions): Node[] {
   const showKeyActions = o.front && o.inUse && c.vendor !== 'openai';
   const pay = o.front && o.inUse && c.paid && !c.free && o.state?.kind !== 'balance';
-  const cloneTag = o.cloneState === 'orig' ? '原来的' : o.cloneState === 'made' ? '分身' : '';
   return [
-    h('div', { class: 'top' }, logo(c), h('span', { class: 'name' }, c.name),
-      h('span', { class: 'sw-only st-wrap' }, status(c, o)),
-      h('span', { class: 'cl-only cl-tag' }, cloneTag)),
-    h('div', { class: 'num sw-only' },
+    h('div', { class: 'top' }, logo(c), h('span', { class: 'name' }, c.name), h('span', { class: 'st-wrap' }, status(c, o))),
+    h('div', { class: 'num' },
       c.keyTail ? `sk-•••• •••• ${c.keyTail}` : '•••• •••• ••••',
       showKeyActions ? btn('换', TID.models.changeKey(c.vendor), o.actions.changeKey) : null),
     alertRow(c, o),
-    h('div', { class: 'bot sw-only' },
+    h('div', { class: 'bot' },
       h('div', {}, h('div', { class: 'lbl' }, 'Model'), h('div', { class: 'val', 'data-testid': TID.models.cardModel(c.vendor) }, c.model ?? '—')),
       pay ? h('button', { class: 'pay', type: 'button', 'data-testid': TID.models.recharge(c.vendor), onclick: (e: Event) => { e.stopPropagation(); o.actions.recharge(); } },
         h('div', { class: 'lbl' }, '余额'), h('div', { class: 'val' }, '去充值 ›')) : null),
-    cloneRow(c, o),
   ].filter((n): n is HTMLElement => n !== null);
 }

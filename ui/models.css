@@ -70,18 +70,11 @@
 .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: models-spin .8s linear infinite; display: inline-block; }
 @keyframes models-spin { to { transform: rotate(360deg); } }
 
-/* parts that show in one mode only */
-.sw-only, .cl-only { transition: opacity .3s; }
-.models.clone .sw-only, .models.switch .cl-only { opacity: 0; pointer-events: none; }
+/* 分身 mode: the same bank cards, scaled (the page's 选一个模型 and ＋ 其他厂商 belong to 切换 only) */
+.sw-only { transition: opacity .3s; }
+.models.clone .sw-only { opacity: 0; pointer-events: none; }
 .models.clone .add { display: none; }
-.card .cl-tag { position: absolute; right: 0; font-size: 13px; font-weight: 500; }
-.card .cl-row { position: absolute; left: 20px; right: 20px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
-.card .cl-note { font-size: 12px; opacity: .75; }
-.card .cl-btns { display: flex; gap: 8px; align-items: center; }
-.card .clbtn { font: 500 13px/1 var(--font); letter-spacing: 0; padding: 8px 16px; border-radius: var(--pill); border: 0; background: var(--bg); color: var(--ink); display: inline-flex; gap: 6px; align-items: center; }
-.card .clbtn.make { background: var(--face-fill); color: inherit; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, currentColor 60%, transparent); }
 .models.clone .card { cursor: default; box-shadow: 0 10px 28px var(--shadow); }
-.models.clone .card.todo { filter: saturate(.35) brightness(1.08); }
 
 .models .add { width: 380px; height: 46px; border: 1px dashed var(--line); border-radius: 14px; background: none; color: var(--ink-2); }
 .models .add:hover { background: var(--hover); }

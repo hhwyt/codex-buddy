@@ -29,7 +29,6 @@
   --face-ink: #fff;
   --face-ink-light: #5d5d5d; /* text on the light OpenAI face */
   --face-ok-dark: #5ab0ff; /* 「✓ 能用」 on the near-black 智谱 / Kimi faces (model-page-final.html) */
-  --face-fill: rgba(255, 255, 255, 0.18); /* 做成分身 on a dark brand face (model-page-final.html) */
 
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --tracking: -0.01em;
