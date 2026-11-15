@@ -325,7 +325,7 @@ test('H-01 粘贴报错出解读，知道了', async () => {
   await expect(out).toBeHidden();
 });
 
-test('H-02 社群码在线显示最新的，断网显示上次的，从没取到写连上网后显示', async () => {
+test('H-02 社群码在线显示最新的，断网显示上次的，从没取到显示自带的群码', async () => {
   // never fetched: both sources down from the first start
   run = await launch({ seed: s => seedCodex(s) });
   run.config.setMode('jsdelivr', 'down');
@@ -333,7 +333,8 @@ test('H-02 社群码在线显示最新的，断网显示上次的，从没取到
   run = await run.relaunch();
   await finishOnboarding(run.page);
   await nav.help(run.page);
-  await expect(run.page.getByTestId(TID.help.community)).toContainText('连上网后显示');
+  await expect(run.page.getByTestId(TID.help.community)).toContainText('微信扫码进群');
+  await expect(run.page.getByTestId(TID.help.community).locator('img')).toHaveAttribute('src', 'assets/community-qr.png');
   // online: the latest code
   run.config.setMode('jsdelivr', 'ok');
   run.config.setMode('github', 'ok');

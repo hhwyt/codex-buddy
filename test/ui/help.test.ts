@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // L3: help page (H-01, H-02). Owner: A6.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { communityQr, renderHelp } from '../../ui/pages/help';
+import { existsSync } from 'node:fs';
+import { BUNDLED_QR, communityQr, renderHelp } from '../../ui/pages/help';
 import { TID } from '../../ui/testids';
 import { appState, click, fakeApi, settle } from './settings.fake';
 
@@ -59,10 +60,11 @@ describe('社群码（H-02）', () => {
     expect($(TID.help.community)!.querySelector('img')!.getAttribute('src')).toBe(QR);
   });
 
-  it('H-02 一次都没取到：写「连上网后显示」', async () => {
+  it('H-02 一次都没取到：显示 App 自带的企业微信群码', async () => {
     await mount(fakeApi());
-    expect($(TID.help.community)!.querySelector('img')).toBeNull();
-    expect($(TID.help.community)!.textContent).toBe('连上网后显示');
+    expect($(TID.help.community)!.querySelector('img')!.getAttribute('src')).toBe(BUNDLED_QR);
+    expect($(TID.help.community)!.textContent).toBe('微信扫码进群');
+    expect(existsSync(`ui/${BUNDLED_QR}`)).toBe(true);
     expect(document.body.textContent).toContain('把报错发给我们');
   });
 

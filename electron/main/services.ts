@@ -431,7 +431,7 @@ export function createServices(d: ServiceDeps) {
         version: d.version, os: d.os, configured: st.onboarded, codexInstalled: !!codex,
         codexRunning: await platform.isCodexRunning(),
         zh: { on: st.zh, launcherExists: await d.zh.exists(), supported: await d.zh.supported().catch(() => false), hidden: remote.switches.hideZh },
-        community: { qrUrl: await communityQr(), text: (st.lastRemote && remote.community.text) || '连上网后显示' },
+        community: { qrUrl: await communityQr(), text: (st.lastRemote && remote.community.text) || '' },
       };
     },
 

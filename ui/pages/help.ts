@@ -1,9 +1,13 @@
-// help page. Owner: A6. H-01 报错解读；H-02 社群码：在线显示最新的，断网显示上次的，一次都没取到写「连上网后显示」
+// help page. Owner: A6. H-01 报错解读；H-02 社群码：在线显示最新的，断网显示上次的，一次都没取到显示 App 自带的企业微信群码
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
 import type { Page } from './types.js';
 
 const QR_KEY = 'codexbuddy.community.qr';
+/** The WeCom group join code shipped with the app: it never expires, so it shows even before the remote config is
+ *  reachable; a code from the remote config replaces it */
+export const BUNDLED_QR = 'assets/community-qr.png';
+const BUNDLED_WORDS = '微信扫码进群';
 
 /** The last community code we saw: the page keeps a copy so an offline start still shows it (H-02) */
 export function communityQr(fresh: string | null): string | null {
@@ -37,9 +41,9 @@ export const renderHelp: Page = async ({ api, root }) => {
     result.hidden = false;
   }
 
-  const qr = communityQr(state.community.qrUrl);
-  // The code and its words come from the remote config; never fetched online yet → 连上网后显示 (H-02)
-  const words = state.community.text || '连上网后显示';
+  // The code and its words come from the remote config; never fetched online yet → the bundled code (H-02)
+  const qr = communityQr(state.community.qrUrl) ?? BUNDLED_QR;
+  const words = state.community.text || BUNDLED_WORDS;
   const code = h('div', { class: 'qr', 'data-testid': TID.help.community },
     qr ? h('img', { src: qr, alt: '社群二维码' }) : null, h('span', { class: 'muted' }, words));
 
