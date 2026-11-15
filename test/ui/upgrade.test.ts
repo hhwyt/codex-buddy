@@ -74,6 +74,19 @@ describe('强制升级页（第 4 版）', () => {
     expect(text()).toContain('装好会自动打开新版');
   });
 
+  it('只报了百分比没报大小：大小那行先空着；没给失败原因时用默认的话', async () => {
+    const run = pending({ ok: false });
+    const fake = fakeApi({ 'upgrade:run': run.answer });
+    showUpgrade(fake.api, document.getElementById('app')!, INFO, MAC);
+    click($(TID.upgrade.download));
+    fake.emit('step', step('start', '7%'));
+    expect($(TID.upgrade.progress)!.textContent).toBe('7%');
+    expect(document.querySelector('.upg-size')!.textContent).toBe('');
+    run.finish();
+    await settle();
+    expect($(TID.toast)!.textContent).toBe('下载没成功，检查一下网络再试');
+  });
+
   it('下载失败：回到第一屏，报原因', async () => {
     const fake = fakeApi({ 'upgrade:run': { ok: false, reason: '下载没成功，检查一下网络再试' } });
     showUpgrade(fake.api, document.getElementById('app')!, INFO, MAC);

@@ -105,16 +105,17 @@ test('M-05 拖了但没到最上层只调整顺序，不切换也不改配置', 
   expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/kimi/login'));
 });
 
-test('M-06 切换中再点别的卡不响应', async () => {
+test('M-06 测试连通时再点别的卡不响应（等扫码时点别的卡会换过去，见 M-09）', async () => {
   await ready();
-  await card('zhipu').click({ position: { x: 60, y: 45 } }); // waits on the QR scan: switching is in progress
+  setCodexScenario(run.sandbox, 'timeout'); // the connectivity test hangs: the switch stays in its background step
+  await card('zhipu').click({ position: { x: 60, y: 45 } });
   await inWebContents(run.app, '/zhipu/login', 'true');
+  await fakeScan(run.app, 'zhipu');
+  await expect(card('zhipu')).toContainText('测试连通', { timeout: 30_000 });
   await card('kimi').click({ force: true, position: { x: 60, y: 45 } });
   await run.page.waitForTimeout(500);
   expect(await uiFront()).toBe('zhipu');
   expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/kimi/login'));
-  await fakeScan(run.app, 'zhipu');
-  await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('zhipu');
 });
 
 test('M-07 测试连通没通过卡退回原位且配置逐字节没变', async () => {

@@ -32,7 +32,9 @@ let fetchText: (url: string) => Promise<string>;
 /** Non-null: every .sig answer is this instead of a real signature (a forged config) */
 let forgedSig: string | null;
 let fetchBytes: ServiceDeps['fetchBytes'];
-let zhSupported: boolean;
+let zhSupported: boolean | 'throws';
+/** Non-null: clearing the right-side browser's logins fails with this message */
+let clearFails: string | null;
 let installed: string[];
 
 const scenario = (s: string) => fs.writeFileSync(path.join(root, 'home', 'fake-codex-scenario'), s);
@@ -62,7 +64,7 @@ function fakeZh(paths: ReturnType<typeof sandboxPaths>): ZhLauncher {
     exists: async () => fs.existsSync(paths.zhLauncherPath),
     add: async () => { fs.mkdirSync(paths.zhLauncherPath, { recursive: true }); },
     remove: async () => { fs.rmSync(paths.zhLauncherPath, { recursive: true, force: true }); },
-    supported: async () => zhSupported,
+    supported: async () => { if (zhSupported === 'throws') throw new Error('no zh'); return zhSupported; },
   };
 }
 
@@ -103,7 +105,7 @@ function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | '
     remoteUrls: opts.remoteUrls ?? ['https://cdn.jsdelivr.net/gh/x/y@main/remote/config.json', 'https://raw.githubusercontent.com/x/y/main/remote/config.json'],
     bundledRemote: bundled, version: '0.1.0', os: opts.os ?? 'mac',
     now: () => clock, emit: (event, payload) => { events.push({ event, payload }); },
-    openExternal: async u => { external.push(u); }, clearBrowserData: async () => { external.push('clear'); },
+    openExternal: async u => { external.push(u); }, clearBrowserData: async () => { if (clearFails !== null) throw new Error(clearFails); external.push('clear'); },
     connections: () => ({ app: [{ host: 'cdn.jsdelivr.net', allowed: true, at: 1 }], web: [] }),
     logoPng: v => `/logos/${v}.png`,
     runInstaller: async f => { installed.push(f); },
@@ -124,6 +126,7 @@ beforeEach(() => {
   events = []; opened = []; external = []; keyOutcome = {}; clock = 1_000_000; zhSupported = true; installed = [];
   fetchText = async () => { throw new Error('offline'); };
   forgedSig = null;
+  clearFails = null;
   fetchBytes = async () => { throw new Error('offline'); };
 });
 afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
@@ -361,6 +364,30 @@ describe('switching', () => {
     fs.writeFileSync(path.join(b.paths.codexHome, 'config.toml'), 'broken = [');
     expect((await b.h['codex:repair'](undefined as never)).ok).toBe(true);
     expect(catalogOf(b.paths.codexHome)!.length).toBeGreaterThan(0);
+  });
+
+  test('M-15 一键修复时发现 Codex 已经没了：说没找到，交给「重新安装」', async () => {
+    const b = build();
+    await installed_(b);
+    await b.h['switch:start']({ vendor: 'qwen' });
+    fs.rmSync(path.join(root, 'Applications', 'Test-ChatGPT.app'), { recursive: true, force: true });
+    expect(await b.h['codex:repair'](undefined as never)).toEqual({ ok: false, kind: 'codex-missing', reason: '没找到 Codex' });
+  });
+
+  test('T-04 还原途中某一步失败：停下并报出那一步的原因；没有原因就说「没还原完」', async () => {
+    const b = build();
+    await installed_(b);
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    clearFails = '浏览器数据删不掉';
+    expect(await b.h['restore:run'](undefined as never)).toEqual({ ok: false, reason: '浏览器数据删不掉' });
+    expect(events.some(e => e.event === 'step' && (e.payload as { state: string; text: string }).state === 'fail')).toBe(true);
+    clearFails = '';
+    expect(await b.h['restore:run'](undefined as never)).toEqual({ ok: false, reason: '没还原完' });
+  });
+
+  test('L-06 查汉化支不支持时出错：当作不支持，App 照常打开', async () => {
+    zhSupported = 'throws';
+    expect((await build().h['app:state'](undefined as never)).zh.supported).toBe(false);
   });
 
   test('M-19 换 Key：拿新 Key，正在用的那家重新测通；别的家只存 Key', async () => {

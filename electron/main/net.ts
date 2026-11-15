@@ -77,3 +77,14 @@ export async function guardedFetch(url: string, init?: RequestInit): Promise<Res
   if (!checkRequest('app', url)) throw new Error(`不在白名单里，没有连 ${new URL(url).host}`);
   return fetch(url, init);
 }
+
+/** Reads a response body whole. With onProgress it streams and reports (bytes so far, content-length or 0) */
+export async function readBytes(r: Response, onProgress?: (received: number, total: number) => void): Promise<Uint8Array> {
+  if (!onProgress || !r.body) return new Uint8Array(await r.arrayBuffer());
+  const total = Number(r.headers.get('content-length')) || 0;
+  const parts: Uint8Array[] = [];
+  let received = 0;
+  const reader = r.body.getReader();
+  for (let c = await reader.read(); !c.done; c = await reader.read()) { parts.push(c.value); received += c.value.length; onProgress(received, total); }
+  return new Uint8Array(Buffer.concat(parts));
+}

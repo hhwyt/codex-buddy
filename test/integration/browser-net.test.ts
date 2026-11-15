@@ -17,7 +17,7 @@ import { PROVIDERS } from '../../electron/core/providers';
 import type { ConnectionRecord } from '../../electron/core/whitelist';
 import { BROWSER_PARTITION } from '../../electron/main/browser';
 import {
-  checkRequest, connections, defaultAllowedHosts, guardedFetch, hostAllowed, installNetGuard, record, resetConnections,
+  checkRequest, connections, defaultAllowedHosts, guardedFetch, hostAllowed, installNetGuard, readBytes, record, resetConnections,
 } from '../../electron/main/net';
 
 const allowed = defaultAllowedHosts(PROVIDERS);
@@ -100,5 +100,25 @@ describe('whitelist', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('readBytes（强制升级下载安装包）', () => {
+  const stream = (chunks: number[], headers: Record<string, string> = {}) => new Response(new ReadableStream({
+    start(c) { for (const n of chunks) c.enqueue(new Uint8Array(n).fill(1)); c.close(); },
+  }), { headers });
+
+  test('带进度：一块一块报「已下 / 总大小」，拼回完整的字节', async () => {
+    const seen: [number, number][] = [];
+    const data = await readBytes(stream([3, 4, 5], { 'content-length': '12' }), (got, total) => seen.push([got, total]));
+    expect(seen).toEqual([[3, 12], [7, 12], [12, 12]]);
+    expect(data).toHaveLength(12);
+  });
+
+  test('服务器没给大小：总大小报 0；不要进度就一次读完', async () => {
+    const seen: number[] = [];
+    await readBytes(stream([2, 2]), (_got, total) => seen.push(total));
+    expect(seen).toEqual([0, 0]);
+    expect([...(await readBytes(new Response(new Uint8Array([9, 8]))))]).toEqual([9, 8]);
   });
 });

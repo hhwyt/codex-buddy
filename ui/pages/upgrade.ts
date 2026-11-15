@@ -63,12 +63,9 @@ export function showUpgrade(api: BuddyApi, root: HTMLElement, info: UpgradeRequi
 
   /** During the download only the numbers move, so nothing else restarts its animation */
   function tick(): void {
-    const bar = hero.querySelector('.bar');
-    if (bar) bar.setAttribute('stroke-dashoffset', (C * (1 - pct / 100)).toFixed(2));
-    const b = hero.querySelector('b');
-    if (b) b.replaceChildren(String(pct), h('small', {}, '%'));
-    const s = words.querySelector('.upg-size');
-    if (s) s.textContent = size;
+    hero.querySelector('.bar')!.setAttribute('stroke-dashoffset', (C * (1 - pct / 100)).toFixed(2));
+    hero.querySelector('b')!.replaceChildren(String(pct), h('small', {}, '%'));
+    words.querySelector('.upg-size')!.textContent = size;
   }
 
   api.on('step', s => {

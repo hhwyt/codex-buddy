@@ -18,7 +18,7 @@ import { debugSwitchesIn, debuggable } from './main/hardening';
 import { aesCipher, loadDataKey, plainWrap } from './main/cipher';
 import { registerIpc, sendEvent } from './main/ipc';
 import type { ConnectionView } from './main/ipc-contract';
-import { connections, defaultAllowedHosts, guardedFetch, installNetGuard } from './main/net';
+import { connections, defaultAllowedHosts, guardedFetch, installNetGuard, readBytes } from './main/net';
 import { createServices } from './main/services';
 import { createMainWindow } from './main/window';
 import { pickPlatform } from './platform';
@@ -117,14 +117,7 @@ async function main(): Promise<void> {
       // With progress it is an app download (forced upgrade, ~90 MB): allow a slow line half an hour
       const r = await guardedFetch(url, { signal: AbortSignal.timeout(onProgress ? 30 * 60_000 : 60_000) });
       if (!r.ok) throw new Error(String(r.status));
-      const type = r.headers.get('content-type') ?? 'image/png';
-      if (!onProgress || !r.body) return { type, data: new Uint8Array(await r.arrayBuffer()) };
-      const total = Number(r.headers.get('content-length')) || 0;
-      const parts: Uint8Array[] = [];
-      let received = 0;
-      const reader = r.body.getReader();
-      for (let c = await reader.read(); !c.done; c = await reader.read()) { parts.push(c.value); received += c.value.length; onProgress(received, total); }
-      return { type, data: new Uint8Array(Buffer.concat(parts)) };
+      return { type: r.headers.get('content-type') ?? 'image/png', data: await readBytes(r, onProgress) };
     },
     // M-12: DeepSeek tells gift credit from topped-up money (GET /user/balance); other vendors: unknown
     balance: async (p, key) => {

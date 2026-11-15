@@ -21,3 +21,11 @@ test('M-07 模型不在清单里测试连通不过', async () => {
   const bad = await testConnectivity(run, home('gpt-5.5', ['glm-5']), 10_000);
   expect(bad).toMatchObject({ ok: false, code: 'model' });
 });
+
+test.skipIf(process.platform === 'win32')('M-06 测试连通超时：默认的结束方式真的把卡住的进程停掉', async () => {
+  const run = codexRunner('/bin/sleep');
+  const started = Date.now();
+  const r = await run(['30'], { codexHome: os.tmpdir(), timeoutMs: 100 });
+  expect(r.timedOut).toBe(true);
+  expect(Date.now() - started).toBeLessThan(5000);
+});

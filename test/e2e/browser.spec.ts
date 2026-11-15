@@ -25,19 +25,29 @@ const last = async () => (await events()).at(-1);
 const windowWidth = () => run.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds().width);
 const screenWidth = () => run.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workAreaSize.width);
 
-test('B-01 后台自动操作时显示画中画在右下角', async () => {
+test('B-01 后台自动操作时显示画中画在右下角；拿到 Key 后马上关掉（页面上会露出整个 Key）', async () => {
   await ready();
-  // The connectivity test hangs, so the switch stays in its background step (a finished switch closes the PiP)
   setCodexScenario(run.sandbox, 'timeout');
   await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 45 } });
+  // The PiP shows only while the key is made in the background: record where the page drew it the moment it appears
+  await run.page.evaluate(testid => {
+    const w = window as unknown as { pipSeen?: { x: number; y: number; vw: number; vh: number } };
+    new MutationObserver((_m, obs) => {
+      const el = document.querySelector(`[data-testid="${testid}"]`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      w.pipSeen = { x: r.x + r.width / 2, y: r.y + r.height / 2, vw: innerWidth, vh: innerHeight };
+      obs.disconnect();
+    }).observe(document.body, { childList: true, subtree: true });
+  }, TID.browser.pip);
   await fakeScan(run.app, 'zhipu'); // after the scan the key is made in the background
   await expect.poll(async () => (await events()).some(e => e.open && e.mode === 'pip'), { timeout: 30_000 }).toBe(true);
-  const pip = run.page.getByTestId(TID.browser.pip);
-  await expect(pip).toBeVisible();
-  const box = (await pip.boundingBox())!;
-  const vp = run.page.viewportSize() ?? await run.page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
-  expect(box.x + box.width / 2).toBeGreaterThan(vp.width / 2);
-  expect(box.y + box.height / 2).toBeGreaterThan(vp.height / 2);
+  const seen = await run.page.evaluate(() => (window as unknown as { pipSeen?: { x: number; y: number; vw: number; vh: number } }).pipSeen);
+  expect(seen).toBeTruthy();
+  expect(seen!.x).toBeGreaterThan(seen!.vw / 2);
+  expect(seen!.y).toBeGreaterThan(seen!.vh / 2);
+  await expect.poll(async () => (await events()).at(-1)?.open, { timeout: 30_000 }).toBe(false);
+  await expect(run.page.getByTestId(TID.browser.pip)).toBeHidden();
 });
 
 test('B-02 要扫码时自动放大，窗口宽度够就加宽约 480px，屏幕不够宽时盖住右半边', async () => {

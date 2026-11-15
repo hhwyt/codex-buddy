@@ -712,6 +712,81 @@ describe('叠卡', () => {
   });
 });
 
+describe('叠卡：边角情况', () => {
+  it('M-02 空格键也能切换，别的键不切', async () => {
+    await mount();
+    card('qwen').dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+    await settle();
+    expect(api.callsOf('switch:start')).toEqual([]);
+    card('qwen').dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    await settle();
+    expect(api.callsOf('switch:start')).toEqual([{ vendor: 'qwen' }]);
+  });
+
+  it('M-19 主进程删掉一张卡、加了一张新卡：页面跟着少一张、新卡排到最后', async () => {
+    await mount();
+    const w = walletOf();
+    w.cards = w.cards.filter(c => c.vendor !== 'hunyuan');
+    w.cards.push({ vendor: 'custom-x', name: '我的模型', model: null, free: false, paid: true, keyTail: null, cloneMade: false, note: null });
+    w.order = w.order.filter(v => v !== 'hunyuan');
+    api.handle('wallet:get', () => structuredClone(w));
+    api.emit('wallet', w);
+    await settle();
+    expect(q(TID.models.card('hunyuan'))).toBeNull();
+    expect(card('custom-x')).toBeTruthy();
+    expect(rowOf('custom-x')).toBe(6);
+  });
+
+  it('M-07 切换失败没给原因：用默认的话；主进程给的顺序是空的就保留页面上的顺序', async () => {
+    await mount();
+    api.handle('switch:start', () => ({ ok: false }));
+    tap(card('kimi'));
+    await settle();
+    expect(toastText()).toBe('连不上，原来的配置没动');
+    api.handle('switch:start', () => ({ ok: true }));
+    api.handle('wallet:get', () => walletOf({ active: 'qwen', order: [] }));
+    tap(card('qwen'));
+    await settle();
+    expect(rowOf('qwen')).toBe(0);
+  });
+
+  it('M-15 一键修复调用出错也提示；没给原因就说「没修好」', async () => {
+    await mount();
+    api.handle('switch:start', () => ({ ok: false, kind: 'codex-broken' }));
+    api.handle('codex:repair', () => ({ ok: false }));
+    tap(card('kimi'));
+    await settle();
+    click(TID.models.repair);
+    await settle();
+    expect(toastText()).toBe('没修好');
+    api.handle('codex:repair', () => { throw new Error('修复程序坏了'); });
+    click(TID.models.repair);
+    await settle();
+    expect(toastText()).toBe('修复程序坏了');
+  });
+
+  it('C-09 分身模式下点卡、按回车都不切换', async () => {
+    await mount(walletOf({ mode: 'clone' }));
+    tap(card('kimi'));
+    card('kimi').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+    expect(api.callsOf('switch:start')).toEqual([]);
+  });
+
+  it('C-01 正在复制时再点不会再做一次；失败没给原因就说「没做成分身」', async () => {
+    await mount(walletOf({ mode: 'clone' }));
+    const gate = deferred<any>();
+    api.handle('clone:make', () => gate.promise);
+    q(TID.models.cloneMake('kimi'))!.click();
+    q(TID.models.cloneMake('kimi'))?.click();
+    await settle();
+    expect(api.callsOf('clone:make')).toHaveLength(1);
+    gate.resolve({ ok: false });
+    await settle();
+    expect(toastText()).toBe('没做成分身');
+  });
+});
+
 describe('分身', () => {
   it('C-09 模型页顶上「切换｜分身」来回切：摊开成 3 列，切换模式的状态不变', async () => {
     await mount(walletOf({ active: 'kimi', order: ['kimi', 'deepseek', 'zhipu', 'qwen', 'minimax', 'hunyuan', 'openai'] }, { deepseek: { cloneMade: true } }));
