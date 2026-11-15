@@ -75,4 +75,6 @@ npm run dist
 
 ## 协议
 
-[MIT](LICENSE)，Copyright (c) 2026 hhwyt
+[GNU AGPL-3.0-only](LICENSE)，Copyright (C) 2026 北京序变科技有限公司。
+
+改了代码并拿去给别人用（包括通过网络提供服务），要按同一协议公开你改过的源代码。想贡献代码先看 [CONTRIBUTING.md](CONTRIBUTING.md)（需要签 [CLA](CLA.md)）。
