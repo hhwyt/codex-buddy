@@ -4,6 +4,7 @@
 // Sources: SPEC_PATH / PLAN_PATH env, else design/approved-spec.md in this repo, else the main checkout.
 // Test names: test('<ID> …') / it('<ID> …') in test/**/*.ts|mjs. Exit 1 and list what is missing.
 // A test declared with .skip / .fixme / .todo does not count: it names the id but tests nothing.
+// Ids the owner dropped after the spec froze are listed in DROPPED_IDS below (with who/when) and are not required.
 // --report: print the table and always exit 0 (used while the suite is still being written).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,6 +41,12 @@ if (planPath) {
   const plan = fs.readFileSync(planPath, 'utf8');
   for (const id of [...idsFromTable(plan), ...idsFromRanges(plan)]) expected.add(id);
 }
+
+/** Ids dropped from approved-spec.md after it froze: the spec lives in the main checkout, this list in the repo */
+export const DROPPED_IDS = {
+  'H-01': 'dropped by owner 2026-11-15 (粘贴报错看解读 removed with the 帮助 page; product/m1-decisions.md)',
+};
+for (const id of Object.keys(DROPPED_IDS)) expected.delete(id);
 
 const tested = new Set();
 const walk = dir => {

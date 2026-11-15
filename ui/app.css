@@ -51,7 +51,7 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 
 /* ---- pages: each page agent adds its block below ---- */
 
-/* ---- A6: settings, help, security panel, update dialog ---- */
+/* ---- A6: settings, 社群, security panel, update dialog ---- */
 .page h1 { font-size: 22px; font-weight: 600; margin: 8px 0 16px; letter-spacing: -0.02em; }
 .panel { border-radius: 14px; box-shadow: 0 0 0 1px var(--line); padding: 20px 24px; margin-bottom: 16px; position: relative; }
 .panel .ft, .security .ft { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
@@ -102,11 +102,12 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .flyer.go { animation: a6-to-trash .9s cubic-bezier(.5, 0, .3, 1) forwards; }
 @keyframes a6-to-trash { 0% { left: 128px; top: 70px; transform: scale(1); opacity: 1; } 70% { left: 248px; top: 150px; transform: scale(.55); opacity: 1; } 100% { left: 248px; top: 160px; transform: scale(.1); opacity: 0; } }
 
-/* Help */
-.help-input { width: 100%; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px; font: inherit; font-size: 13px; resize: vertical; user-select: text; }
-.help-result { margin-top: 12px; padding: 12px 14px; border-radius: var(--r-md); background: var(--side); line-height: 1.6; }
-.qr { width: 120px; height: 120px; flex: none; display: grid; place-items: center; border-radius: var(--r-sm); box-shadow: 0 0 0 1px var(--line); font-size: 12px; text-align: center; }
-.qr img { width: 112px; height: 112px; }
+/* 社群 (ui-design/nav-community.html v1): code centered, two lines under it */
+.community { height: 100%; display: flex; flex-direction: column; }
+.community-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+.community-qr { width: 220px; height: 220px; display: block; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--line); padding: 8px; background: var(--bg); image-rendering: pixelated; }
+.community-line { font-size: 17px; font-weight: 600; margin: 0; }
+.community-sub { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; }
 
 /* Security panel 🛡 */
 .security { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; background: var(--bg); border-left: 1px solid var(--line); box-shadow: -8px 0 30px var(--shadow); padding: 16px 18px; overflow: auto; z-index: 40; display: flex; flex-direction: column; gap: 6px; }

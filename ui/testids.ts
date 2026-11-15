@@ -8,7 +8,7 @@ export const TID = {
     side: 'shell-side',
     navModels: 'nav-models',
     navSettings: 'nav-settings',
-    navHelp: 'nav-help',
+    navCommunity: 'nav-community',
     security: 'top-security', // 🛡 S-01
     browser: 'top-browser', // 🌐 B-03
     main: 'shell-main',
@@ -68,14 +68,10 @@ export const TID = {
     checkUpdate: 'settings-check-update', // T-02
     restore: 'settings-restore', // 一键还原 T-03
   },
-  // H-01, H-02: help
-  help: {
-    root: 'help-root',
-    errorInput: 'help-error-input',
-    explain: 'help-explain',
-    explanation: 'help-explanation',
-    gotIt: 'help-got-it', // 知道了
-    community: 'help-community', // 企业微信码
+  // H-02: 社群 page
+  community: {
+    root: 'community-root',
+    qr: 'community-qr', // 企业微信群码
   },
   // S-01..S-08: security panel
   security: {

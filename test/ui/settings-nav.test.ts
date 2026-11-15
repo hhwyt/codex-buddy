@@ -11,18 +11,23 @@ const $ = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${i
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('左栏（W-02）', () => {
-  it('W-02 左栏切换 模型 / 设置 / 帮助', async () => {
+  it('W-02 左栏切换 模型 / 设置 / 社群', async () => {
     document.body.innerHTML = '<div id="app"></div>';
     const fake = fakeApi();
     const app = await createApp(document.getElementById('app')!, fake.api);
     expect(app.route()).toBe('models');
+    const items = [...document.querySelectorAll<HTMLElement>(`[data-testid="${TID.shell.side}"] nav button`)];
+    expect(items.map(b => [b.dataset.testid, b.textContent])).toEqual([
+      [TID.shell.navModels, '模型'], [TID.shell.navSettings, '设置'], [TID.shell.navCommunity, '社群'],
+    ]);
     click($(TID.shell.navSettings));
     await settle();
     expect($(TID.settings.root)).not.toBeNull();
     expect($(TID.shell.navSettings)!.getAttribute('aria-current')).toBe('page');
-    click($(TID.shell.navHelp));
+    click($(TID.shell.navCommunity));
     await settle();
-    expect($(TID.help.root)).not.toBeNull();
+    expect($(TID.community.root)).not.toBeNull();
+    expect(app.route()).toBe('community');
     expect($(TID.settings.root)).toBeNull();
     click($(TID.shell.navModels));
     await settle();

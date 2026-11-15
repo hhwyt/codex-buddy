@@ -66,13 +66,13 @@ test('B-03 点画中画或地球按钮就放大，放大后能缩回画中画', 
   await expect.poll(async () => (await last())?.mode).toBe('expanded');
 });
 
-test('B-04 只有点关闭才关，在模型设置帮助之间切换时不动', async () => {
+test('B-04 只有点关闭才关，在模型设置社群之间切换时不动', async () => {
   await ready();
   await run.page.getByTestId(TID.shell.browser).click();
   await expect.poll(async () => (await last())?.open).toBe(true);
   const n = (await events()).length;
   await nav.settings(run.page);
-  await nav.help(run.page);
+  await nav.community(run.page);
   await nav.models(run.page);
   await run.page.waitForTimeout(300);
   expect((await events()).slice(n).every(e => e.open)).toBe(true);

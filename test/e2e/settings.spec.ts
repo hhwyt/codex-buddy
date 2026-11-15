@@ -1,4 +1,4 @@
-// Settings T-01..T-04, 汉化 L-01..L-07 (language-final.html), updates U-01..U-04, help H-01..H-02. Owner: A7.
+// Settings T-01..T-04, 汉化 L-01..L-07 (language-final.html), updates U-01..U-04, 社群 H-02. Owner: A7.
 import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -11,7 +11,7 @@ import {
 import { BASE_NEEDS, merge, needs } from './pending';
 
 let run: Launched;
-needs(merge(BASE_NEEDS, { ui: { settings: ['TID.settings.zhCard', 'TID.settings.zhTrash', 'TID.settings.checkUpdate', 'TID.settings.restore'], help: ['TID.help.explain'], update: ['TID.update.later'] }, ipc: ['zh:set', 'zh:remove', 'update:check', 'update:dismiss', 'update:install', 'restore:plan', 'restore:run', 'help:explain'] }));
+needs(merge(BASE_NEEDS, { ui: { settings: ['TID.settings.zhCard', 'TID.settings.zhTrash', 'TID.settings.checkUpdate', 'TID.settings.restore'], community: ['TID.community.qr'], update: ['TID.update.later'] }, ipc: ['zh:set', 'zh:remove', 'update:check', 'update:dismiss', 'update:install', 'restore:plan', 'restore:run'] }));
 test.afterEach(async () => { await run?.close(); });
 
 const REMOTE = JSON.parse(fs.readFileSync(path.join(REPO, 'remote', 'config.json'), 'utf8'));
@@ -311,41 +311,17 @@ test('U-04 远程开关能隐藏某张卡或汉化入口', async () => {
   expect((await appState(run.page)).zh.hidden).toBe(true);
 });
 
-// ---------- 帮助 H ----------
+// ---------- 社群 H ----------
 
-test('H-01 粘贴报错出解读，知道了', async () => {
-  await ready();
-  await nav.help(run.page);
-  await run.page.getByTestId(TID.help.errorInput).fill('ERROR: unexpected status 401 Unauthorized: invalid api key');
-  await run.page.getByTestId(TID.help.explain).click();
-  const out = run.page.getByTestId(TID.help.explanation);
-  await expect(out).toBeVisible();
-  expect(cjk(await out.innerText())).toBeGreaterThan(4);
-  await run.page.getByTestId(TID.help.gotIt).click();
-  await expect(out).toBeHidden();
-});
-
-test('H-02 社群码在线显示最新的，断网显示上次的，从没取到显示自带的群码', async () => {
-  // never fetched: both sources down from the first start
+// Remote code replacing the bundled one and the offline cache are L2/L3 (services.test.ts, community.test.ts): here the
+// fake config server cannot serve the image, which must come from an https GitHub/jsDelivr address.
+test('H-02 社群页：从没取到远程配置时显示 App 自带的群码和两句话', async () => {
   run = await launch({ seed: s => seedCodex(s) });
   run.config.setMode('jsdelivr', 'down');
   run.config.setMode('github', 'down');
   run = await run.relaunch();
   await finishOnboarding(run.page);
-  await nav.help(run.page);
-  await expect(run.page.getByTestId(TID.help.community)).toContainText('微信扫码进群');
-  await expect(run.page.getByTestId(TID.help.community).locator('img')).toHaveAttribute('src', 'assets/community-qr.png');
-  // online: the latest code
-  run.config.setMode('jsdelivr', 'ok');
-  run.config.setMode('github', 'ok');
-  run.config.setConfig(withRemote({ community: { qrUrl: 'https://raw.githubusercontent.com/hhwyt/codex-buddy/main/remote/qr-v2.png', text: '扫码进群 第二版' } }));
-  run = await run.relaunch();
-  await nav.help(run.page);
-  await expect(run.page.getByTestId(TID.help.community)).toContainText('第二版');
-  // offline again: the last one seen
-  run.config.setMode('jsdelivr', 'down');
-  run.config.setMode('github', 'down');
-  run = await run.relaunch();
-  await nav.help(run.page);
-  await expect(run.page.getByTestId(TID.help.community)).toContainText('第二版');
+  await nav.community(run.page);
+  await expect(run.page.getByTestId(TID.community.root)).toHaveText('社群使用有问题？加群咨询还能学更多 Codex 用法和 AI 干货');
+  await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', 'assets/community-qr.png');
 });

@@ -1,12 +1,12 @@
 // Page shell and router. Owner: Base.
-// Layout: left column with three items (模型 / 设置 / 帮助), top right 🛡 (security panel) and 🌐 (right-side
+// Layout: left column with three items (模型 / 设置 / 社群), top right 🛡 (security panel) and 🌐 (right-side
 // browser). Onboarding is full width without the left column. First screen: model page when already configured
 // (O-06), else onboarding. Switching pages never touches the right-side browser (B-04).
 import { windowApi, type BuddyApi } from './api.js';
 import { mountBrowser } from './components/pip.js';
 import { clearToasts } from './components/toast.js';
 import { h } from './dom.js';
-import { renderHelp } from './pages/help.js';
+import { renderCommunity } from './pages/community.js';
 import { renderModels } from './pages/models.js';
 import { renderOnboarding } from './pages/onboarding.js';
 import { openSecurity } from './pages/security.js';
@@ -15,11 +15,11 @@ import type { Page, Route } from './pages/types.js';
 import { watchUpdates } from './pages/update.js';
 import { TID } from './testids.js';
 
-const PAGES: Record<Route, Page> = { onboarding: renderOnboarding, models: renderModels, settings: renderSettings, help: renderHelp };
+const PAGES: Record<Route, Page> = { onboarding: renderOnboarding, models: renderModels, settings: renderSettings, community: renderCommunity };
 const NAV: { route: Exclude<Route, 'onboarding'>; label: string; testid: string }[] = [
   { route: 'models', label: '模型', testid: TID.shell.navModels },
   { route: 'settings', label: '设置', testid: TID.shell.navSettings },
-  { route: 'help', label: '帮助', testid: TID.shell.navHelp },
+  { route: 'community', label: '社群', testid: TID.shell.navCommunity },
 ];
 
 export interface App {

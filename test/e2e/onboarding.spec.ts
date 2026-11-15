@@ -9,7 +9,7 @@ import { clearSteps, recordSteps, steps } from './steps';
 import { BASE_NEEDS, merge, needs } from './pending';
 
 let run: Launched;
-needs(merge(BASE_NEEDS, { ui: { onboarding: ['TID.onboarding.retry', 'TID.onboarding.copyLog', 'TID.onboarding.toCommunity', 'TID.onboarding.fixing'], help: ['TID.help.community'] }, ipc: ['install:log'] }));
+needs(merge(BASE_NEEDS, { ui: { onboarding: ['TID.onboarding.retry', 'TID.onboarding.copyLog', 'TID.onboarding.toCommunity', 'TID.onboarding.fixing'], community: ['TID.community.qr'] }, ipc: ['install:log'] }));
 test.afterEach(async () => { await run?.close(); });
 
 const FULL_KEY = /sk-[A-Za-z0-9_-]{12,}/;
@@ -77,13 +77,13 @@ test('O-04 故障屏复制日志先预览且 Key 已打码', async () => {
   expect(await clipboard(app)).not.toMatch(FULL_KEY);
 });
 
-test('O-05 故障屏进群发给我们去帮助页', async () => {
+test('O-05 故障屏进群发给我们去社群页', async () => {
   run = await launch({ env: { CODEXBUDDY_FAKE_INSTALL: 'fail' } });
   const { page } = run;
   await page.getByTestId(TID.onboarding.start).click();
   await page.getByTestId(TID.onboarding.toCommunity).click();
-  await expect(page.getByTestId(TID.help.root)).toBeVisible();
-  await expect(page.getByTestId(TID.help.community)).toBeVisible();
+  await expect(page.getByTestId(TID.community.root)).toBeVisible();
+  await expect(page.getByTestId(TID.community.qr)).toBeVisible();
 });
 
 test('O-06 已经配过模型的重启后跳过引导直接进模型页', async () => {

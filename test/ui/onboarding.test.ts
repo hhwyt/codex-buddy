@@ -172,12 +172,12 @@ describe('onboarding', () => {
     expect(t.className).toContain('error');
   });
 
-  test('O-05 故障屏「进群发给我们」→ 帮助页', async () => {
+  test('O-05 故障屏「进群发给我们」→ 社群页', async () => {
     const f = setup(() => ({ ok: false }));
     get(TID.onboarding.start).click();
     await flush();
     get(TID.onboarding.toCommunity).click();
-    expect(f.go).toHaveBeenCalledWith('help');
+    expect(f.go).toHaveBeenCalledWith('community');
   });
 
   test('O-07 离开引导后不再响应进度，也不再跳页', async () => {

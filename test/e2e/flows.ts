@@ -7,7 +7,7 @@ import { wallet, type Launched } from './launch';
 export const nav = {
   models: (page: Page) => page.getByTestId(TID.shell.navModels).click(),
   settings: (page: Page) => page.getByTestId(TID.shell.navSettings).click(),
-  help: (page: Page) => page.getByTestId(TID.shell.navHelp).click(),
+  community: (page: Page) => page.getByTestId(TID.shell.navCommunity).click(),
 };
 
 /** Finishes onboarding (fake install) and lands on the model page */

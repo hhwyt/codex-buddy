@@ -1,12 +1,12 @@
-// Walks every screen of the app once (onboarding, model page in both modes, settings, help, security panel, update
+// Walks every screen of the app once (onboarding, model page in both modes, settings, 社群, security panel, update
 // dialog) and hands each to a check. Used by the visual (W-04) and wording / color scans (UI-00..UI-02, H-03). Owner: A7.
 import { expect, type Page } from '@playwright/test';
 import { TID } from '../../ui/testids';
 import { finishOnboarding, nav } from './flows';
 import { launch, seedCodex, seedUserData, type Launched } from './launch';
 
-export type Screen = 'onboarding' | 'models' | 'clones' | 'settings' | 'help' | 'security';
-export const SCREENS: Screen[] = ['onboarding', 'models', 'clones', 'settings', 'help', 'security'];
+export type Screen = 'onboarding' | 'models' | 'clones' | 'settings' | 'community' | 'security';
+export const SCREENS: Screen[] = ['onboarding', 'models', 'clones', 'settings', 'community', 'security'];
 
 export async function forEachScreen(check: (page: Page, screen: Screen, run: Launched) => Promise<void>, onLaunch?: (run: Launched) => void): Promise<void> {
   const run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
@@ -24,9 +24,9 @@ export async function forEachScreen(check: (page: Page, screen: Screen, run: Lau
     await nav.settings(page);
     await expect(page.getByTestId(TID.settings.root)).toBeVisible();
     await check(page, 'settings', run);
-    await nav.help(page);
-    await expect(page.getByTestId(TID.help.root)).toBeVisible();
-    await check(page, 'help', run);
+    await nav.community(page);
+    await expect(page.getByTestId(TID.community.root)).toBeVisible();
+    await check(page, 'community', run);
     await page.getByTestId(TID.shell.security).click();
     await expect(page.getByTestId(TID.security.root)).toBeVisible();
     await check(page, 'security', run);

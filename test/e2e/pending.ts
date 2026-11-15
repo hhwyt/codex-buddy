@@ -12,7 +12,7 @@ const mainSources = () => ['electron/app.ts', ...fs.readdirSync(path.join(REPO, 
 
 export interface Needs {
   /** ui/pages/<page>.ts must mention each of these (e.g. 'TID.models.card(') */
-  ui?: Partial<Record<'onboarding' | 'models' | 'settings' | 'help' | 'security' | 'update', string[]>>;
+  ui?: Partial<Record<'onboarding' | 'models' | 'settings' | 'community' | 'security' | 'update', string[]>>;
   /** IPC channels that must have a handler wired in the main process */
   ipc?: string[];
 }

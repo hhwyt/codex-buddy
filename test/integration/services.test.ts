@@ -10,7 +10,7 @@ import { validateRemote } from '../../electron/core/remote';
 import type { BuiltinVendorId, RemoteConfig } from '../../electron/core/types';
 import { aesCipher } from '../../electron/main/cipher';
 import type { EventName } from '../../electron/main/ipc-contract';
-import { createServices, explain, isOurCatalog, onlyOurKey, QR_WAIT_MS, SOURCE_URL, type ServiceDeps } from '../../electron/main/services';
+import { createServices, isOurCatalog, onlyOurKey, QR_WAIT_MS, SOURCE_URL, type ServiceDeps } from '../../electron/main/services';
 import { createMacPlatform } from '../../electron/platform/mac';
 import { nodeFs } from '../../electron/platform/node-fs';
 import { sandboxClone, sandboxPlatform, sandboxZh } from '../../electron/platform/sandbox-codex';
@@ -533,7 +533,7 @@ describe('汉化', () => {
   });
 });
 
-describe('security, help, update, restore', () => {
+describe('security, community, update, restore', () => {
   test('S-01 安全面板：Key 只给后 4 位；S-02 在访达里显示；S-03 去官网管理；S-06 让 AI 帮我检查；S-07 查看源代码', async () => {
     const b = build();
     await installed_(b);
@@ -568,26 +568,13 @@ describe('security, help, update, restore', () => {
     expect(() => build({ key: new Uint8Array(32).fill(9) }).h['security:get'](undefined as never)).not.toThrow();
   });
 
-  test('H-01 报错解读：常见报错说人话', () => {
-    expect(explain('')).toMatchObject({ title: '先粘贴报错' });
-    expect(explain('unexpected status 404 Not Found: Model not available: x').title).toBe('这个模型现在用不了');
-    expect(explain('error parsing config.toml').title).toBe('Codex 的配置有问题');
-    expect(explain('blah blah').title).toBe('没认出这个报错');
-    expect(explain('unexpected status 401 Unauthorized').title.length).toBeGreaterThan(0);
-    expect(explain('request timed out').title.length).toBeGreaterThan(0);
-  });
-
-  test('H-01 帮助页走 help:explain', async () => {
-    expect((await build().h['help:explain']({ text: 'Model not available' })).title).toBe('这个模型现在用不了');
-  });
-
   test('H-02 社群码：联网时内联成 data: 地址，离线时为空', async () => {
     const qr = 'https://cdn.jsdelivr.net/gh/hhwyt/codex-buddy@main/remote/qr.png';
     fetchText = async () => JSON.stringify({ ...bundled, community: { qrUrl: qr, text: '扫码进群' } });
     expect((await build().h['app:state'](undefined as never)).community.qrUrl).toBeNull();
     fetchBytes = async () => ({ type: 'image/png', data: new Uint8Array([1, 2, 3]) });
     const b = build();
-    expect((await b.h['app:state'](undefined as never)).community).toEqual({ qrUrl: 'data:image/png;base64,AQID', text: '扫码进群' });
+    expect((await b.h['app:state'](undefined as never)).community).toEqual({ qrUrl: 'data:image/png;base64,AQID' });
     expect((await b.h['app:state'](undefined as never)).community.qrUrl).toBe('data:image/png;base64,AQID');
   });
 

@@ -10,7 +10,7 @@ import { clearSteps, recordSteps, steps } from './steps';
 import { BASE_NEEDS, merge, needs } from './pending';
 
 let run: Launched | undefined;
-needs(merge(BASE_NEEDS, { ui: { settings: ['TID.settings.root'], help: ['TID.help.root'], security: ['TID.security.root'], models: ['TID.models.modeClone'] } }));
+needs(merge(BASE_NEEDS, { ui: { settings: ['TID.settings.root'], community: ['TID.community.root'], security: ['TID.security.root'], models: ['TID.models.modeClone'] } }));
 test.afterEach(async () => { await run?.close(); run = undefined; });
 
 test('W-01 没有标题栏，Mac 红绿灯嵌在左栏顶上，Windows 右上角有三个窗口按钮', async () => {
@@ -33,10 +33,10 @@ test('W-01 没有标题栏，Mac 红绿灯嵌在左栏顶上，Windows 右上角
   await expect(run.page).toHaveScreenshot('window-models.png', { animations: 'disabled', maxDiffPixelRatio: 0.01 });
 });
 
-test('W-02 左栏切换模型、设置、帮助', async () => {
+test('W-02 左栏切换模型、设置、社群', async () => {
   run = await launch({ seed: s => seedCodex(s) });
   await finishOnboarding(run.page);
-  const pairs: [string, string][] = [[TID.shell.navSettings, TID.settings.root], [TID.shell.navHelp, TID.help.root], [TID.shell.navModels, TID.models.root]];
+  const pairs: [string, string][] = [[TID.shell.navSettings, TID.settings.root], [TID.shell.navCommunity, TID.community.root], [TID.shell.navModels, TID.models.root]];
   for (const [button, root] of pairs) {
     await run.page.getByTestId(button).click();
     await expect(run.page.getByTestId(root)).toBeVisible();
@@ -119,7 +119,7 @@ test('H-03 代码、网络请求、界面里都不出现 humanslive', async () =
   await finishOnboarding(run.page);
   await run.page.getByTestId(TID.models.card('zhipu')).click({ position: { x: 60, y: 45 } });
   await fakeScan(run.app, 'zhipu');
-  await nav.help(run.page);
+  await nav.community(run.page);
   expect(urls.filter(u => /humanslive/i.test(u))).toEqual([]);
   expect(run.config.state.hits.length).toBeGreaterThan(0); // remote config came from our GitHub/jsDelivr stand-ins
   expect(vendorState(run.vendors).requests.every(r => !/humanslive/i.test(JSON.stringify(r)))).toBe(true);

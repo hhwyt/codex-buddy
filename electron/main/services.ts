@@ -4,7 +4,6 @@
 import * as path from 'node:path';
 import { backup, restoreBackup } from '../core/backup';
 import { CATALOG_FILE, modelsFor } from '../core/catalogs';
-import { classifyFailure, reasonOf } from '../core/connectivity';
 import { guardedRemove, guardedRemoveOwn } from '../core/guard';
 import { PROVIDERS, isBuiltin } from '../core/providers';
 import { hide, keyTail } from '../core/redact';
@@ -431,7 +430,7 @@ export function createServices(d: ServiceDeps) {
         version: d.version, os: d.os, configured: st.onboarded, codexInstalled: !!codex,
         codexRunning: await platform.isCodexRunning(),
         zh: { on: st.zh, launcherExists: await d.zh.exists(), supported: await d.zh.supported().catch(() => false), hidden: remote.switches.hideZh },
-        community: { qrUrl: await communityQr(), text: (st.lastRemote && remote.community.text) || '' },
+        community: { qrUrl: await communityQr() },
       };
     },
 
@@ -581,7 +580,6 @@ export function createServices(d: ServiceDeps) {
     'restore:plan': async () => ({ lines: describeRestore((await restoreSteps()).map(s => (s.kind === 'remove-clone' ? { ...s, vendor: cloneName(s.vendor) } : s))) }),
     'restore:run': () => runRestore(),
 
-    'help:explain': ({ text }) => explain(text),
     'shell:open-external': async ({ url }) => { if (/^https:\/\//.test(url)) await d.openExternal(url); },
   };
 
@@ -594,19 +592,4 @@ export function createServices(d: ServiceDeps) {
   };
 
   return { handlers, startup, pollModel, wallet, state: () => st, refreshBridgeUrls };
-}
-
-/** H-01: a pasted error → what it means, in plain Chinese */
-export function explain(text: string): { title: string; body: string } {
-  const t = text.trim();
-  if (!t) return { title: '先粘贴报错', body: '把 Codex 里看到的报错整段复制过来' };
-  if (/model.{0,30}not.{0,5}(available|exist|found)/i.test(t)) {
-    return { title: '这个模型现在用不了', body: '在 Codex 左下角的模型菜单里换一个，或者回到 CodexBuddy 重新切换这一家' };
-  }
-  if (/wire_api|config\.toml|parse|invalid.{0,10}config/i.test(t)) {
-    return { title: 'Codex 的配置有问题', body: '回到 CodexBuddy 的模型页，点一下正在用的那张卡重新切换，配置会重写' };
-  }
-  const code = classifyFailure(t, /timed out|超时/i.test(t) && !/429/.test(t));
-  if (code === 'no-reply') return { title: '没认出这个报错', body: '把报错发到群里，我们帮你看' };
-  return { title: reasonOf(code).split('：')[0], body: reasonOf(code) };
 }

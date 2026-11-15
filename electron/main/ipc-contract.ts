@@ -37,7 +37,7 @@ export interface AppStateView {
   codexInstalled: boolean;
   codexRunning: boolean;
   zh: { on: boolean; launcherExists: boolean; supported: boolean; hidden: boolean };
-  community: { qrUrl: string | null; text: string };
+  community: { qrUrl: string | null }; // H-02
 }
 
 export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'repair'; id: string; state: 'start' | 'done' | 'fail'; text: string }
@@ -79,7 +79,6 @@ export interface IpcChannels {
   'update:install': [void, Outcome];                                 // U-02, U-03
   'restore:plan': [void, { lines: string[] }];                       // T-03
   'restore:run': [void, Outcome];                                    // T-04, C-10
-  'help:explain': [{ text: string }, { title: string; body: string }]; // H-01
   'shell:open-external': [{ url: string }, void];
 }
 
@@ -111,6 +110,6 @@ export const CHANNELS: Channel[] = [
   'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:repair', 'codex:reinstall',
   'clone:make', 'clone:open', 'clone:remove', 'zh:set', 'zh:remove', 'browser:show', 'browser:close', 'browser:back',
   'browser:reload', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
-  'update:check', 'update:dismiss', 'update:install', 'restore:plan', 'restore:run', 'help:explain', 'shell:open-external',
+  'update:check', 'update:dismiss', 'update:install', 'restore:plan', 'restore:run', 'shell:open-external',
 ];
 export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update'];
