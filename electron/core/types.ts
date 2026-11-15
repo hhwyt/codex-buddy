@@ -115,4 +115,6 @@ export interface RemoteConfig {
   models: Partial<Record<BuiltinVendorId, ModelEntry[]>>;
   community: { qrUrl: string; text: string };
   switches: { hiddenVendors: string[]; hideZh: boolean; hideClone: boolean };
+  /** Forced upgrade: a running version below this is blocked until updated ('0.0.0' when the file does not say) */
+  minVersion: string;
 }

@@ -11,8 +11,10 @@ import * as path from 'node:path';
 import { parseEndpoints, withEndpoints } from './core/endpoints';
 import { PROVIDERS } from './core/providers';
 import { validateRemote } from './core/remote';
+import { REMOTE_CONFIG_PUBLIC_KEY } from './core/remote-key';
 import { startBridge } from './main/bridge-server';
 import { BROWSER_PARTITION, browserHandlers, createRightBrowser, electronViewHost, openLoginWindows } from './main/browser';
+import { debugSwitchesIn, debuggable } from './main/hardening';
 import { aesCipher, loadDataKey, plainWrap } from './main/cipher';
 import { registerIpc, sendEvent } from './main/ipc';
 import type { ConnectionView } from './main/ipc-contract';
@@ -35,6 +37,12 @@ import { loginWindowTargets, vendorsWith } from './vendors';
 const os: 'mac' | 'win' = process.platform === 'win32' ? 'win' : 'mac';
 const sandbox = sandboxRoot();
 let win: BrowserWindow | null = null;
+
+// Release builds: no debugging switch on our own command line, no DevTools (main/hardening.ts)
+const packageMeta = JSON.parse(nfs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8')) as { codexbuddyDebuggable?: unknown };
+const allowDebug = debuggable(app.isPackaged, packageMeta);
+if (!allowDebug && debugSwitchesIn(s => app.commandLine.hasSwitch(s)).length) app.exit(1);
+if (!allowDebug) app.on('web-contents-created', (_e, wc) => { wc.on('devtools-opened', () => wc.closeDevTools()); });
 
 // Keep Electron's own profile inside the sandbox too
 if (sandbox) app.setPath('userData', path.join(sandbox, 'electron-user-data'));
@@ -119,6 +127,8 @@ async function main(): Promise<void> {
       return info ? { granted: Number(info.granted_balance ?? 0), toppedUp: Number(info.topped_up_balance ?? 0) } : null;
     },
     remoteUrls: endpoints.remoteConfig, bundledRemote: bundled, version: app.getVersion(), os,
+    // Test mode signs the fake config server's copy with the test key (test/fakes/remote-test-key.mjs)
+    remotePublicKey: (testMode && process.env.CODEXBUDDY_REMOTE_KEY) || REMOTE_CONFIG_PUBLIC_KEY,
     now: () => Date.now(),
     emit: (event, payload) => sendEvent(win, event, payload),
     openExternal,
@@ -140,7 +150,7 @@ async function main(): Promise<void> {
   installNetGuard(() => [...defaultAllowedHosts(providers), ...Object.values(endpoints.vendors).map(u => new URL(u!).host), ...Object.values(upstreams).map(u => new URL(u).host)],
     () => sendEvent(win, 'connections', connectionViews()));
 
-  win = createMainWindow(os, { offscreen: testMode });
+  win = createMainWindow(os, { offscreen: testMode, devTools: allowDebug });
   win.on('closed', () => { win = null; });
   win.webContents.once('did-finish-load', () => { void services.startup().catch(() => undefined); });
   if (sandbox && !testMode && process.env.CODEXBUDDY_LOGIN_WINDOWS === '1') {

@@ -1,6 +1,9 @@
 // L1: remote config. Owner: A1.
 import { describe, expect, test } from 'vitest';
-import { isHidden, isSafeUrl, loadRemote, validateRemote, type Fetcher } from '../../../electron/core/remote';
+import { generateKeyPairSync, sign } from 'node:crypto';
+import { isHidden, isSafeUrl, loadRemote, validateRemote, verifySignature, type Fetcher } from '../../../electron/core/remote';
+import { REMOTE_CONFIG_PUBLIC_KEY } from '../../../electron/core/remote-key';
+import { TEST_PUBLIC_KEY, testSign } from '../../fakes/remote-test-key.mjs';
 import { REMOTE_CONFIG_URLS } from '../../../electron/core/endpoints';
 import { modelsFor } from '../../../electron/core/catalogs';
 import { providerOf, PROVIDERS } from '../../../electron/core/providers';
@@ -48,27 +51,71 @@ describe('remote', () => {
   });
 
   const newer = JSON.stringify({ ...bundled, latest: { ...bundled.latest, version: '9.9.9' } });
-  test('先读 jsDelivr', async () => {
+  /** Fetcher that answers <url> with body(url) and <url>.sig with the test key's signature over it */
+  const signed = (body: (url: string) => string, asked: string[] = []): Fetcher => async url => {
+    asked.push(url);
+    return url.endsWith('.sig') ? testSign(body(url.slice(0, -4))) : body(url);
+  };
+  const load = (f: Fetcher, last: typeof bundled | null = null) => loadRemote(REMOTE_CONFIG_URLS, f, last, bundled, TEST_PUBLIC_KEY);
+  test('先读 jsDelivr（配置和签名都从同一处取）', async () => {
     const asked: string[] = [];
-    const f: Fetcher = async url => { asked.push(url); return newer; };
-    const r = await loadRemote(REMOTE_CONFIG_URLS, f, null, bundled);
+    const r = await load(signed(() => newer, asked));
     expect(r.source).toBe('jsdelivr');
     expect(r.config.latest.version).toBe('9.9.9');
-    expect(asked).toEqual([REMOTE_CONFIG_URLS[0]]);
+    expect(asked.sort()).toEqual([REMOTE_CONFIG_URLS[0], `${REMOTE_CONFIG_URLS[0]}.sig`]);
   });
   test('jsDelivr 不通再读 GitHub', async () => {
-    const f: Fetcher = async url => { if (url.includes('jsdelivr')) throw new Error('down'); return newer; };
-    expect((await loadRemote(REMOTE_CONFIG_URLS, f, null, bundled)).source).toBe('github');
+    const f: Fetcher = async url => { if (url.includes('jsdelivr')) throw new Error('down'); return signed(() => newer)(url, 1); };
+    expect((await load(f)).source).toBe('github');
   });
   test('jsDelivr 返回坏文件也换 GitHub', async () => {
-    const f: Fetcher = async url => (url.includes('jsdelivr') ? '<html>' : newer);
-    expect((await loadRemote(REMOTE_CONFIG_URLS, f, null, bundled)).source).toBe('github');
+    expect((await load(signed(url => (url.includes('jsdelivr') ? '<html>' : newer)))).source).toBe('github');
   });
   test('都读不到：用上次的，再没有就用自带的', async () => {
     const f: Fetcher = async () => { throw new Error('offline'); };
     const last = validateRemote(newer)!;
-    expect(await loadRemote(REMOTE_CONFIG_URLS, f, last, bundled)).toEqual({ config: last, source: 'cache' });
-    expect(await loadRemote(REMOTE_CONFIG_URLS, f, null, bundled)).toEqual({ config: bundled, source: 'bundled' });
+    expect(await load(f, last)).toEqual({ config: last, source: 'cache' });
+    expect(await load(f)).toEqual({ config: bundled, source: 'bundled' });
+  });
+
+  describe('签名（防伪造）', () => {
+    const forged = (sig: (url: string) => Promise<string>): Fetcher => async url => (url.endsWith('.sig') ? sig(url) : newer);
+    test.each([
+      ['没有签名文件', forged(async () => { throw new Error('404'); })],
+      ['签名是空的', forged(async () => '')],
+      ['签名不是 base64 的 64 字节', forged(async () => 'bm90IGEgc2ln')],
+      ['别的私钥签的', forged(async () => sign(null, Buffer.from(newer), generateKeyPairSync('ed25519').privateKey).toString('base64'))],
+      ['签的是别的内容', forged(async () => testSign(bundledText))],
+      ['内容被改了一个字节', async (url: string) => (url.endsWith('.sig') ? testSign(newer) : newer.replace('9.9.9', '9.9.8'))],
+    ])('%s：当作连不上，用上次的', async (_, f) => {
+      const last = validateRemote(withSwitches({ hideZh: true }))!;
+      expect(await load(f as Fetcher, last)).toEqual({ config: last, source: 'cache' });
+    });
+    test('jsDelivr 的签名对不上，GitHub 的对得上：用 GitHub 的', async () => {
+      const f: Fetcher = async url => (url.includes('jsdelivr') && url.endsWith('.sig') ? testSign('x') : signed(() => newer)(url, 1));
+      expect((await load(f)).source).toBe('github');
+    });
+    test('verifySignature：签名末尾的换行不碍事，坏公钥不抛错', () => {
+      expect(verifySignature(newer, `${testSign(newer)}\n`, TEST_PUBLIC_KEY)).toBe(true);
+      expect(verifySignature(newer, testSign(newer), 'not a key')).toBe(false);
+      expect(verifySignature(newer, testSign(newer), REMOTE_CONFIG_PUBLIC_KEY)).toBe(false);
+    });
+    test('仓库里的 remote/config.json.sig 是用内置公钥签的，和文件逐字节对得上', () => {
+      const sig = nodeFs.readFileSync(nodePath.resolve(__dirname, '../../../remote/config.json.sig'), 'utf8');
+      expect(verifySignature(bundledText, sig, REMOTE_CONFIG_PUBLIC_KEY)).toBe(true);
+    });
+  });
+
+  describe('minVersion', () => {
+    test('不写就是 0.0.0，写了原样带出', () => {
+      const { minVersion: _m, ...noMin } = JSON.parse(bundledText);
+      expect(validateRemote(JSON.stringify(noMin))!.minVersion).toBe('0.0.0');
+      expect(validateRemote(JSON.stringify({ ...bundled, minVersion: '0.3.1' }))!.minVersion).toBe('0.3.1');
+      expect(bundled.minVersion).toBe('0.0.0');
+    });
+    test.each([[1], [''], ['v0.2'], ['0.2.0-beta'], ['1.2.3.4.5']])('坏的 minVersion %s：整份配置不用', v => {
+      expect(validateRemote(JSON.stringify({ ...bundled, minVersion: v }))).toBeNull();
+    });
   });
   test('H-03 远程地址只有 jsDelivr 和 GitHub', () => {
     for (const u of REMOTE_CONFIG_URLS) expect(new URL(u).hostname).toMatch(/^(cdn\.jsdelivr\.net|raw\.githubusercontent\.com)$/);

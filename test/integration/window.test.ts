@@ -52,6 +52,12 @@ describe('窗口（W-01）', () => {
     expect(String(w.preload)).toMatch(/preload\.js$/);
   });
 
+  it('正式包打不开 DevTools；仓库里跑可以', () => {
+    expect(windowOptions('mac').webPreferences!.devTools).toBe(true);
+    createMainWindow('win', { devTools: false });
+    expect((made[0].opts.webPreferences as { devTools: boolean }).devTools).toBe(false);
+  });
+
   it('W-01 小屏幕上窗口不超过屏幕；没有菜单；页面不能跳走、不能开新窗口；准备好才显示', () => {
     createMainWindow('mac');
     const w = made[0];

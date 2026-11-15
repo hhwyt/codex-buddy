@@ -1,9 +1,11 @@
 // M1 drive (build-plan §4 「代理自己驱动 App 核对行为」): the packaged CodexBuddy.app, sandboxed, every external
 // address pointed at fake servers. Walks every step the site owner named and saves a screenshot per step to
 // docs/screenshots/m1-*.png; docs/m1-behavior-check.md compares them with the plan and the final prototypes.
-// Run (Windows): npm run build && npx electron-builder --win dir && set CODEXBUDDY_E2E_EXECUTABLE=release\\win-unpacked\\CodexBuddy.exe &&
+// The release build's fuses and hardening refuse Playwright's --inspect / --remote-debugging-port, so drive the drive
+// build (build/drive.config.cjs: no fuses, marked debuggable; never shipped):
+// Run (Windows): npm run dist:drive -- --win dir && set CODEXBUDDY_E2E_EXECUTABLE=release\\win-unpacked\\CodexBuddy.exe &&
 //        npx playwright test -c playwright.drive.config.ts   (screenshots: docs/screenshots/win-*.png)
-// Run (Mac): npm run dist:mac && CODEXBUDDY_E2E_EXECUTABLE=release/mac-arm64/CodexBuddy.app/Contents/MacOS/CodexBuddy \
+// Run (Mac): npm run dist:drive -- --mac dir && CODEXBUDDY_E2E_EXECUTABLE=release/mac-arm64/CodexBuddy.app/Contents/MacOS/CodexBuddy \
 //        npx playwright test -c playwright.drive.config.ts
 // Safety: CODEXBUDDY_SANDBOX is a fresh temp dir; Codex is a Test-ChatGPT.app installed from a fake dmg into the
 // sandbox; the app records every open / reveal / link in <sandbox>/opened.log instead of opening anything.

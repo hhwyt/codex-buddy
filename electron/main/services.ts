@@ -12,11 +12,11 @@ import { describeRestore, planRestore, type OriginalState, type RestoreStep } fr
 import { configFor, readActive, switchVendor, type SwitchResult } from '../core/switch';
 import { joinLines, setTableValue, splitLines, tomlString } from '../core/toml';
 import type { BuiltinVendorId, Cipher, FailureCode, ModelEntry, ProviderInfo, RemoteConfig, StepEvent } from '../core/types';
-import { checkUpdate, shouldPrompt } from '../core/updater';
+import { checkUpdate, raiseFloor, requiredUpgrade, shouldPrompt } from '../core/updater';
 import { moveCard, restoreWallet } from '../core/wallet';
 import type { Clone, Platform, ZhLauncher } from '../platform/types';
 import type { BrowserDriver, Vendor } from '../vendors/types';
-import type { CardView, ConnectionView, EventName, IpcEvents, Outcome, StepView, VendorKey, WalletView } from './ipc-contract';
+import type { CardView, ConnectionView, EventName, IpcEvents, Outcome, StepView, UpgradeRequiredView, VendorKey, WalletView } from './ipc-contract';
 import type { Handlers } from './ipc';
 
 /** How long app:state waits for the community QR code before answering without it */
@@ -41,11 +41,14 @@ export interface BuddyState {
   custom: CustomVendor[];
   rateLimited: string[];
   lastRemote: RemoteConfig | null;
+  /** Highest remote minVersion ever accepted (encrypted): never lowered, kept through 一键还原, enforced offline */
+  minVersionFloor: string | null;
 }
 
 export const emptyState = (): BuddyState => ({
   order: [], active: null, mode: 'switch', keys: {}, openaiAuth: null, models: {}, zh: false, onboarded: false,
   startedAt: null, firstSuccess: false, original: null, dismissed: null, custom: [], rateLimited: [], lastRemote: null,
+  minVersionFloor: null,
 });
 
 export interface ServiceDeps {
@@ -66,6 +69,8 @@ export interface ServiceDeps {
   fetchBytes(url: string): Promise<{ type: string; data: Uint8Array }>;
   remoteUrls: string[];
   bundledRemote: RemoteConfig;
+  /** Ed25519 public key (PEM) a fetched remote config must be signed with (core/remote-key.ts) */
+  remotePublicKey: string;
   version: string;
   os: 'mac' | 'win';
   now(): number;
@@ -124,11 +129,27 @@ export function createServices(d: ServiceDeps) {
   let remote: RemoteConfig = st.lastRemote ?? d.bundledRemote;
   let remoteLoaded: Promise<RemoteConfig> | null = null;
   let online = false;
+  // Forced upgrade: the floor rises with every signed config we accept and never drops (a later, lower minVersion or
+  // being offline changes nothing). Fail open only while no remote config was ever accepted
+  const savedFloor = (): string | null => { try { return st.minVersionFloor ? dec(st.minVersionFloor) : null; } catch { return null; } };
+  const floor = () => raiseFloor(savedFloor(), st.lastRemote?.minVersion);
+  const upgradeRequired = (): UpgradeRequiredView | null => {
+    const r = requiredUpgrade(d.version, floor(), remote.latest);
+    return r && { version: r.version, notes: r.notes, url: d.os === 'mac' ? r.macUrl : r.winUrl };
+  };
+  let lastUpgradeSent = 'null';
   const refreshRemote = (): Promise<RemoteConfig> => {
-    remoteLoaded = loadRemote(d.remoteUrls, d.fetchText, st.lastRemote, d.bundledRemote).then(r => {
+    remoteLoaded = loadRemote(d.remoteUrls, d.fetchText, st.lastRemote, d.bundledRemote, d.remotePublicKey).then(r => {
       remote = r.config;
       online = r.source === 'jsdelivr' || r.source === 'github';
-      if (online) { st.lastRemote = r.config; save(); }
+      if (online) {
+        const next = raiseFloor(floor(), r.config.minVersion);
+        st.lastRemote = r.config;
+        st.minVersionFloor = next ? enc(next) : null;
+        save();
+      }
+      const u = upgradeRequired();
+      if (JSON.stringify(u) !== lastUpgradeSent) { lastUpgradeSent = JSON.stringify(u); d.emit('upgradeRequired', u); }
       return remote;
     });
     return remoteLoaded;
@@ -415,7 +436,8 @@ export function createServices(d: ServiceDeps) {
         return { ok: false, reason };
       }
     }
-    st = emptyState();
+    // The forced-upgrade floor (no rollback) and the cached remote config are not the user's setup: they stay
+    st = { ...emptyState(), lastRemote: st.lastRemote, minVersionFloor: st.minVersionFloor };
     clones = [];
     save();
     return { ok: true };
@@ -431,6 +453,7 @@ export function createServices(d: ServiceDeps) {
         codexRunning: await platform.isCodexRunning(),
         zh: { on: st.zh, launcherExists: await d.zh.exists(), supported: await d.zh.supported().catch(() => false), hidden: remote.switches.hideZh },
         community: { qrUrl: await communityQr() },
+        upgradeRequired: upgradeRequired(),
       };
     },
 

@@ -7,6 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { PROVIDERS } from '../../electron/core/providers';
 import { validateRemote } from '../../electron/core/remote';
+import { TEST_PUBLIC_KEY, testSign } from '../fakes/remote-test-key.mjs';
 import type { BuiltinVendorId, RemoteConfig } from '../../electron/core/types';
 import { aesCipher } from '../../electron/main/cipher';
 import type { EventName } from '../../electron/main/ipc-contract';
@@ -28,6 +29,8 @@ let external: string[];
 let keyOutcome: Record<string, KeyOutcome>;
 let clock: number;
 let fetchText: (url: string) => Promise<string>;
+/** Non-null: every .sig answer is this instead of a real signature (a forged config) */
+let forgedSig: string | null;
 let fetchBytes: ServiceDeps['fetchBytes'];
 let zhSupported: boolean;
 let installed: string[];
@@ -94,7 +97,9 @@ function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | '
     platform, clone, zh, providers: PROVIDERS, vendors: fakeVendors(), browser,
     bridge: { baseUrlFor: (v, u) => { upstreams[v] = u; return `http://127.0.0.1:4555/${v}/v1`; }, isBridgeUrl: u => u.startsWith('http://127.0.0.1:4555') },
     cipher: aesCipher(opts.key ?? new Uint8Array(32).fill(7)),
-    fetchText: url => fetchText(url), fetchBytes: url => fetchBytes(url),
+    // The fake answers config.json; its .sig is signed with the test key, like the real release script does
+    fetchText: url => (url.endsWith('.sig') ? (forgedSig !== null ? Promise.resolve(forgedSig) : fetchText(url.slice(0, -4)).then(testSign)) : fetchText(url)), fetchBytes: url => fetchBytes(url),
+    remotePublicKey: TEST_PUBLIC_KEY,
     remoteUrls: opts.remoteUrls ?? ['https://cdn.jsdelivr.net/gh/x/y@main/remote/config.json', 'https://raw.githubusercontent.com/x/y/main/remote/config.json'],
     bundledRemote: bundled, version: '0.1.0', os: opts.os ?? 'mac',
     now: () => clock, emit: (event, payload) => { events.push({ event, payload }); },
@@ -118,6 +123,7 @@ beforeEach(() => {
   fs.mkdirSync(path.join(root, 'home', '.codex'), { recursive: true });
   events = []; opened = []; external = []; keyOutcome = {}; clock = 1_000_000; zhSupported = true; installed = [];
   fetchText = async () => { throw new Error('offline'); };
+  forgedSig = null;
   fetchBytes = async () => { throw new Error('offline'); };
 });
 afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
@@ -608,6 +614,77 @@ describe('security, community, update, restore', () => {
     events = [];
     await build().svc.startup();
     expect(events.filter(e => e.event === 'update')).toEqual([]);
+  });
+
+  describe('强制升级（minVersion）', () => {
+    const withMin = (minVersion: string, version = '0.3.0') =>
+      JSON.stringify({ ...bundled, minVersion, latest: { ...bundled.latest, version, notes: '必须更新' } });
+    const required = async (b: ReturnType<typeof build>) => (await b.h['app:state'](undefined as never)).upgradeRequired;
+    const want = { version: '0.3.0', notes: '必须更新', url: bundled.latest.macUrl };
+
+    test('首次启动没网（从没接受过远程配置）：放行', async () => {
+      expect(await required(build())).toBeNull();
+      expect(events.filter(e => e.event === 'upgradeRequired')).toEqual([]);
+    });
+
+    test('当前版本低于 minVersion：app:state 和事件都报要升级；Windows 给 Windows 的下载地址', async () => {
+      fetchText = async () => withMin('0.2.0');
+      const b = build();
+      await b.svc.startup();
+      expect(events.filter(e => e.event === 'upgradeRequired')).toEqual([{ event: 'upgradeRequired', payload: want }]);
+      expect(await required(b)).toEqual(want);
+      expect(await required(build({ os: 'win' }))).toEqual({ ...want, url: bundled.latest.winUrl });
+    });
+
+    test('只升不降：之后的配置把 minVersion 改低、或者断网、或者一键还原，都还是要升级', async () => {
+      fetchText = async () => withMin('0.2.0');
+      expect(await required(build())).toEqual(want);
+      fetchText = async () => withMin('0.0.0');
+      const lower = build();
+      expect(await required(lower)).toEqual(want);
+      await lower.h['update:check'](undefined as never); // a later refresh does not lower it either
+      expect(await required(lower)).toEqual(want);
+      fetchText = async () => { throw new Error('offline'); };
+      expect(await required(build())).toEqual(want);
+      // Hand-editing the cached copy does not lower it: the floor is kept on its own, encrypted
+      const file = path.join(build().paths.buddyDir, 'state.json');
+      const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+      expect(saved.minVersionFloor).not.toContain('0.2.0');
+      fs.writeFileSync(file, JSON.stringify({ ...saved, lastRemote: { ...saved.lastRemote, minVersion: '0.0.0' } }));
+      const b = build();
+      expect(await required(b)).toEqual(want);
+      expect(await b.h['restore:run'](undefined as never)).toEqual({ ok: true });
+      expect(await required(build())).toEqual(want);
+    });
+
+    test('高于等于 minVersion：不拦；配置后来抬高了就拦，事件只在变化时发', async () => {
+      fetchText = async () => withMin('0.1.0');
+      const b = build();
+      expect(await required(b)).toBeNull();
+      fetchText = async () => withMin('0.2.0');
+      await b.h['update:check'](undefined as never);
+      await b.h['update:check'](undefined as never);
+      expect(await required(b)).toEqual(want);
+      expect(events.filter(e => e.event === 'upgradeRequired')).toEqual([{ event: 'upgradeRequired', payload: want }]);
+    });
+
+    test('签名不对的配置不算数：伪造的 minVersion 既拦不了人，也抬不高下限', async () => {
+      fetchText = async () => withMin('9.0.0');
+      forgedSig = testSign(withMin('0.0.0'));
+      const b = build();
+      expect(await required(b)).toBeNull();
+      expect(b.svc.state().minVersionFloor).toBeNull();
+      expect(b.svc.state().lastRemote).toBeNull();
+    });
+
+    test('存的下限解不开（换了密钥）：当作没有，放行到下次取到配置', async () => {
+      fetchText = async () => withMin('0.2.0');
+      expect(await required(build())).toEqual(want);
+      const file = path.join(build().paths.buddyDir, 'state.json');
+      fs.writeFileSync(file, JSON.stringify({ ...JSON.parse(fs.readFileSync(file, 'utf8')), lastRemote: null }));
+      fetchText = async () => { throw new Error('offline'); };
+      expect(await required(build({ key: new Uint8Array(32).fill(9) }))).toBeNull();
+    });
   });
 
   test('U-03 Mac 没签名：立即更新改成在右侧打开下载页', async () => {

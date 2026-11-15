@@ -5,7 +5,7 @@ export function appState(over: Partial<AppStateView> = {}): AppStateView {
   return {
     version: '1.0.0', os: 'mac', configured: true, codexInstalled: true, codexRunning: false,
     zh: { on: false, launcherExists: false, supported: true, hidden: false },
-    community: { qrUrl: null },
+    community: { qrUrl: null }, upgradeRequired: null,
     ...over,
   };
 }

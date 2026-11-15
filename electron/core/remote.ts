@@ -1,5 +1,9 @@
 // remote/config.json: read jsDelivr → GitHub → last good copy → bundled fallback. Owner: A1.
 // Never contains or calls any non-GitHub host (H-03). U-04: switches hide a vendor card or the 汉化 entry.
+// Anti-forgery: every fetched copy must come with config.json.sig (base64 Ed25519 over the exact bytes, made by
+// scripts/sign-remote-config.mjs) from the same source; a missing or wrong signature counts as unreachable. The bundled
+// copy is trusted as is (it ships inside the integrity-checked app.asar).
+import { createPublicKey, verify } from 'node:crypto';
 import { VENDOR_IDS, type ModelEntry, type RemoteConfig } from './types';
 
 export type Fetcher = (url: string, timeoutMs: number) => Promise<string>;
@@ -8,6 +12,8 @@ export const REMOTE_TIMEOUT_MS = 8000;
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 const str = (x: unknown): x is string => typeof x === 'string';
+/** Plain dotted numbers (0.2.0, 1.10): what minVersion may be */
+const VERSION = /^\d+(\.\d+){0,3}$/;
 
 /** Hosts a URL inside the remote config may point at (H-03: GitHub and jsDelivr only) */
 export const REMOTE_URL_HOSTS = ['github.com', 'objects.githubusercontent.com', 'raw.githubusercontent.com', 'cdn.jsdelivr.net'];
@@ -33,7 +39,8 @@ export function validateRemote(text: string): RemoteConfig | null {
   let d: unknown;
   try { d = JSON.parse(text); } catch { return null; }
   if (!isObj(d) || d.schema !== 1) return null;
-  const { latest, models, community, switches } = d;
+  const { latest, models, community, switches, minVersion = '0.0.0' } = d;
+  if (!str(minVersion) || !VERSION.test(minVersion)) return null;
   if (!isObj(latest) || ![latest.version, latest.notes, latest.macUrl, latest.winUrl].every(str)) return null;
   if (!isObj(models) || !isObj(community) || !str(community.qrUrl) || !str(community.text)) return null;
   if (![latest.macUrl, latest.winUrl, community.qrUrl].every(u => isSafeUrl(u as string))) return null;
@@ -51,14 +58,27 @@ export function validateRemote(text: string): RemoteConfig | null {
     models: out,
     community: { qrUrl: community.qrUrl, text: community.text },
     switches: { hiddenVendors: [...switches.hiddenVendors], hideZh: switches.hideZh, hideClone: switches.hideClone },
+    minVersion,
   };
 }
 
-/** urls[0] is jsDelivr, urls[1] GitHub (core/endpoints.ts). The first valid answer wins */
-export async function loadRemote(urls: string[], fetch: Fetcher, lastGood: RemoteConfig | null, bundled: RemoteConfig): Promise<{ config: RemoteConfig; source: 'jsdelivr' | 'github' | 'cache' | 'bundled' }> {
+/** Whether sigBase64 is publicKeyPem's Ed25519 signature over text's UTF-8 bytes; never throws */
+export function verifySignature(text: string, sigBase64: string, publicKeyPem: string): boolean {
+  try {
+    const sig = Buffer.from(sigBase64.trim(), 'base64');
+    return sig.length === 64 && verify(null, Buffer.from(text, 'utf8'), createPublicKey(publicKeyPem), sig);
+  } catch {
+    return false;
+  }
+}
+
+/** urls[0] is jsDelivr, urls[1] GitHub (core/endpoints.ts). The first valid, correctly signed answer wins; the
+ *  signature is <url>.sig on the same source */
+export async function loadRemote(urls: string[], fetch: Fetcher, lastGood: RemoteConfig | null, bundled: RemoteConfig, publicKeyPem: string): Promise<{ config: RemoteConfig; source: 'jsdelivr' | 'github' | 'cache' | 'bundled' }> {
   for (let i = 0; i < urls.length; i++) {
     try {
-      const config = validateRemote(await fetch(urls[i], REMOTE_TIMEOUT_MS));
+      const [text, sig] = await Promise.all([fetch(urls[i], REMOTE_TIMEOUT_MS), fetch(`${urls[i]}.sig`, REMOTE_TIMEOUT_MS)]);
+      const config = verifySignature(text, sig, publicKeyPem) ? validateRemote(text) : null;
       if (config) return { config, source: i === 0 ? 'jsdelivr' : 'github' };
     } catch { /* next one */ }
   }

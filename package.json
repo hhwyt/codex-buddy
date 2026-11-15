@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "CodexBuddy：一键装好 Codex，免费用 AI",
   "author": "hhwyt",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "private": true,
   "main": "dist/app.js",
   "scripts": {
@@ -17,7 +17,8 @@
     "check:ids": "node scripts/check-spec-ids.mjs",
     "preview": "scripts/preview.sh",
     "dist": "npm run build && electron-builder --win nsis --x64 --publish never",
-    "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never"
+    "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never",
+    "dist:drive": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder -c build/drive.config.cjs --publish never"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
@@ -48,6 +49,14 @@
       "scripts/vendor/codex.ps1"
     ],
     "asar": true,
+    "electronFuses": {
+      "runAsNode": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "enableCookieEncryption": true
+    },
     "asarUnpack": ["scripts/vendor/codex.ps1"],
     "compression": "maximum",
     "electronLanguages": [

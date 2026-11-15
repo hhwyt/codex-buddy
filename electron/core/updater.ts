@@ -1,4 +1,4 @@
-// Update check (T-02, U-01..U-03). Owner: A1.
+// Update check (T-02, U-01..U-03) and forced upgrade (minVersion). Owner: A1.
 import type { RemoteConfig } from './types';
 
 const parts = (v: string): number[] => v.trim().replace(/^v/i, '').split(/[.-]/).map(x => parseInt(x, 10) || 0);
@@ -28,4 +28,20 @@ export function checkUpdate(current: string, remote: RemoteConfig | null): Updat
 export function shouldPrompt(version: string, lastDismissed: { version: string; at: number } | null, now: number): boolean {
   if (!lastDismissed || lastDismissed.version !== version) return true;
   return now - lastDismissed.at >= DAY_MS;
+}
+
+/** Forced upgrade: the running version is below the enforced minimum; the download is the latest release */
+export interface UpgradeRequired { kind: 'required'; version: string; notes: string; macUrl: string; winUrl: string }
+
+/** No rollback: the enforced minimum only goes up. null = no minimum accepted yet */
+export function raiseFloor(floor: string | null, candidate: string | null | undefined): string | null {
+  if (!candidate) return floor;
+  return !floor || compareVersions(candidate, floor) > 0 ? candidate : floor;
+}
+
+/** Whether `current` must upgrade before use. floor null (never accepted a remote config) = fail open */
+export function requiredUpgrade(current: string, floor: string | null, latest: RemoteConfig['latest']): UpgradeRequired | null {
+  if (!floor || compareVersions(current, floor) >= 0) return null;
+  const version = compareVersions(latest.version, floor) >= 0 ? latest.version : floor;
+  return { kind: 'required', version, notes: latest.notes, macUrl: latest.macUrl, winUrl: latest.winUrl };
 }

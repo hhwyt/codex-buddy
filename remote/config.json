@@ -6,6 +6,7 @@
     "macUrl": "https://github.com/hhwyt/codex-buddy/releases/latest",
     "winUrl": "https://github.com/hhwyt/codex-buddy/releases/latest"
   },
+  "minVersion": "0.0.0",
   "models": {
     "deepseek": [
       {

@@ -38,7 +38,12 @@ export interface AppStateView {
   codexRunning: boolean;
   zh: { on: boolean; launcherExists: boolean; supported: boolean; hidden: boolean };
   community: { qrUrl: string | null }; // H-02
+  /** Forced upgrade (remote minVersion): non-null → the page blocks everything until the user updates. Codex is not affected */
+  upgradeRequired: UpgradeRequiredView | null;
 }
+
+/** The release to install before CodexBuddy can be used again; url = the download for this OS */
+export interface UpgradeRequiredView { version: string; notes: string; url: string }
 
 export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'repair'; id: string; state: 'start' | 'done' | 'fail'; text: string }
 export interface Outcome { ok: boolean; reason?: string; [extra: string]: unknown }
@@ -91,6 +96,7 @@ export interface IpcEvents {
   browser: { open: boolean; mode: 'pip' | 'expanded'; url: string; canGoBack: boolean };
   connections: { app: ConnectionView[]; web: ConnectionView[] };
   update: { version: string; notes: string }; // U-01
+  upgradeRequired: UpgradeRequiredView | null; // forced upgrade changed after a remote config refresh
 }
 
 export type Channel = keyof IpcChannels;
@@ -112,4 +118,4 @@ export const CHANNELS: Channel[] = [
   'browser:reload', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
   'update:check', 'update:dismiss', 'update:install', 'restore:plan', 'restore:run', 'shell:open-external',
 ];
-export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update'];
+export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired'];

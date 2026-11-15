@@ -9,7 +9,8 @@ const SIDE = '#f9f9f9';
 const INK = '#0d0d0d';
 export const WINDOW_SIZE = { width: 980, height: 680 };
 
-export function windowOptions(os: 'mac' | 'win'): Electron.BrowserWindowConstructorOptions {
+/** devTools false in release builds (main/hardening.ts) */
+export function windowOptions(os: 'mac' | 'win', devTools = true): Electron.BrowserWindowConstructorOptions {
   return {
     width: WINDOW_SIZE.width, height: WINDOW_SIZE.height, minWidth: 860, minHeight: 560, useContentSize: true,
     title: 'CodexBuddy', backgroundColor: '#ffffff', autoHideMenuBar: true, show: false,
@@ -18,16 +19,16 @@ export function windowOptions(os: 'mac' | 'win'): Electron.BrowserWindowConstruc
       : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: SIDE, symbolColor: INK, height: 40 } }),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
-      contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false,
+      contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false, devTools,
     },
   };
 }
 
 /** offscreen: test runs (sandbox + fake servers) keep the window off every screen and never focus it, so automated
  *  tests do not show up on, or take the mouse from, the person at the computer; screenshots still work */
-export function createMainWindow(os: 'mac' | 'win', { offscreen = false } = {}): BrowserWindow {
+export function createMainWindow(os: 'mac' | 'win', { offscreen = false, devTools = true } = {}): BrowserWindow {
   const area = screen.getPrimaryDisplay().workAreaSize;
-  const opts = windowOptions(os);
+  const opts = windowOptions(os, devTools);
   opts.width = Math.min(opts.width!, area.width);
   opts.height = Math.min(opts.height!, area.height - 40);
   if (offscreen) Object.assign(opts, { x: -30000, y: -30000, skipTaskbar: true });

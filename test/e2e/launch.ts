@@ -75,6 +75,8 @@ const appEnv = (sandbox: string, vendors: VendorServer, config: ConfigServer, ex
     vendors: Object.fromEntries(VENDOR_IDS.map(v => [v, vendors.vendorUrl(v)])),
     ...endpoints,
   }),
+  // The fake config server signs with the test key; test mode trusts it instead of the release key
+  CODEXBUDDY_REMOTE_KEY: config.publicKey,
   CODEXBUDDY_FAKE_CODEX: path.join(FAKES, 'fake-codex.mjs'),
   CODEXBUDDY_NODE: process.execPath,
   FAKE_CODEX_LOG: path.join(sandbox, 'fake-codex.log'),

@@ -6,3 +6,8 @@ release/
 coverage/
 test-results/
 playwright-report/
+
+# Remote-config signing key: only on the site owner's computer (~/.codexbuddy/), never in the repo
+*.pem
+*.key
+remote-config-ed25519*
