@@ -167,7 +167,9 @@ test('C-09 切换和分身来回切：卡片叠起或摊开，切换模式的状
   expect(back.active).toBe(stacked.active);
   expect(back.order).toEqual(stacked.order);
   const again = await cardBoxes(run.page, [...VENDOR_IDS]);
-  for (const v of VENDOR_IDS) expect(Math.round(again[v].y)).toBe(Math.round(pile[v].y));
+  // the pile is laid out as before (relative to its top card; the page itself may have scrolled a pixel)
+  const top = back.order[0];
+  for (const v of VENDOR_IDS) expect(Math.round(again[v].y - again[top].y)).toBe(Math.round(pile[v].y - pile[top].y));
 });
 
 test('C-10 一键还原时分身 App 一起去掉，数据目录留着', async () => {

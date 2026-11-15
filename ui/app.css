@@ -9,7 +9,7 @@ body {
 button { font: inherit; letter-spacing: inherit; color: inherit; cursor: pointer; }
 [hidden] { display: none !important; }
 
-.shell { display: grid; grid-template-columns: var(--side-width) 1fr; height: 100%; }
+.shell { display: grid; grid-template-columns: var(--side-width) 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }
 .shell.bare { grid-template-columns: 1fr; }
 .shell.bare .side { display: none; }
 
@@ -20,7 +20,7 @@ button { font: inherit; letter-spacing: inherit; color: inherit; cursor: pointer
 .nav-item:hover { background: var(--hover); }
 .nav-item[aria-current="page"] { background: var(--selected); }
 
-.main { display: flex; flex-direction: column; min-width: 0; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; } /* the page scrolls inside the window instead of growing past it */
 header.top { height: var(--top-height); display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 0 12px; -webkit-app-region: drag; }
 /* Windows: the system's three window buttons are drawn over the top right (titleBarOverlay) */
 .os-win header.top { padding-right: 150px; }
