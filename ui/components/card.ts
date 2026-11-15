@@ -122,8 +122,8 @@ function logo(c: CardView): HTMLElement {
 
 function cloneRow(c: CardView, o: FaceOptions): HTMLElement {
   const a = o.actions;
-  const note = o.cloneState === 'made' || o.cloneState === 'orig' ? '自己的聊天记录' : '';
-  const row = (...items: HTMLElement[]) => h('div', { class: 'alert' }, h('span', { class: 'alert-text' }, note), ...items);
+  // the empty text slot keeps the buttons at the right (站主 2026-11-15 dropped the 「自己的聊天记录」 line)
+  const row = (...items: HTMLElement[]) => h('div', { class: 'alert' }, h('span', { class: 'alert-text' }), ...items);
   switch (o.cloneState) {
     case 'orig': return row(btn('打开 ChatGPT', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'act strong'));
     case 'made': return row(btn('删除', TID.models.cloneRemove(c.vendor), a.cloneRemove, 'act quiet'), btn('打开', TID.models.cloneOpen(c.vendor), a.cloneOpen, 'act strong'));

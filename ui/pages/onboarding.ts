@@ -1,5 +1,5 @@
 // Onboarding (no left column). Owner: A11.
-// 欢迎「Codex 免费助手 / 国产大模型」+「开始安装」→ 进度一行一行打勾 → 直接进模型页（没有完成屏）O-01
+// 欢迎：只有一个「开始安装」（站主 2026-11-15 去掉了标题）→ 进度一行一行打勾 → 直接进模型页（没有完成屏）O-01
 // 已装的那一行由主进程直接发 done「已装好」O-02；能自己修的小问题显示「正在帮你修：…」O-08
 // 失败 → 故障屏：「再试一次」从失败处接着做 O-03、「复制日志」先预览且 Key 打码 O-04、「进群发给我们」→ 社群页 O-05
 // 已经配过模型 → 跳过引导 O-06：app.ts 按 app:state.configured 直接进模型页，不进这里
@@ -42,7 +42,6 @@ export const renderOnboarding: Page = ({ api, root, go }) => {
   const off = api.on('step', onStep);
 
   const welcome = () => view.replaceChildren(
-    h('h1', { class: 'onb-title' }, 'Codex 免费助手', h('br'), h('span', { class: 'onb-sub' }, '国产大模型')),
     h('button', { class: 'btn primary onb-start', type: 'button', 'data-testid': TID.onboarding.start, onclick: () => void run() }, '开始安装'));
 
   // Title, steps and「正在帮你修」share one left edge (a centered title over a left-aligned list looked off)

@@ -862,7 +862,7 @@ describe('分身', () => {
     expect(toastText()).toContain('「Kimi」');
     expect(q(TID.models.cloneOpen('kimi'))).toBeTruthy();
     expect(text('kimi')).toContain('分身');
-    expect(text('kimi')).toContain('自己的聊天记录');
+    expect(text('kimi')).not.toContain('自己的聊天记录');
   });
 
   it('C-01 做分身失败给出原因', async () => {

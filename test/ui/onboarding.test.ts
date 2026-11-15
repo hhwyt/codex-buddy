@@ -25,7 +25,7 @@ describe('onboarding', () => {
   test('O-01 欢迎屏只有标题和「开始安装」', () => {
     setup(() => ({ ok: true }));
     const view = get(TID.onboarding.root);
-    expect(view.textContent).toBe('Codex 免费助手国产大模型开始安装');
+    expect(view.textContent).toBe('开始安装');
     expect(get(TID.onboarding.start).className).toContain('primary');
     expect(readFileSync('ui/index.html', 'utf8')).toContain('href="onboarding.css"');
   });
