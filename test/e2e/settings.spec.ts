@@ -315,13 +315,14 @@ test('U-04 远程开关能隐藏某张卡或汉化入口', async () => {
 
 // Remote code replacing the bundled one and the offline cache are L2/L3 (services.test.ts, community.test.ts): here the
 // fake config server cannot serve the image, which must come from an https GitHub/jsDelivr address.
-test('H-02 社群页：从没取到远程配置时显示 App 自带的群码和两句话', async () => {
+test('H-02 社群页：从没取到远程配置时显示 App 自带的群码，旁边是小红书码', async () => {
   run = await launch({ seed: s => seedCodex(s) });
   run.config.setMode('jsdelivr', 'down');
   run.config.setMode('github', 'down');
   run = await run.relaunch();
   await finishOnboarding(run.page);
   await nav.community(run.page);
-  await expect(run.page.getByTestId(TID.community.root)).toHaveText('社群使用有问题？加群咨询还能学更多 Codex 用法和 AI 干货');
+  await expect(run.page.getByTestId(TID.community.root)).toHaveText('社群使用有问题？加群咨询企业微信群，扫码就进小红书关注小红书「黄金金不AI」，看更多 Codex 用法');
   await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', 'assets/community-qr.png');
+  await expect(run.page.getByTestId(TID.community.xhsQr)).toBeVisible();
 });

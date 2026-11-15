@@ -71,6 +71,7 @@ export const TID = {
   community: {
     root: 'community-root',
     qr: 'community-qr', // 企业微信群码
+    xhsQr: 'community-xhs-qr', // 小红书码
   },
   // S-01..S-08: security panel
   security: {

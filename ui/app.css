@@ -102,11 +102,13 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .flyer.go { animation: a6-to-trash .9s cubic-bezier(.5, 0, .3, 1) forwards; }
 @keyframes a6-to-trash { 0% { left: 128px; top: 70px; transform: scale(1); opacity: 1; } 70% { left: 248px; top: 150px; transform: scale(.55); opacity: 1; } 100% { left: 248px; top: 160px; transform: scale(.1); opacity: 0; } }
 
-/* 社群 (ui-design/nav-community.html v1): code centered, two lines under it */
+/* 社群 (ui-design/xhs-entry.html v1): the group code and the 小红书 code side by side, two lines under each */
 .community { height: 100%; display: flex; flex-direction: column; }
-.community-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+.community-body { flex: 1; display: flex; align-items: center; justify-content: center; gap: 56px; text-align: center; flex-wrap: wrap; }
+.community-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .community-qr { width: 220px; height: 220px; display: block; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--line); padding: 8px; background: var(--bg); image-rendering: pixelated; }
-.community-line { font-size: 17px; font-weight: 600; margin: 0; }
+.community-line { font-size: 17px; font-weight: 600; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.xhs-chip { background: var(--xhs); color: var(--on-ink); font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 6px; }
 .community-sub { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; }
 
 /* Security panel 🛡 */
