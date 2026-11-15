@@ -30,6 +30,20 @@ describe('onboarding', () => {
     expect(readFileSync('ui/index.html', 'utf8')).toContain('href="onboarding.css"');
   });
 
+  test('O-01 安装中和没装好：标题和每一步左边对齐', async () => {
+    let fail!: (o: Outcome) => void;
+    setup(() => new Promise<Outcome>(r => { fail = r; }));
+    get(TID.onboarding.start).click();
+    await flush();
+    const col = document.querySelector('.onb-steps')!;
+    expect([...col.children].map(c => c.className)).toEqual(['onb-head', 'progress', 'onb-fixing']);
+    fail({ ok: false, reason: 'x' } as Outcome);
+    await flush();
+    expect(document.querySelector('.onb-failure .onb-head + .progress')).not.toBeNull();
+    const css = readFileSync('ui/onboarding.css', 'utf8');
+    expect(css).toMatch(/\.onb-steps, \.onb-failure \{[^}]*align-items: flex-start[^}]*text-align: left/);
+  });
+
   test('O-01 点「开始安装」→ 进度依次打勾 → 进模型页', async () => {
     let finish!: (o: Outcome) => void;
     const f = setup(() => new Promise(r => { finish = r; }));

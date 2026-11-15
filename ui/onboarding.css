@@ -5,7 +5,7 @@
 .onb-start { padding: 12px 36px; font-size: 16px; }
 .onb-head { margin: 0; font-size: 20px; font-weight: 600; }
 .onb-fixing { margin: 0; color: var(--ink-2); }
-.onb-failure { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.onb-steps, .onb-failure { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; text-align: left; }
 .onb-reason { margin: 0; color: var(--red); }
 .onb-actions { display: flex; align-items: center; gap: 8px; }
 .onb .link { background: none; border: 0; color: var(--ink-2); padding: 8px 10px; text-decoration: underline; }

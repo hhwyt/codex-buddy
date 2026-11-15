@@ -45,7 +45,8 @@ export const renderOnboarding: Page = ({ api, root, go }) => {
     h('h1', { class: 'onb-title' }, 'Codex 免费助手', h('br'), h('span', { class: 'onb-sub' }, '国产大模型')),
     h('button', { class: 'btn primary onb-start', type: 'button', 'data-testid': TID.onboarding.start, onclick: () => void run() }, '开始安装'));
 
-  const installing = () => view.replaceChildren(h('h2', { class: 'onb-head' }, '正在安装 Codex'), progress.el, fixing);
+  // Title, steps and「正在帮你修」share one left edge (a centered title over a left-aligned list looked off)
+  const installing = () => view.replaceChildren(h('div', { class: 'onb-steps' }, h('h2', { class: 'onb-head' }, '正在安装 Codex'), progress.el, fixing));
 
   const failure = (reason: string) => view.replaceChildren(
     h('div', { class: 'onb-failure', 'data-testid': TID.onboarding.failure },
