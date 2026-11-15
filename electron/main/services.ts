@@ -21,6 +21,10 @@ import type { Handlers } from './ipc';
 
 /** How long app:state waits for the community QR code before answering without it */
 export const QR_WAIT_MS = 3000;
+/** app:state and wallet:get wait this long for the remote config, then answer from the cached (or bundled) copy; the page
+ *  gets a 'wallet' event when the fetched one changes the cards. Blocked jsDelivr + GitHub took 2 × 8 s, and the model
+ *  page sat blank all that time */
+export const REMOTE_GRACE_MS = 500;
 
 export interface CustomVendor { id: `custom-${string}`; name: string; baseUrl: string; model: string }
 
@@ -140,6 +144,7 @@ export function createServices(d: ServiceDeps) {
   let lastUpgradeSent = 'null';
   const refreshRemote = (): Promise<RemoteConfig> => {
     remoteLoaded = loadRemote(d.remoteUrls, d.fetchText, st.lastRemote, d.bundledRemote, d.remotePublicKey).then(r => {
+      const cardsBefore = JSON.stringify([remote.models, remote.switches]);
       remote = r.config;
       online = r.source === 'jsdelivr' || r.source === 'github';
       if (online) {
@@ -150,11 +155,19 @@ export function createServices(d: ServiceDeps) {
       }
       const u = upgradeRequired();
       if (JSON.stringify(u) !== lastUpgradeSent) { lastUpgradeSent = JSON.stringify(u); d.emit('upgradeRequired', u); }
+      // the page may already show cards from the cached copy (REMOTE_GRACE_MS): redraw them when models or switches moved
+      if (JSON.stringify([remote.models, remote.switches]) !== cardsBefore) d.emit('wallet', wallet());
       return remote;
     });
     return remoteLoaded;
   };
   const getRemote = () => remoteLoaded ?? refreshRemote();
+  /** The remote config if it comes within REMOTE_GRACE_MS, else go on with the copy we have (the fetch keeps going) */
+  const remoteSoon = async () => {
+    let timer: NodeJS.Timeout | undefined;
+    await Promise.race([getRemote(), new Promise(r => { timer = setTimeout(r, REMOTE_GRACE_MS); })]);
+    clearTimeout(timer);
+  };
   let qrData: string | null = null;
   const communityQr = async (): Promise<string | null> => {
     const url = remote.community.qrUrl;
@@ -446,7 +459,7 @@ export function createServices(d: ServiceDeps) {
   // ---------- handlers ----------
   const handlers: Handlers = {
     'app:state': async () => {
-      await getRemote();
+      await remoteSoon();
       const codex = await platform.findCodex();
       return {
         version: d.version, os: d.os, configured: st.onboarded, codexInstalled: !!codex,
@@ -468,7 +481,7 @@ export function createServices(d: ServiceDeps) {
     },
     'install:log': () => ({ text: hide(fs.readText(logFile) ?? '') }),
 
-    'wallet:get': async () => { await getRemote(); await refreshClones(); return wallet(); },
+    'wallet:get': async () => { await remoteSoon(); await refreshClones(); return wallet(); },
     'wallet:reorder': ({ order }) => { st.order = order.filter(v => visible().includes(v)); save(); },
     'wallet:mode': ({ mode }) => { st.mode = mode; save(); },
     'switch:start': ({ vendor }) => switchTo(vendor),

@@ -11,7 +11,7 @@ import { TEST_PUBLIC_KEY, testSign } from '../fakes/remote-test-key.mjs';
 import type { BuiltinVendorId, RemoteConfig } from '../../electron/core/types';
 import { aesCipher } from '../../electron/main/cipher';
 import type { EventName } from '../../electron/main/ipc-contract';
-import { createServices, isOurCatalog, onlyOurKey, QR_WAIT_MS, SOURCE_URL, type ServiceDeps } from '../../electron/main/services';
+import { createServices, isOurCatalog, onlyOurKey, QR_WAIT_MS, REMOTE_GRACE_MS, SOURCE_URL, type ServiceDeps } from '../../electron/main/services';
 import { createMacPlatform } from '../../electron/platform/mac';
 import { nodeFs } from '../../electron/platform/node-fs';
 import { sandboxClone, sandboxPlatform, sandboxZh } from '../../electron/platform/sandbox-codex';
@@ -599,6 +599,27 @@ describe('security, community, update, restore', () => {
     const state = fs.readFileSync(path.join(b.paths.buddyDir, 'state.json'), 'utf8');
     expect(state).not.toContain('plaintext-should');
     expect(() => build({ key: new Uint8Array(32).fill(9) }).h['security:get'](undefined as never)).not.toThrow();
+  });
+
+  test('M-01 远程配置下得慢（jsDelivr、GitHub 都卡着）：页面 0.5 秒内先拿到上次的或 App 自带的，下好后卡片再刷新', async () => {
+    let arrive!: (text: string) => void;
+    const slow = new Promise<string>(r => { arrive = r; });
+    fetchText = () => slow; // config.json and its .sig both wait for the same answer
+    const b = build();
+    const t0 = Date.now();
+    const [state, w] = await Promise.all([b.h['app:state'](undefined as never), b.h['wallet:get'](undefined as never)]);
+    expect(Date.now() - t0).toBeLessThan(REMOTE_GRACE_MS + 400);
+    expect(state.upgradeRequired).toBeNull();
+    expect(w.cards.map(c => c.vendor)).toContain('minimax');
+    events = [];
+    arrive(JSON.stringify({ ...bundled, switches: { ...bundled.switches, hiddenVendors: ['minimax'] } }));
+    await new Promise(r => setTimeout(r, 20));
+    const sent = events.filter(e => e.event === 'wallet');
+    expect(sent).toHaveLength(1);
+    expect((sent[0].payload as { cards: { vendor: string }[] }).cards.map(c => c.vendor)).not.toContain('minimax');
+    events = [];
+    await b.h['update:check'](undefined as never); // same config again: nothing to redraw
+    expect(events.filter(e => e.event === 'wallet')).toEqual([]);
   });
 
   test('H-02 社群码：联网时内联成 data: 地址，离线时为空', async () => {
