@@ -70,7 +70,7 @@ vi.mock('electron', async () => {
 import { BrowserWindow } from 'electron';
 import {
   BROWSER_PARTITION, BrowserClosed, browserHandlers, createRightBrowser, electronViewHost, keepOnScreen, openLoginWindows,
-  MIN_PAGE_WIDTH, pageZoom, viewBounds, widenBy, type BrowserState, type RightBrowser,
+  MIN_PAGE_WIDTH, pageZoom, SLIDE_MS, viewBounds, widenBy, type BrowserState, type RightBrowser,
 } from '../../electron/main/browser';
 import { fakeHost, type FakeHost } from './browser-fake-host';
 
@@ -95,7 +95,7 @@ beforeEach(() => {
 
 describe('right-side browser', () => {
   test('B-06 App 启动时浏览器是关着的，不记住上次的状态', async () => {
-    expect(rb.state()).toEqual({ open: false, mode: 'pip', url: '', canGoBack: false });
+    expect(rb.state()).toEqual({ open: false, mode: 'pip', url: '', canGoBack: false, width: 0 });
     expect(made).toBe(0);
     expect(rb.url()).toBe('');
     await expect(rb.evaluate('1')).rejects.toBeInstanceOf(BrowserClosed);
@@ -190,7 +190,7 @@ describe('right-side browser', () => {
     expect(rb.state().open).toBe(false);
     expect(host.destroyed).toBe(true);
     expect(host.size.width).toBe(980);
-    expect(states[states.length - 1]).toEqual({ open: false, mode: 'pip', url: '', canGoBack: false });
+    expect(states[states.length - 1]).toEqual({ open: false, mode: 'pip', url: '', canGoBack: false, width: 0 });
     // Reopening starts fresh (new view), PiP is the default mode
     await rb.open('https://x.example/b', { mode: 'pip' });
     expect(made).toBe(2);
@@ -231,6 +231,17 @@ describe('right-side browser', () => {
     await rb.open('https://x.example/', { mode: 'pip' });
     host.resize(1200, 800);
     expect(host.bounds).toEqual({ x: 1200 - 335, y: 800 - 225 + 31, width: 318, height: 177 });
+  });
+
+  test('B-02 状态里带展开后网页占的宽度：加宽了是 480，没加宽是半个窗口，画中画是 0；窗口变了再报一次', async () => {
+    await rb.open('https://x.example/', { mode: 'pip' });
+    expect(rb.state().width).toBe(0);
+    rb.show('expanded');
+    expect(rb.state().width).toBe(host.bounds!.width);
+    const n = states.length;
+    host.resize(1000, 700);
+    expect(states.length).toBe(n + 1);
+    expect(states.at(-1)!.width).toBe(host.bounds!.width);
   });
 
   test('M-08 等登录：已经在登录后的页面就直接算成功；等不到算超时', async () => {
@@ -301,6 +312,9 @@ describe('electron view host', () => {
     const b = createRightBrowser(() => electronViewHost(w));
     await b.open('https://bigmodel.cn/login', { mode: 'expanded' });
     expect(w.size).toEqual([1460, 680]);
+    // slides in from the window's right edge with the page (SLIDE_MS), then sits at its place
+    expect(fx.views[0].bounds).toEqual({ x: 1460, y: 53, width: 480, height: 627 });
+    await new Promise(r => setTimeout(r, SLIDE_MS + 60));
     expect(fx.views[0].bounds).toEqual({ x: 980, y: 53, width: 480, height: 627 });
     expect(b.state()).toMatchObject({ url: 'https://bigmodel.cn/login', canGoBack: true });
     b.setMode('pip');
@@ -318,6 +332,10 @@ describe('electron view host', () => {
     fx.screenWidth = 1000;
     await b.open('https://bigmodel.cn/fail', { mode: 'expanded' });
     expect(w.size).toEqual([1000, 700]);
+    b.close(); // closed in the middle of sliding in: the slide stops with it
+    const last = fx.views[1].bounds;
+    await new Promise(r => setTimeout(r, 80));
+    expect(fx.views[1].bounds).toEqual(last);
   });
 
   test('M-08 第二级：从页面网络响应里读到 Key（含 base64）', async () => {

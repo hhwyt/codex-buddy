@@ -14,6 +14,8 @@ export const EXPANDED_EXTRA_WIDTH = 480;
 export const MIN_WIDEN = 400;
 /** Height of the address bar the page draws above the expanded view */
 export const CHROME_BAR_HEIGHT = 53;
+/** The expanded view slides in from the right edge in step with the page (ui/pip.css browser-in, models.css) */
+export const SLIDE_MS = 450;
 /** PiP box drawn by the page (ui/pip.css): 320×210, 16px from the bottom right, 30px title bar + 1px line.
  *  The view sits inside the 1px border */
 export const PIP = { width: 318, height: 208, margin: 17, bar: 31 };
@@ -32,7 +34,8 @@ export function pageZoom(viewWidth: number): number {
 export type BrowserMode = 'pip' | 'expanded';
 export interface Bounds { x: number; y: number; width: number; height: number }
 export interface Size { width: number; height: number }
-export interface BrowserState { open: boolean; mode: BrowserMode; url: string; canGoBack: boolean }
+/** width: px the expanded view takes at the window's right edge, so the page can move out of its way; 0 otherwise */
+export interface BrowserState { open: boolean; mode: BrowserMode; url: string; canGoBack: boolean; width: number }
 
 /** Where the web view sits inside the window's content area */
 export function viewBounds(mode: BrowserMode, content: Size, widened: boolean): Bounds {
@@ -111,6 +114,7 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
 
   const state = (): BrowserState => ({
     open: !!host, mode, url: host?.currentUrl() ?? '', canGoBack: host?.canGoBack() ?? false,
+    width: host && mode === 'expanded' ? viewBounds('expanded', host.contentSize(), widenedBy > 0).width : 0,
   });
   const emit = () => onState(state());
   const place = () => {
@@ -136,7 +140,7 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
         body().then(w.resolve, w.reject);
       }
     });
-    h.onResize(place);
+    h.onResize(() => { place(); emit(); }); // the page follows the browser's width
     return h;
   }
 
@@ -238,6 +242,27 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   const onResize = () => { for (const cb of resizeCbs) cb(); };
   win.on('resize', onResize);
 
+  // The expanded view slides in from the window's right edge over SLIDE_MS (ease-out), as the page's frame and the
+  // card pile move; resizes and the small window are placed at once
+  let shown: Bounds | null = null;
+  let slide: ReturnType<typeof setInterval> | null = null;
+  const placeView = (b: Bounds) => {
+    if (slide) { clearInterval(slide); slide = null; }
+    const entering = b.y === CHROME_BAR_HEIGHT && shown?.y !== CHROME_BAR_HEIGHT;
+    shown = b;
+    if (!entering) { view.setBounds(b); return; }
+    const start = Date.now();
+    const from = b.x + b.width;
+    const frame = () => {
+      const t = Math.min(1, (Date.now() - start) / SLIDE_MS);
+      const ease = 1 - (1 - t) ** 3;
+      view.setBounds({ ...b, x: Math.round(from + (b.x - from) * ease) });
+      if (t >= 1 && slide) { clearInterval(slide); slide = null; }
+    };
+    frame();
+    slide = setInterval(frame, 16);
+  };
+
   /** x the window had before it slid left to widen on screen; put back when it narrows again */
   let slidFrom: number | null = null;
   const urls = new Map<string, string>();
@@ -272,7 +297,7 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
     goBack: () => wc.navigationHistory.goBack(),
     reload: () => wc.reload(),
     exec: <T>(script: string) => wc.executeJavaScript(script, true) as Promise<T>,
-    setBounds: b => view.setBounds(b),
+    setBounds: placeView,
     setZoom: f => { zoom = f; wc.setZoomFactor(f); },
     contentSize: () => { const [width, height] = win.getContentSize(); return { width, height }; },
     setContentWidth: width => {
@@ -294,6 +319,7 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
     onResize: cb => { resizeCbs.push(cb); },
     hasCookie: async (url, name) => (await wc.session.cookies.get({ url, name })).length > 0,
     destroy: () => {
+      if (slide) { clearInterval(slide); slide = null; }
       win.off('resize', onResize);
       try { wc.debugger.detach(); } catch { /* not attached */ }
       if (!win.isDestroyed()) win.contentView.removeChildView(view);

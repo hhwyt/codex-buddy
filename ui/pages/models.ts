@@ -27,6 +27,10 @@ const SPREAD_SCALE = 0.6;
 const SPREAD_GAP = 18;
 const SPREAD_COLS = 3;
 const SHAKE_MS = 400;
+/** .page's right padding (app.css): the browser covers it before it reaches the stage */
+const PAGE_PAD_RIGHT = 32;
+/** Space kept between the pile and the expanded browser */
+const BROWSER_GAP = 24;
 
 export const renderModels: Page = async ({ api, root }) => {
   const [view, state] = await Promise.all([api.invoke('wallet:get'), api.invoke('app:state')]);
@@ -389,6 +393,20 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     if (await customVendor(api)) { toast('加好了'); await refresh(); }
   }
 
+  // ---- beside the expanded browser (ui-design/app ?t=browser v1) ----
+  /** The pile moves into the free space left of a browser this wide (0 = closed / small window), smaller only if needed */
+  function besideBrowser(width: number): void {
+    page.classList.toggle('beside-browser', width > 0);
+    if (!width) return;
+    const stageWidth = stage.clientWidth;
+    const free = stageWidth - (width - PAGE_PAD_RIGHT) - BROWSER_GAP;
+    const scale = Math.max(0.5, Math.min(1, free / (CARD_WIDTH + 8)));
+    const x = Math.max((CARD_WIDTH / 2) * scale, free / 2);
+    page.style.setProperty('--beside-x', `${x}px`);
+    page.style.setProperty('--beside-scale', scale.toFixed(3));
+    page.style.setProperty('--beside-shift', `${x - stageWidth / 2}px`);
+  }
+
   // ---- events: model changed inside Codex (M-28), login progress, browser closed while scanning (M-09) ----
   const offs = [
     api.on('wallet', w => { if (switching || dragging) { pendingWallet = w; return; } applyWallet(w); }),
@@ -398,6 +416,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
       if (kind && front.kind !== kind) { front = { kind }; layout(); }
     }),
     api.on('browser', b => {
+      besideBrowser(b.open && b.mode === 'expanded' ? b.width : 0);
       if (!b.open && switching && (front?.kind === 'login' || front?.kind === 'create') && !inflight?.superseded) void api.invoke('switch:cancel');
     }),
   ];

@@ -219,7 +219,7 @@ describe('叠卡', () => {
     // the right-side browser closing because of our own cancel does not cancel twice
     api.emit('step', { flow: 'switch', id: 'login', state: 'start', text: '' });
     tap(card('deepseek'));
-    api.emit('browser', { open: false, mode: 'expanded', url: '', canGoBack: false });
+    api.emit('browser', { open: false, mode: 'expanded', url: '', canGoBack: false, width: 0 });
     await settle(20);
     expect(api.callsOf('switch:cancel').length).toBe(1);
     expect(api.callsOf('switch:start')).toEqual([{ vendor: 'openai' }, { vendor: 'deepseek' }]);
@@ -343,9 +343,9 @@ describe('叠卡', () => {
     api.handle('switch:cancel', () => { gate.resolve({ ok: false, kind: 'cancelled' }); });
     tap(card('zhipu'));
     await settle();
-    api.emit('browser', { open: true, mode: 'expanded', url: 'https://open.bigmodel.cn', canGoBack: false });
+    api.emit('browser', { open: true, mode: 'expanded', url: 'https://open.bigmodel.cn', canGoBack: false, width: 500 });
     expect(api.callsOf('switch:cancel')).toEqual([]);
-    api.emit('browser', { open: false, mode: 'expanded', url: '', canGoBack: false });
+    api.emit('browser', { open: false, mode: 'expanded', url: '', canGoBack: false, width: 0 });
     await settle();
     expect(api.callsOf('switch:cancel').length).toBe(1);
     expect(rowOf('deepseek')).toBe(0);
@@ -779,6 +779,29 @@ describe('叠卡：边角情况', () => {
     gate.resolve({ ok: false });
     await settle();
     expect(toastText()).toBe('没做成分身');
+  });
+});
+
+describe('右侧浏览器展开时（ui-design/app 浏览器第 1 版）', () => {
+  it('B-02 叠卡滑到浏览器左边剩下的地方，放不下就缩小，切换条跟着走；浏览器关了回到正中', async () => {
+    await mount();
+    const stage = document.querySelector<HTMLElement>('.models .stage')!;
+    Object.defineProperty(stage, 'clientWidth', { configurable: true, get: () => 800 });
+    const page = q(TID.models.root)!;
+    api.emit('browser', { open: true, mode: 'expanded', url: 'https://platform.deepseek.com', canGoBack: false, width: 500 });
+    // free = 800 − (500 − 32 page padding) − 24 gap = 308 → scale 308 / 388
+    expect(page.classList.contains('beside-browser')).toBe(true);
+    expect(page.style.getPropertyValue('--beside-x')).toBe('154px');
+    expect(page.style.getPropertyValue('--beside-scale')).toBe('0.794');
+    expect(page.style.getPropertyValue('--beside-shift')).toBe('-246px');
+    api.emit('browser', { open: true, mode: 'expanded', url: 'https://platform.deepseek.com', canGoBack: false, width: 100 });
+    expect(page.style.getPropertyValue('--beside-scale')).toBe('1.000'); // room enough: full size, just moved left
+    api.emit('browser', { open: true, mode: 'expanded', url: 'https://platform.deepseek.com', canGoBack: false, width: 900 });
+    expect(page.style.getPropertyValue('--beside-scale')).toBe('0.500'); // never smaller than half
+    api.emit('browser', { open: true, mode: 'pip', url: 'https://platform.deepseek.com', canGoBack: false, width: 0 });
+    expect(page.classList.contains('beside-browser')).toBe(false);
+    api.emit('browser', { open: false, mode: 'pip', url: '', canGoBack: false, width: 0 });
+    expect(page.classList.contains('beside-browser')).toBe(false);
   });
 });
 

@@ -9,8 +9,8 @@ import { fakeApi } from './onboarding.fake';
 let root: HTMLElement;
 beforeEach(() => { document.body.replaceChildren(); document.head.replaceChildren(); root = document.createElement('div'); document.body.append(root); });
 const get = (id: string) => byTestId(root, id);
-const pip = { open: true, mode: 'pip' as const, url: 'https://open.bigmodel.cn/usercenter/apikeys', canGoBack: false };
-const panel = { open: true, mode: 'expanded' as const, url: 'https://platform.deepseek.com/top_up', canGoBack: true };
+const pip = { open: true, mode: 'pip' as const, url: 'https://open.bigmodel.cn/usercenter/apikeys', canGoBack: false, width: 0 };
+const panel = { open: true, mode: 'expanded' as const, url: 'https://platform.deepseek.com/top_up', canGoBack: true, width: 500 };
 
 function setup() {
   const f = fakeApi();
@@ -56,6 +56,17 @@ describe('right-side browser', () => {
     get(TID.browser.expand)!.click();
     expect(f.invoke).toHaveBeenCalledTimes(1);
     expect(f.invoke).toHaveBeenCalledWith('browser:show', { mode: 'expanded' });
+  });
+
+  test('B-02 展开时外框和原生网页一样宽，页面拿到宽度好让开；缩回画中画后不再让', () => {
+    const f = setup();
+    f.emit('browser', panel);
+    const root = document.querySelector<HTMLElement>('.browser-host')!.parentElement!;
+    expect(root.classList.contains('browser-expanded')).toBe(true);
+    expect(root.style.getPropertyValue('--browser-width')).toBe('500px');
+    f.emit('browser', pip);
+    expect(root.classList.contains('browser-expanded')).toBe(false);
+    expect(root.style.getPropertyValue('--browser-width')).toBe('0px');
   });
 
   test('B-03 放大后能缩回画中画', () => {

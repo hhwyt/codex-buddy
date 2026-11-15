@@ -12,7 +12,9 @@
 .pip-view { flex: 1; pointer-events: none; } /* the page itself is the native view drawn on top; the DOM stand-in must not take clicks */
 @keyframes pip-blink { 50% { opacity: .25; } }
 
-.browser-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 480px; max-width: 50%; display: flex; flex-direction: column; background: var(--bg); border-left: 1px solid var(--line); pointer-events: auto; }
+.browser-panel { position: absolute; top: 0; right: 0; bottom: 0; width: var(--browser-width, 480px); display: flex; animation: browser-in .45s cubic-bezier(.2, .8, .2, 1); flex-direction: column; background: var(--bg); border-left: 1px solid var(--line); pointer-events: auto; }
 .browser-panel-bar { height: var(--top-height); display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--line); -webkit-app-region: no-drag; }
 .browser-panel-address { flex: 1; min-width: 0; height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--pill); background: var(--side); color: var(--ink-2); font: inherit; font-size: 12px; outline: none; }
 .browser-panel-view { flex: 1; }
+/* slides in with the native view (electron/main/browser.ts SLIDE_MS) and the card pile (models.css) */
+@keyframes browser-in { from { transform: translateX(100%); } }

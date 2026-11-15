@@ -94,7 +94,8 @@ export interface ConnectionView { host: string; allowed: boolean; at: number }
 export interface IpcEvents {
   step: StepView;
   wallet: WalletView;                       // M-28: model changed inside Codex
-  browser: { open: boolean; mode: 'pip' | 'expanded'; url: string; canGoBack: boolean };
+  /** width: px the expanded browser takes at the window's right edge (0 when closed or in the small window) */
+  browser: { open: boolean; mode: 'pip' | 'expanded'; url: string; canGoBack: boolean; width: number };
   connections: { app: ConnectionView[]; web: ConnectionView[] };
   update: { version: string; notes: string }; // U-01
   upgradeRequired: UpgradeRequiredView | null; // forced upgrade changed after a remote config refresh
