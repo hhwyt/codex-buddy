@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../ui/app';
 import { toast } from '../../ui/components/toast';
 import { TID } from '../../ui/testids';
-import { click, fakeApi, settle } from './settings.fake';
+import { appState, click, fakeApi, settle } from './settings.fake';
 
 const $ = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 
@@ -47,5 +47,34 @@ describe('左栏（W-02）', () => {
     click($(TID.shell.navSettings));
     await settle();
     expect($(TID.toast)).toBeNull();
+  });
+
+  it('强制升级：启动时就要升级 → 只有升级页，没有左栏，也不弹普通更新', async () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    const fake = fakeApi({ 'app:state': appState({ version: '0.1.0', upgradeRequired: { version: '0.2.0', notes: '', url: 'u' } }) });
+    const app = await createApp(document.getElementById('app')!, fake.api);
+    expect($(TID.upgrade.root)).not.toBeNull();
+    expect($(TID.shell.side)).toBeNull();
+    expect(app.route()).toBeNull();
+    await app.go('models');
+    expect($(TID.models.root)).toBeNull();
+    fake.emit('update', { version: '0.2.0', notes: '' });
+    expect($(TID.update.root)).toBeNull();
+  });
+
+  it('强制升级：用着用着配置抬高了下限 → 关掉右侧浏览器，整个窗口换成升级页', async () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    const fake = fakeApi();
+    const app = await createApp(document.getElementById('app')!, fake.api);
+    toast('还在', { ms: 60_000 });
+    fake.emit('upgradeRequired', null);
+    expect($(TID.upgrade.root)).toBeNull();
+    fake.emit('upgradeRequired', { version: '1.1.0', notes: '', url: 'u' });
+    expect($(TID.upgrade.root)).not.toBeNull();
+    expect($(TID.toast)).toBeNull();
+    expect(fake.called('browser:close')).toHaveLength(1);
+    expect(app.route()).toBeNull();
+    fake.emit('upgradeRequired', { version: '1.1.0', notes: '', url: 'u' });
+    expect(document.querySelectorAll(`[data-testid="${TID.upgrade.root}"]`)).toHaveLength(1);
   });
 });

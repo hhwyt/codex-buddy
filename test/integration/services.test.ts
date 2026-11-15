@@ -98,7 +98,7 @@ function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | '
     bridge: { baseUrlFor: (v, u) => { upstreams[v] = u; return `http://127.0.0.1:4555/${v}/v1`; }, isBridgeUrl: u => u.startsWith('http://127.0.0.1:4555') },
     cipher: aesCipher(opts.key ?? new Uint8Array(32).fill(7)),
     // The fake answers config.json; its .sig is signed with the test key, like the real release script does
-    fetchText: url => (url.endsWith('.sig') ? (forgedSig !== null ? Promise.resolve(forgedSig) : fetchText(url.slice(0, -4)).then(testSign)) : fetchText(url)), fetchBytes: url => fetchBytes(url),
+    fetchText: url => (url.endsWith('.sig') ? (forgedSig !== null ? Promise.resolve(forgedSig) : fetchText(url.slice(0, -4)).then(testSign)) : fetchText(url)), fetchBytes: (url, onProgress) => fetchBytes(url, onProgress),
     remotePublicKey: TEST_PUBLIC_KEY,
     remoteUrls: opts.remoteUrls ?? ['https://cdn.jsdelivr.net/gh/x/y@main/remote/config.json', 'https://raw.githubusercontent.com/x/y/main/remote/config.json'],
     bundledRemote: bundled, version: '0.1.0', os: opts.os ?? 'mac',
@@ -684,6 +684,50 @@ describe('security, community, update, restore', () => {
       fs.writeFileSync(file, JSON.stringify({ ...JSON.parse(fs.readFileSync(file, 'utf8')), lastRemote: null }));
       fetchText = async () => { throw new Error('offline'); };
       expect(await required(build({ key: new Uint8Array(32).fill(9) }))).toBeNull();
+    });
+  });
+
+  describe('强制升级：下载并安装', () => {
+    const blocked = () => { fetchText = async () => JSON.stringify({ ...bundled, minVersion: '0.2.0', latest: { ...bundled.latest, version: '0.3.0', macUrl: 'https://github.com/x/CodexBuddy-0.3.0.dmg', winUrl: 'https://github.com/x/CodexBuddy-Setup-0.3.0.exe' } }); };
+    const upgradeTexts = () => events.filter(e => e.event === 'step' && (e.payload as { flow: string }).flow === 'upgrade').map(e => (e.payload as { text: string }).text);
+
+    test('不需要升级时什么都不做', async () => {
+      expect(await build().h['upgrade:run'](undefined as never)).toEqual({ ok: false, reason: '已经是能用的版本了' });
+      expect(installed).toEqual([]);
+    });
+
+    test('Mac：按百分比报进度（同一个百分比只报一次），下好打开 dmg；再点一次直接打开，不重下', async () => {
+      blocked();
+      const urls: string[] = [];
+      fetchBytes = async (url, onProgress) => {
+        urls.push(url);
+        for (const got of [0, 1048576, 1048577, 2097152]) onProgress?.(got, 2097152);
+        return { type: 'application/octet-stream', data: new Uint8Array([7]) };
+      };
+      const b = build();
+      expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: true });
+      expect(urls).toEqual(['https://github.com/x/CodexBuddy-0.3.0.dmg']);
+      expect(upgradeTexts()).toEqual(['0%', '0% · 0.0 / 2.0 MB', '50% · 1.0 / 2.0 MB', '100% · 2.0 / 2.0 MB', '100%']);
+      const file = path.join(b.paths.buddyDir, 'downloads', 'CodexBuddy-0.3.0.dmg');
+      expect(installed).toEqual([file]);
+      expect([...fs.readFileSync(file)]).toEqual([7]);
+      expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: true });
+      expect(urls).toHaveLength(1);
+      expect(installed).toEqual([file, file]);
+    });
+
+    test('Windows：下载 exe 再运行安装包；不知道总大小时只报已下多少；下载失败报错、不留半截文件', async () => {
+      blocked();
+      fetchBytes = async () => { throw new Error('offline'); };
+      const b = build({ os: 'win' });
+      expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: false, reason: '下载没成功，检查一下网络再试' });
+      const file = path.join(b.paths.buddyDir, 'downloads', 'CodexBuddy-0.3.0.exe');
+      expect(fs.existsSync(file)).toBe(false);
+      events = [];
+      fetchBytes = async (url, onProgress) => { onProgress?.(524288, 0); return { type: 'application/octet-stream', data: new Uint8Array([1]) }; };
+      expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: true });
+      expect(upgradeTexts()).toEqual(['0%', '0.5 MB', '100%']);
+      expect(installed).toEqual([file]);
     });
   });
 

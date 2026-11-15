@@ -77,7 +77,7 @@ export function showUpdate(api: BuddyApi, root: HTMLElement, info: { version: st
 export function watchUpdates(api: BuddyApi, root: HTMLElement): () => void {
   const offer = (info: { version: string; notes: string }) => {
     if (dismissedRecently(info.version, Date.now())) return;
-    if (root.querySelector(`[data-testid="${TID.update.root}"]`)) return;
+    if (root.querySelector(`[data-testid="${TID.update.root}"], [data-testid="${TID.upgrade.root}"]`)) return; // forced upgrade owns the window
     showUpdate(api, root, info);
   };
   const off = api.on('update', offer);

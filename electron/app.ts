@@ -113,10 +113,18 @@ async function main(): Promise<void> {
       if (!r.ok) throw new Error(String(r.status));
       return r.text();
     },
-    fetchBytes: async url => {
-      const r = await guardedFetch(url, { signal: AbortSignal.timeout(60_000) });
+    fetchBytes: async (url, onProgress) => {
+      // With progress it is an app download (forced upgrade, ~90 MB): allow a slow line half an hour
+      const r = await guardedFetch(url, { signal: AbortSignal.timeout(onProgress ? 30 * 60_000 : 60_000) });
       if (!r.ok) throw new Error(String(r.status));
-      return { type: r.headers.get('content-type') ?? 'image/png', data: new Uint8Array(await r.arrayBuffer()) };
+      const type = r.headers.get('content-type') ?? 'image/png';
+      if (!onProgress || !r.body) return { type, data: new Uint8Array(await r.arrayBuffer()) };
+      const total = Number(r.headers.get('content-length')) || 0;
+      const parts: Uint8Array[] = [];
+      let received = 0;
+      const reader = r.body.getReader();
+      for (let c = await reader.read(); !c.done; c = await reader.read()) { parts.push(c.value); received += c.value.length; onProgress(received, total); }
+      return { type, data: new Uint8Array(Buffer.concat(parts)) };
     },
     // M-12: DeepSeek tells gift credit from topped-up money (GET /user/balance); other vendors: unknown
     balance: async (p, key) => {
@@ -142,7 +150,7 @@ async function main(): Promise<void> {
       if (!nfs.existsSync(out) && nfs.existsSync(packed)) { nfs.mkdirSync(path.dirname(out), { recursive: true }); nfs.writeFileSync(out, nfs.readFileSync(packed)); }
       return out;
     },
-    runInstaller: async file => { if (sandbox) record('open', file); else { await open(file); app.quit(); } },
+    runInstaller: async file => { if (sandbox) record('open', file); else { await open(file); if (os === 'win') app.quit(); } },
   });
 
   registerIpc({ ...services.handlers, ...browserHandlers(rb) });

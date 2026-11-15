@@ -6,13 +6,14 @@ import { windowApi, type BuddyApi } from './api.js';
 import { mountBrowser } from './components/pip.js';
 import { clearToasts } from './components/toast.js';
 import { h } from './dom.js';
-import { renderCommunity } from './pages/community.js';
+import { BUNDLED_QR, communityQr, renderCommunity } from './pages/community.js';
 import { renderModels } from './pages/models.js';
 import { renderOnboarding } from './pages/onboarding.js';
 import { openSecurity } from './pages/security.js';
 import { renderSettings } from './pages/settings.js';
 import type { Page, Route } from './pages/types.js';
 import { watchUpdates } from './pages/update.js';
+import { showUpgrade } from './pages/upgrade.js';
 import { TID } from './testids.js';
 
 const PAGES: Record<Route, Page> = { onboarding: renderOnboarding, models: renderModels, settings: renderSettings, community: renderCommunity };
@@ -44,8 +45,10 @@ export async function createApp(root: HTMLElement, api: BuddyApi): Promise<App> 
   const shell = h('div', { class: 'shell' }, side, h('main', { class: 'main' }, top, page));
   root.replaceChildren(shell);
 
+  let blocked = false;
   const app: App = {
     async go(route) {
+      if (blocked) return;
       if (typeof cleanup === 'function') cleanup();
       current = route;
       shell.classList.toggle('bare', route === 'onboarding');
@@ -57,9 +60,21 @@ export async function createApp(root: HTMLElement, api: BuddyApi): Promise<App> 
     },
     route: () => current,
   };
+  // Forced upgrade (remote minVersion): this one screen replaces everything, now or whenever a refresh raises the floor
+  const block = (u: typeof state.upgradeRequired) => {
+    if (!u) return;
+    if (!blocked && typeof cleanup === 'function') cleanup();
+    blocked = true;
+    current = null;
+    clearToasts();
+    void api.invoke('browser:close');
+    showUpgrade(api, root, u, { os: state.os, current: state.version, qr: communityQr(state.community.qrUrl) ?? BUNDLED_QR });
+  };
+  api.on('upgradeRequired', block);
   watchUpdates(api, root);
   mountBrowser(api, root);
-  await app.go(state.configured ? 'models' : 'onboarding');
+  if (state.upgradeRequired) block(state.upgradeRequired);
+  else await app.go(state.configured ? 'models' : 'onboarding');
   return app;
 }
 

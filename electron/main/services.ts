@@ -66,7 +66,7 @@ export interface ServiceDeps {
   cipher: Cipher;
   fetchText: Fetcher;
   /** Fetches bytes (community QR code, inlined as a data: URL because of the page's CSP) */
-  fetchBytes(url: string): Promise<{ type: string; data: Uint8Array }>;
+  fetchBytes(url: string, onProgress?: (received: number, total: number) => void): Promise<{ type: string; data: Uint8Array }>;
   remoteUrls: string[];
   bundledRemote: RemoteConfig;
   /** Ed25519 public key (PEM) a fetched remote config must be signed with (core/remote-key.ts) */
@@ -80,7 +80,7 @@ export interface ServiceDeps {
   connections(): { app: ConnectionView[]; web: ConnectionView[] };
   /** PNG of a vendor logo for a clone's icon */
   logoPng(vendor: string): string;
-  /** Windows update: run the downloaded installer and quit */
+  /** Windows: run the downloaded installer and quit. Mac (forced upgrade): open the downloaded dmg */
   runInstaller(file: string): Promise<void>;
 }
 
@@ -597,6 +597,33 @@ export function createServices(d: ServiceDeps) {
         return { ok: false, reason: '下载没成功，检查一下网络再试' };
       }
       emit({ id: 'download', state: 'done', text: '100%' });
+      return { ok: true };
+    },
+
+    'upgrade:run': async () => {
+      await getRemote();
+      const u = upgradeRequired();
+      if (!u) return { ok: false, reason: '已经是能用的版本了' };
+      const file = path.join(paths.buddyDir, 'downloads', `CodexBuddy-${u.version}.${d.os === 'mac' ? 'dmg' : 'exe'}`);
+      if (!fs.exists(file)) {
+        const emit = step('upgrade');
+        const mb = (n: number) => (n / 1048576).toFixed(1);
+        let shown = '';
+        emit({ id: 'download', state: 'start', text: '0%' });
+        try {
+          const { data } = await d.fetchBytes(u.url, (got, total) => {
+            const text = total > 0 ? `${Math.min(100, Math.floor((got * 100) / total))}% · ${mb(got)} / ${mb(total)} MB` : `${mb(got)} MB`;
+            if (text.split(' · ')[0] !== shown.split(' · ')[0]) emit({ id: 'download', state: 'start', text }); // one event per percent
+            shown = text;
+          });
+          fs.writeBytes(file, data);
+        } catch {
+          emit({ id: 'download', state: 'fail', text: '下载没成功' });
+          return { ok: false, reason: '下载没成功，检查一下网络再试' };
+        }
+        emit({ id: 'download', state: 'done', text: '100%' });
+      }
+      await d.runInstaller(file);
       return { ok: true };
     },
 

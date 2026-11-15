@@ -102,6 +102,17 @@ export const TID = {
     now: 'update-now', // 立即更新
     progress: 'update-progress',
   },
+  // forced upgrade screen (ui-design/force-upgrade.html v4)
+  upgrade: {
+    root: 'upgrade-root',
+    download: 'upgrade-download', // 下载新版 / 下载并安装
+    progress: 'upgrade-progress', // the ring
+    ask: 'upgrade-ask', // 有问题？加群咨询
+    qr: 'upgrade-qr',
+    qrClose: 'upgrade-qr-close',
+    reopen: 'upgrade-reopen', // Mac: 再打开安装包
+    quit: 'upgrade-quit', // Mac: 退出
+  },
   // shared components
   dialog: {
     root: 'dialog',

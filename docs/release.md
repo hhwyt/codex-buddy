@@ -17,6 +17,8 @@
 - 只升不降：App 记住自己接受过的最高 `minVersion`（加密存在本机），之后配置里改低、断网、一键还原都不会放开。要放开只能发一个更高版本的 App。
 - 用户从来没取到过远程配置（比如第一次打开就没网）时不拦。
 - `latest.version` 要不低于 `minVersion`，否则用户下载到的还是被拦的版本。
+- 挡住时整个窗口是升级页（强制升级原型第 4 版）：点按钮后 App 自己下载，圆环显示进度。Mac 下好打开 dmg，教用户拖进「应用程序」；Windows 下好运行安装包（旧版退出，装好打开新版）。
+- 所以 `latest.macUrl` / `latest.winUrl` 必须是**安装包本身的直链**（如 `https://github.com/hhwyt/codex-buddy/releases/download/v0.2.0/CodexBuddy-0.2.0.dmg`），不能是发布页；Mac 要发 `.dmg`（现在 `dist:mac` 只出 `dir`，发 Mac 版前要补 dmg 打包）。地址只能在 GitHub / jsDelivr 上，否则整份配置不认。
 
 ### 签名密钥
 

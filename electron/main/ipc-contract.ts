@@ -45,7 +45,7 @@ export interface AppStateView {
 /** The release to install before CodexBuddy can be used again; url = the download for this OS */
 export interface UpgradeRequiredView { version: string; notes: string; url: string }
 
-export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'repair'; id: string; state: 'start' | 'done' | 'fail'; text: string }
+export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'upgrade' | 'repair'; id: string; state: 'start' | 'done' | 'fail'; text: string }
 export interface Outcome { ok: boolean; reason?: string; [extra: string]: unknown }
 
 /** invoke channels: name → [args, result] */
@@ -82,6 +82,7 @@ export interface IpcChannels {
   'update:check': [void, { kind: 'new'; version: string; notes: string } | { kind: 'latest' } | { kind: 'offline' }]; // T-02
   'update:dismiss': [{ version: string }, void];                     // U-01
   'update:install': [void, Outcome];                                 // U-02, U-03
+  'upgrade:run': [void, Outcome];                                    // forced upgrade: download the required version, then Mac opens the dmg / Windows runs the installer and quits
   'restore:plan': [void, { lines: string[] }];                       // T-03
   'restore:run': [void, Outcome];                                    // T-04, C-10
   'shell:open-external': [{ url: string }, void];
@@ -116,6 +117,6 @@ export const CHANNELS: Channel[] = [
   'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:repair', 'codex:reinstall',
   'clone:make', 'clone:open', 'clone:remove', 'zh:set', 'zh:remove', 'browser:show', 'browser:close', 'browser:back',
   'browser:reload', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
-  'update:check', 'update:dismiss', 'update:install', 'restore:plan', 'restore:run', 'shell:open-external',
+  'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'restore:plan', 'restore:run', 'shell:open-external',
 ];
 export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired'];
