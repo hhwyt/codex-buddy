@@ -82,7 +82,8 @@ export function createMacClone(platform: Platform, deps: MacCloneDeps = {}): Clo
       .map(entry => {
         const appPath = path.join(paths.appsDir, entry);
         const meta = parseLauncher(fs.readText(launcherOf(appPath)));
-        return meta && { slug: meta.slug, appPath, codexHome: meta.codexHome, meta };
+        // A launcher that runs the main CODEX_HOME is Codex itself (the real-Codex sandbox copy), not a 分身
+        return meta && meta.codexHome !== paths.codexHome && { slug: meta.slug, appPath, codexHome: meta.codexHome, meta };
       })
       .filter((c): c is CloneInfo & { meta: MacCloneMeta } => !!c);
 
@@ -147,7 +148,8 @@ export function createMacClone(platform: Platform, deps: MacCloneDeps = {}): Clo
         fs.copy(source, app);
       }
       const plist = plistOf(app);
-      const exe = (await run('plutil', ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', plist])).trim();
+      // Source already started by a CodexBuddy launcher (the real-Codex sandbox copy): use the binary it runs
+      const exe = parseLauncher(fs.readText(launcherOf(app)))?.exe ?? (await run('plutil', ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', plist])).trim();
       await plistSet(plist, 'CFBundleName', spec.displayName);
       await plistSet(plist, 'CFBundleDisplayName', spec.displayName);
       await plistSet(plist, 'CFBundleIdentifier', `local.codexbuddy.${spec.slug}`);

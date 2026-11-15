@@ -1,9 +1,10 @@
 // CodexBuddy main process entry: builds the real pieces and hands them to main/services.ts (every IPC handler).
 // CODEXBUDDY_SANDBOX=<dir>: every path inside <dir> and Codex replaced by the sandbox stand-ins (tests, e2e).
 // CODEXBUDDY_ENDPOINTS=<json>: external addresses pointed at fake servers (core/endpoints.ts).
-// Real-vendor test runs (sandbox, no fake servers, Windows): CODEXBUDDY_REAL_CODEX=1 uses the real Store Codex next to
-// the user's own (platform/sandbox-real-win.ts); CODEXBUDDY_LOGIN_WINDOWS=1 opens the six login pages at start and keeps
-// <sandbox>/login-status.json up to date (which vendor is logged in).
+// Real-vendor test runs (sandbox, no fake servers): CODEXBUDDY_REAL_CODEX=1 uses the real Codex next to the user's own
+// (Windows: the Store package, platform/sandbox-real-win.ts; Mac: a copy of ChatGPT.app inside the sandbox,
+// platform/sandbox-real-mac.ts, where open / reveal / external links really happen); CODEXBUDDY_LOGIN_WINDOWS=1 opens
+// the six login pages at start and keeps <sandbox>/login-status.json up to date (which vendor is logged in).
 import { app, safeStorage, session, shell, type BrowserWindow } from 'electron';
 import * as nfs from 'node:fs';
 import * as path from 'node:path';
@@ -23,6 +24,7 @@ import { createMacClone, runCommand } from './platform/clone-mac';
 import { createWinClone } from './platform/clone-win';
 import { sandboxRoot } from './platform/sandbox';
 import { sandboxClone, sandboxPlatform, sandboxWinZhPs1, sandboxZh } from './platform/sandbox-codex';
+import { realSandboxMac } from './platform/sandbox-real-mac';
 import { realSandboxWin } from './platform/sandbox-real-win';
 import { createNodeWinShell } from './platform/win';
 import { createMacZh } from './platform/zh-mac';
@@ -39,20 +41,25 @@ if (sandbox) app.setPath('userData', path.join(sandbox, 'electron-user-data'));
 // Test runs (sandbox + fake servers): the window stays off screen (m1-decisions 2026-11-13); on Windows an off-screen
 // window counts as hidden and would stop painting, which screenshots need
 const testMode = !!sandbox && !!process.env.CODEXBUDDY_ENDPOINTS;
-const realCodex = !!sandbox && !testMode && os === 'win' && process.env.CODEXBUDDY_REAL_CODEX === '1';
+const realCodex = !!sandbox && !testMode && process.env.CODEXBUDDY_REAL_CODEX === '1';
 // WebRTC's mDNS responder listens on UDP 5353 on every network card, which makes Windows Firewall ask the user whether
 // to let CodexBuddy onto public networks. Official pages get no local WebRTC ports anyway (browser.ts WEBRTC_POLICY)
 app.commandLine.appendSwitch('disable-features', ['WebRtcHideLocalIpsWithMdns', ...(testMode ? ['CalculateNativeWinOcclusion'] : [])].join(','));
 
-// In a sandbox nothing is ever opened or launched: every open / reveal / external link goes to <sandbox>/opened.log
+// In a sandbox nothing is ever opened or launched: every open / reveal / external link goes to <sandbox>/opened.log.
+// Real-Codex runs on Mac are used by a person, so there they really happen (an installer still only goes to the log)
 const record = (kind: 'open' | 'reveal' | 'external', target: string) =>
   nfs.appendFileSync(path.join(sandbox!, 'opened.log'), JSON.stringify({ kind, target }) + '\n');
-const open = async (target: string) => { if (sandbox) record('open', target); else await shell.openPath(target); };
-const reveal = async (target: string) => { if (sandbox) record('reveal', target); else shell.showItemInFolder(target); };
-const openExternal = async (url: string) => { if (sandbox) record('external', url); else await shell.openExternal(url); };
+const logOnly = !!sandbox && !(realCodex && os === 'mac');
+const open = async (target: string) => { if (logOnly) record('open', target); else await shell.openPath(target); };
+const reveal = async (target: string) => { if (logOnly) record('reveal', target); else shell.showItemInFolder(target); };
+const openExternal = async (url: string) => { if (logOnly) record('external', url); else await shell.openExternal(url); };
 
 function buildPlatform(): { platform: Platform; clone: Clone; zh: ZhLauncher } {
   const base = pickPlatform();
+  // In a sandbox nothing is registered with LaunchServices
+  const run = sandbox ? (cmd: string, args: string[]) => (cmd.endsWith('lsregister') ? Promise.resolve('') : runCommand(cmd, args)) : runCommand;
+  if (realCodex && os === 'mac') return realSandboxMac(base.paths, { run });
   if (realCodex) {
     const local = process.env.LOCALAPPDATA || path.join(base.paths.home, 'AppData', 'Local');
     return realSandboxWin(base, {
@@ -61,8 +68,6 @@ function buildPlatform(): { platform: Platform; clone: Clone; zh: ZhLauncher } {
     });
   }
   const platform = sandbox ? sandboxPlatform(base, { root: sandbox, env: process.env, open, reveal }) : base;
-  // In a sandbox nothing is registered with LaunchServices
-  const run = sandbox ? (cmd: string, args: string[]) => (cmd.endsWith('lsregister') ? Promise.resolve('') : runCommand(cmd, args)) : runCommand;
   // Windows sandbox: clone data dirs under the sandbox's AppData, and codex.ps1 never runs
   const winAppData = path.join(platform.paths.home, 'AppData', 'Roaming');
   let clone = os === 'mac' ? createMacClone(platform, { run }) : createWinClone(platform, sandbox ? { appData: winAppData } : {});
@@ -127,7 +132,7 @@ async function main(): Promise<void> {
       if (!nfs.existsSync(out) && nfs.existsSync(packed)) { nfs.mkdirSync(path.dirname(out), { recursive: true }); nfs.writeFileSync(out, nfs.readFileSync(packed)); }
       return out;
     },
-    runInstaller: async file => { await open(file); if (!sandbox) app.quit(); },
+    runInstaller: async file => { if (sandbox) record('open', file); else { await open(file); app.quit(); } },
   });
 
   registerIpc({ ...services.handlers, ...browserHandlers(rb) });

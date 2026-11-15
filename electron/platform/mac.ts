@@ -39,6 +39,10 @@ export const macCli = (app: string) => path.join(app, 'Contents', 'Resources', '
 /** Where Codex lives: /Applications/ChatGPT.app, or <sandbox>/Applications/Test-ChatGPT.app in a sandbox */
 export const macCodexAppPath = (paths: Paths) => path.join(paths.appsDir, codexAppName(paths.appsDir));
 
+/** pgrep -f pattern for "a process of this Codex app runs": the bundle's own Contents/MacOS/ path, regex-escaped, so
+ *  it never matches another copy (the user's /Applications/ChatGPT.app next to a sandbox or clone copy) */
+export const macRunningPattern = (app: string) => `${app}/Contents/MacOS/`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export type Exec = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
 
 export const realExec: Exec = (cmd, args) => new Promise(resolve => {
@@ -108,7 +112,7 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
   /** Present only when CodexBuddy installed Codex itself; 还原 uninstalls nothing without it */
   const marker = path.join(paths.buddyDir, 'installed-codex.json');
 
-  const isCodexRunning = async () => (await exec('/usr/bin/pgrep', ['-f', path.join(app, 'Contents', 'MacOS') + '/'])).code === 0;
+  const isCodexRunning = async () => (await exec('/usr/bin/pgrep', ['-f', macRunningPattern(app)])).code === 0;
 
   const findCodex = async (): Promise<CodexInstall | null> => {
     if (!nodeFs.exists(app)) return null;

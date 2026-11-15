@@ -9,6 +9,7 @@ import { execFile } from 'node:child_process';
 import * as path from 'node:path';
 import { guardedRemove } from '../core/guard';
 import type { FileSystem } from '../core/types';
+import { macRunningPattern } from './mac';
 import { codexAppName } from './sandbox';
 import type { Platform, ZhLauncher } from './types';
 
@@ -116,7 +117,7 @@ export async function makeBadgedIcon(exec: Exec, fs: FileSystem, sourceIcon: str
 
 /** Whether a Codex app is running (L-05): any process whose command line is inside <app>/Contents/MacOS/ */
 export async function isMacCodexRunning(exec: Exec, app: string): Promise<boolean> {
-  return (await exec('/usr/bin/pgrep', ['-f', `${app}/Contents/MacOS/`])).code === 0;
+  return (await exec('/usr/bin/pgrep', ['-f', macRunningPattern(app)])).code === 0;
 }
 
 export function createMacZh(platform: Platform, deps: Partial<MacZhDeps> = {}): ZhLauncher {
@@ -149,7 +150,7 @@ export function createMacZh(platform: Platform, deps: Partial<MacZhDeps> = {}): 
       const plain = { cmd: '/usr/bin/open', args: ['-a', app] };
       writeZhRunner(fs, resources, {
         cmd: plain.cmd, args: [...plain.args, '--args'], version: codex.version, stateDir,
-        runningPattern: `${app}/Contents/MacOS/`,
+        runningPattern: macRunningPattern(app),
       });
       fs.writeText(executable, launcherScript(nodeRunner, plain));
       await exec('/bin/chmod', ['755', executable]);
