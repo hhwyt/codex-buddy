@@ -14,6 +14,10 @@ import type { Page } from './types.js';
 /** Step ids starting with this are「正在帮你修」lines, not progress rows (O-08) */
 export const FIX_STEP_PREFIX = 'fix';
 
+/** The Mac install's three steps (electron/platform/mac.ts), listed grey from the start; Windows rows appear as codex.ps1
+ *  reports them */
+export const MAC_STEPS = [{ id: 'download', text: '下载 Codex' }, { id: 'copy', text: '装进应用程序' }, { id: 'check', text: '检查 Codex' }];
+
 /** Second line of defense: main already redacts the log (O-04), the page masks anything key-shaped again */
 export function maskKeys(text: string): string {
   return text
@@ -25,7 +29,7 @@ export function maskKeys(text: string): string {
 export const renderOnboarding: Page = ({ api, root, go }) => {
   const view = h('div', { class: 'onb', 'data-testid': TID.onboarding.root });
   root.replaceChildren(view);
-  const progress = createProgress();
+  const progress = createProgress(document.documentElement.classList.contains('os-mac') ? MAC_STEPS : []);
   const fixing = h('p', { class: 'onb-fixing', 'data-testid': TID.onboarding.fixing, hidden: true });
   let running = false;
   let alive = true;

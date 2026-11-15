@@ -46,6 +46,22 @@ describe('onboarding', () => {
     expect(css).toMatch(/\.onb-failure \{[^}]*align-items: flex-start[^}]*text-align: left/);
   });
 
+  test('O-01 Mac 一点开始安装就列出全部三步（灰的），Windows 做到哪步出现哪步', async () => {
+    document.documentElement.classList.add('os-mac');
+    try {
+      setup(() => new Promise<Outcome>(() => undefined));
+      get(TID.onboarding.start).click();
+      await flush();
+      expect([...document.querySelectorAll<HTMLElement>('.progress-row')].map(r => [r.dataset.state, r.textContent]))
+        .toEqual([['pending', '下载 Codex'], ['pending', '装进应用程序'], ['pending', '检查 Codex']]);
+    } finally { document.documentElement.classList.remove('os-mac'); }
+    root.replaceChildren();
+    setup(() => new Promise<Outcome>(() => undefined));
+    get(TID.onboarding.start).click();
+    await flush();
+    expect(document.querySelectorAll('.progress-row')).toHaveLength(0);
+  });
+
   test('O-01 点「开始安装」→ 进度依次打勾 → 进模型页', async () => {
     let finish!: (o: Outcome) => void;
     const f = setup(() => new Promise(r => { finish = r; }));

@@ -42,4 +42,14 @@ describe('progress', () => {
     expect(overallPercent([{ state: 'start', text: '下载 250%' }])).toBe(33);
     expect(overallPercent([])).toBe(0);
   });
+
+  test('O-01 事先知道的步骤先灰着列出来，开始了变成转圈，做完打勾；灰的不算进度', () => {
+    const p = createProgress([{ id: 'download', text: '下载 Codex' }, { id: 'copy', text: '装进应用程序' }]);
+    const rows = [...p.el.children] as HTMLElement[];
+    expect(rows.map(r => [r.dataset.state, r.textContent])).toEqual([['pending', '下载 Codex'], ['pending', '装进应用程序']]);
+    p.update({ flow: 'install', id: 'download', state: 'start', text: '下载 Codex' });
+    expect(rows[0].dataset.state).toBe('start');
+    expect(p.el.children).toHaveLength(2); // the same row, not a new one
+    expect(p.ring.textContent).toBe('0%');
+  });
 });

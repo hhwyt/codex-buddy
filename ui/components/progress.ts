@@ -33,7 +33,8 @@ export function overallPercent(steps: { state: StepView['state']; text: string }
 
 const MARK: Record<StepView['state'], string> = { start: '', done: '✓', fail: '✕' };
 
-export function createProgress(): Progress {
+/** planned: rows shown grey before their step starts (Mac knows its three steps up front; Windows reports its own) */
+export function createProgress(planned: { id: string; text: string }[] = []): Progress {
   const el = h('ol', { class: 'progress' });
   const rows = new Map<string, { row: HTMLElement; mark: HTMLElement; text: HTMLElement }>();
   const steps = new Map<string, { state: StepView['state']; text: string }>();
@@ -42,6 +43,13 @@ export function createProgress(): Progress {
   const pctText = h('b', {}, '0', h('small', {}, '%'));
   ring.append(pctText);
   let shown = 0;
+  for (const p of planned) {
+    const mark = h('span', { class: 'progress-mark', 'aria-hidden': 'true' });
+    const text = h('span', { class: 'progress-text' }, p.text);
+    const row = h('li', { class: 'progress-row', 'data-testid': TID.onboarding.step(p.id), 'data-state': 'pending' }, mark, text);
+    rows.set(p.id, { row, mark, text });
+    el.append(row);
+  }
   return {
     el,
     ring,

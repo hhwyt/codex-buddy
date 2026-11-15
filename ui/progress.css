@@ -10,6 +10,8 @@
 .progress { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; text-align: left; min-width: 260px; }
 .progress-row { display: flex; align-items: center; gap: 10px; color: var(--ink-2); }
 .progress-row[data-state="done"] { color: var(--ink); }
+.progress-row[data-state="pending"] { color: var(--ink-3); }
+.progress-row[data-state="pending"] .progress-mark::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .progress-row[data-state="fail"] { color: var(--red); }
 .progress-mark { width: 18px; height: 18px; display: grid; place-items: center; font-size: 13px; flex: none; }
 .progress-row[data-state="done"] .progress-mark { color: var(--green); }
