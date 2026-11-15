@@ -18,7 +18,7 @@
 - 用户从来没取到过远程配置（比如第一次打开就没网）时不拦。
 - `latest.version` 要不低于 `minVersion`，否则用户下载到的还是被拦的版本。
 - 挡住时整个窗口是升级页（强制升级原型第 4 版）：点按钮后 App 自己下载，圆环显示进度。Mac 下好打开 dmg，教用户拖进「应用程序」；Windows 下好运行安装包（旧版退出，装好打开新版）。
-- 所以 `latest.macUrl` / `latest.winUrl` 必须是**安装包本身的直链**（如 `https://github.com/hhwyt/codex-buddy/releases/download/v0.2.0/CodexBuddy-0.2.0.dmg`），不能是发布页；Mac 要发 `.dmg`（现在 `dist:mac` 只出 `dir`，发 Mac 版前要补 dmg 打包）。地址只能在 GitHub / jsDelivr 上，否则整份配置不认。
+- 所以 `latest.macUrl` / `latest.winUrl` 必须是**安装包本身的直链**（如 `https://github.com/hhwyt/codex-buddy/releases/download/v0.2.0/CodexBuddy-0.2.0.dmg`），不能是发布页；Mac 发 `npm run dist:mac` 出的 `release/CodexBuddy-<版本>.dmg`。地址只能在 GitHub / jsDelivr 上，否则整份配置不认。
 
 ### 签名密钥
 
@@ -28,6 +28,6 @@
 
 ## 打包
 
-- 正式包：Mac `npm run dist:mac`，Windows `npm run dist`。打包时 electron-builder 按 `package.json` 里 `build.electronFuses` 打开 Electron fuses：不认 `NODE_OPTIONS` 和 `--inspect`，只从 `app.asar` 加载代码并校验它的完整性，cookie 加密存。`runAsNode` 保持打开，因为汉化版启动器要用 CodexBuddy 自己的 Electron 跑 `zh-runner.js`。另外正式包打不开 DevTools，命令行带 `--remote-debugging-port`、`--inspect` 之类的开关会直接退出（[`electron/main/hardening.ts`](../electron/main/hardening.ts)）。
-- 查 fuses：`npx @electron/fuses read --app release/mac-arm64/CodexBuddy.app`。
+- 正式包：Mac `npm run dist:mac` → `release/CodexBuddy-<版本>.dmg`（Intel + Apple 芯片通用，ad-hoc 签名：没有 Apple 开发者证书，浏览器下载的要右键「打开」放行一次；App 内强制升级自己下的不带隔离标记，直接能开），Windows `npm run dist`。打包时 electron-builder 按 `package.json` 里 `build.electronFuses` 打开 Electron fuses：不认 `NODE_OPTIONS` 和 `--inspect`，只从 `app.asar` 加载代码并校验它的完整性，cookie 加密存。`runAsNode` 保持打开，因为汉化版启动器要用 CodexBuddy 自己的 Electron 跑 `zh-runner.js`。另外正式包打不开 DevTools，命令行带 `--remote-debugging-port`、`--inspect` 之类的开关会直接退出（[`electron/main/hardening.ts`](../electron/main/hardening.ts)）。
+- 查 fuses：`npx @electron/fuses read --app release/mac-universal/CodexBuddy.app`。
 - 驱动测试（[`test/drive`](../test/drive)）用的包：`npm run dist:drive -- --mac dir` 或 `npm run dist:drive -- --win dir`。它不开 fuses、可以调试，只给 Playwright 用，不能发给用户。

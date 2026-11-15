@@ -17,7 +17,7 @@
     "check:ids": "node scripts/check-spec-ids.mjs",
     "preview": "scripts/preview.sh",
     "dist": "npm run build && electron-builder --win nsis --x64 --publish never",
-    "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never",
+    "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
     "dist:drive": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder -c build/drive.config.cjs --publish never"
   },
   "devDependencies": {
@@ -87,11 +87,18 @@
     "mac": {
       "target": [
         {
-          "target": "dir"
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
         }
       ],
-      "identity": null,
+      "identity": "-",
       "category": "public.app-category.developer-tools"
+    },
+    "dmg": {
+      "artifactName": "CodexBuddy-${version}.dmg",
+      "title": "CodexBuddy ${version}"
     }
   }
 }
