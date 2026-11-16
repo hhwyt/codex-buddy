@@ -6,17 +6,6 @@ import type { BuiltinVendorId, ProviderInfo } from './types';
 
 export const PROVIDERS: ProviderInfo[] = [
   {
-    id: 'deepseek', name: 'DeepSeek',
-    // 2026-11-13: GET /models on a real key lists only these two (deepseek-chat / -reasoner still answer, as old names)
-    baseUrl: 'https://api.deepseek.com/v1', wireApi: 'chat', defaultModel: 'deepseek-flash',
-    models: [
-      { slug: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', free: false, reasoning: [] },
-      { slug: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', free: false, reasoning: [] },
-    ],
-    loginUrl: 'https://platform.deepseek.com/sign_in', keysUrl: 'https://platform.deepseek.com/api_keys',
-    rechargeUrl: 'https://platform.deepseek.com/top_up', hosts: ['api.deepseek.com', 'platform.deepseek.com'],
-  },
-  {
     id: 'zhipu', name: '智谱',
     // Shipped in 0.1.x with wire_api = "responses" against /api/v1 (see main branch electron/buddy.ts)
     baseUrl: 'https://open.bigmodel.cn/api/v1', wireApi: 'responses', defaultModel: 'glm-4.5-flash',
@@ -28,6 +17,17 @@ export const PROVIDERS: ProviderInfo[] = [
     ],
     loginUrl: 'https://bigmodel.cn/login?redirect=%2Fapikey%2Fplatform', keysUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys',
     rechargeUrl: 'https://bigmodel.cn/finance-center/finance/pay', hosts: ['open.bigmodel.cn', 'bigmodel.cn'],
+  },
+  {
+    id: 'deepseek', name: 'DeepSeek',
+    // 2026-11-13: GET /models on a real key lists only these two (deepseek-chat / -reasoner still answer, as old names)
+    baseUrl: 'https://api.deepseek.com/v1', wireApi: 'chat', defaultModel: 'deepseek-flash',
+    models: [
+      { slug: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', free: false, reasoning: [] },
+      { slug: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', free: false, reasoning: [] },
+    ],
+    loginUrl: 'https://platform.deepseek.com/sign_in', keysUrl: 'https://platform.deepseek.com/api_keys',
+    rechargeUrl: 'https://platform.deepseek.com/top_up', hosts: ['api.deepseek.com', 'platform.deepseek.com'],
   },
   {
     id: 'kimi', name: 'Kimi',

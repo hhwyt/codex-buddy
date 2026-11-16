@@ -12,7 +12,7 @@ import { qwen } from './qwen';
 import type { Vendor } from './types';
 import { zhipu } from './zhipu';
 
-export const VENDORS: Record<BuiltinVendorId, Vendor> = { deepseek, zhipu, kimi, qwen, minimax, hunyuan, openai };
+export const VENDORS: Record<BuiltinVendorId, Vendor> = { zhipu, deepseek, kimi, qwen, minimax, hunyuan, openai };
 
 /** VENDORS with CODEXBUDDY_ENDPOINTS applied: an overridden vendor talks to the fake server, whose console API
  * POST <override>/api/keys creates the key (test/fakes/vendor-server.mjs) */

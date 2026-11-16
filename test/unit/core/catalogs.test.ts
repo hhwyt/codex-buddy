@@ -36,7 +36,7 @@ describe('catalogs', () => {
     expect(catalogSlugs('{"x":1}')).toEqual([]);
   });
   test('7 vendors in the default card order, each non-official one with models', () => {
-    expect(PROVIDERS.map(p => p.id)).toEqual(['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai']);
+    expect(PROVIDERS.map(p => p.id)).toEqual(['zhipu', 'deepseek', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai']);
     for (const p of PROVIDERS) if (!p.officialAccount) expect(p.models.length).toBeGreaterThan(0);
     expect(isBuiltin('kimi')).toBe(true);
     expect(isBuiltin('custom-x')).toBe(false);

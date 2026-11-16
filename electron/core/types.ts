@@ -4,7 +4,7 @@
 
 /** The 7 vendors, in the default card order (m1-decisions: DeepSeek, 智谱, Kimi, Qwen, MiniMax, 混元, OpenAI), plus
  *  user-added ones ("＋ 其他厂商") whose ids start with "custom-" */
-export const VENDOR_IDS = ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'] as const;
+export const VENDOR_IDS = ['zhipu', 'deepseek', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'] as const;
 export type BuiltinVendorId = (typeof VENDOR_IDS)[number];
 export type VendorId = BuiltinVendorId | `custom-${string}`;
 

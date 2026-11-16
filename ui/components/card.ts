@@ -10,7 +10,7 @@ export const CARD_PEEK = 50; // step between card heads in the pile
 export const CARD_TUCK = 22; // how far each head tucks under the card above it
 export const CARD_HEAD = 72; // a card below the top shows only this much (PEEK + TUCK); the rest is clipped
 
-const BUILTIN = ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'];
+const BUILTIN = ['zhipu', 'deepseek', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'];
 const LIGHT = new Set(['openai']);
 
 /** What the front card is doing, drawn on its face (approved-spec §1: 状态都显示在最上层那张卡上) */

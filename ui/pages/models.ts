@@ -14,6 +14,7 @@ import { CARD_HEAD, CARD_HEIGHT, CARD_PEEK, CARD_TUCK, CARD_WIDTH, cardFace, fac
 import { toast } from '../components/toast.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
+import { AUTO_FIRST_SWITCH } from './onboarding.js';
 import type { Page } from './types.js';
 
 type SwitchResult = Outcome & { seconds?: number; firstTime?: boolean; running?: boolean };
@@ -460,5 +461,9 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
 
   syncCards();
   layout();
+  // Just installed and nothing set up yet: set up the top card (智谱), then open Codex on it (站主 11-16)
+  let autoFirst = false;
+  try { autoFirst = sessionStorage.getItem(AUTO_FIRST_SWITCH) === '1'; sessionStorage.removeItem(AUTO_FIRST_SWITCH); } catch { /* none */ }
+  if (autoFirst && !wallet.active && order[0]) void switchTo(order[0]).finally(() => { void api.invoke('codex:open', {}); });
   return () => { for (const off of offs) off(); window.removeEventListener('resize', onResize); document.documentElement.classList.remove('scan-waiting'); };
 }

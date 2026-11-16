@@ -26,13 +26,13 @@ describe('wallet', () => {
   test('M-03 拖到最上层：切换', () => {
     const r = reduceWallet(start(), { type: 'drop', vendor: 'qwen', toIndex: 0 });
     expect(r.startSwitch).toBe('qwen');
-    expect(r.state.order.slice(0, 2)).toEqual(['qwen', 'deepseek']);
+    expect(r.state.order.slice(0, 2)).toEqual(['qwen', 'zhipu']);
   });
   test('M-05 拖了但没到最上层不切换，只调整顺序', () => {
     const s = start();
     const r = reduceWallet(s, { type: 'drop', vendor: 'hunyuan', toIndex: 2 });
     expect(r.startSwitch).toBeNull();
-    expect(r.state.order).toEqual(['deepseek', 'zhipu', 'hunyuan', 'kimi', 'qwen', 'minimax', 'openai']);
+    expect(r.state.order).toEqual(['zhipu', 'deepseek', 'hunyuan', 'kimi', 'qwen', 'minimax', 'openai']);
     expect(r.state.active).toBe('deepseek');
   });
   test('M-05 把正在用的卡往下拖：不切换', () => {

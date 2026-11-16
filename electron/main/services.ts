@@ -476,11 +476,8 @@ export function createServices(d: ServiceDeps) {
       const emit = step('install');
       const r = await platform.installCodex(e => { log(`${e.id} ${e.state} ${e.text}`); emit(e); });
       log(`install ${r.ok ? 'ok' : r.reason}`);
-      if (r.ok) {
-        st.onboarded = true; save();
-        // 站主 11-16：装完自动把 Codex 打开（打不开不影响安装结果）
-        try { await platform.openCodex({ zh: st.zh }); log('codex opened after install'); } catch { log('codex open after install failed'); }
-      }
+      // Codex is opened by the models page once the top card is set up (站主 11-16: 装完自动打开、默认用国产模型)
+      if (r.ok) { st.onboarded = true; save(); }
       return r;
     },
     'install:log': () => ({ text: hide(fs.readText(logFile) ?? '') }),

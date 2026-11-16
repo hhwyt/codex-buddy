@@ -309,7 +309,7 @@ describe('vendor details', () => {
     expect(t.external).toEqual([providerOf('openai').loginUrl]);
     expect(vendorsWith(parseEndpoints(undefined))).toEqual(VENDORS);
     const named = loginWindowTargets(VENDORS);
-    expect(named.map(t => t.name)).toEqual(['DeepSeek', '智谱', 'Kimi', 'Qwen', 'MiniMax', '混元']);
+    expect(named.map(t => t.name)).toEqual(['智谱', 'DeepSeek', 'Kimi', 'Qwen', 'MiniMax', '混元']);
     expect(named.map(t => t.url)).toEqual(t.inApp);
   });
 });

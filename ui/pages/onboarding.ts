@@ -13,6 +13,8 @@ import type { Page } from './types.js';
 
 /** Step ids starting with this are「正在帮你修」lines, not progress rows (O-08) */
 export const FIX_STEP_PREFIX = 'fix';
+/** sessionStorage flag: the models page sets up its top card once, right after a fresh install, then opens Codex */
+export const AUTO_FIRST_SWITCH = 'codexbuddy-auto-first-switch';
 
 /** The Mac install's three steps (electron/platform/mac.ts), listed grey from the start; Windows rows appear as codex.ps1
  *  reports them */
@@ -77,7 +79,11 @@ export const renderOnboarding: Page = ({ api, root, go }) => {
     }
     running = false;
     if (!alive) return;
-    if (ok) go('models');
+    if (ok) {
+      // 站主 11-16: right after installing, set up the top card (智谱) and then open Codex on it
+      try { sessionStorage.setItem(AUTO_FIRST_SWITCH, '1'); } catch { /* no storage: the user picks a card */ }
+      go('models');
+    }
     else failure(reason);
   }
 
