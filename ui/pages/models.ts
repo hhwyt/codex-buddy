@@ -14,7 +14,7 @@ import { CARD_HEAD, CARD_HEIGHT, CARD_PEEK, CARD_TUCK, CARD_WIDTH, cardFace, fac
 import { toast } from '../components/toast.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
-import { AUTO_FIRST_SWITCH } from './onboarding.js';
+import { autoFirstSwitch } from './onboarding.js';
 import type { Page } from './types.js';
 
 type SwitchResult = Outcome & { seconds?: number; firstTime?: boolean; running?: boolean };
@@ -42,6 +42,8 @@ export const renderModels: Page = async ({ api, root }) => {
 
 export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletView, opts: { codexMissing?: boolean } = {}): () => void {
   let wallet = initial;
+  /** Set once right after install: open Codex when the automatic first switch returns */
+  let openCodexAfterSwitch = false;
   let order: VendorKey[] = initial.order.slice();
   let mode = initial.mode;
   // M-16: Codex was deleted since last time → the top card offers 重新安装 right away
@@ -251,6 +253,8 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     layout();
     let r: SwitchResult;
     try { r = await api.invoke('switch:start', { vendor: v }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
+    // Right after install: Codex opens the moment the top card is set up (or given up), before any dialog
+    if (openCodexAfterSwitch) { openCodexAfterSwitch = false; void api.invoke('codex:open', {}); }
     switching = false;
     inflight = null;
     if (run.superseded) {
@@ -462,8 +466,9 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   syncCards();
   layout();
   // Just installed and nothing set up yet: set up the top card (智谱), then open Codex on it (站主 11-16)
-  let autoFirst = false;
-  try { autoFirst = sessionStorage.getItem(AUTO_FIRST_SWITCH) === '1'; sessionStorage.removeItem(AUTO_FIRST_SWITCH); } catch { /* none */ }
-  if (autoFirst && !wallet.active && order[0]) void switchTo(order[0]).finally(() => { void api.invoke('codex:open', {}); });
+  const autoFirst = autoFirstSwitch.pending;
+  autoFirstSwitch.pending = false;
+  if (autoFirst && !wallet.active && order[0]) { openCodexAfterSwitch = true; void switchTo(order[0]); }
+  else if (autoFirst) void api.invoke('codex:open', {});
   return () => { for (const off of offs) off(); window.removeEventListener('resize', onResize); document.documentElement.classList.remove('scan-waiting'); };
 }
