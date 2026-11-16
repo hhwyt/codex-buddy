@@ -239,6 +239,15 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   const fireNav = () => { wc.setZoomFactor(zoom); for (const cb of navCbs) cb(wc.getURL()); };
   wc.on('did-navigate', fireNav);
   wc.on('did-navigate-in-page', fireNav);
+  // Vendor sites sometimes answer a page with a passing 404 / 5xx from one of their servers (bigmodel.cn's login page,
+  // 11-16): reload it by itself, a few times, instead of leaving the user on 「404 Not Found」
+  let retries = 0;
+  wc.on('did-navigate', (_e, _url, code) => {
+    if (code < 400 || code === 401 || code === 403) { retries = 0; return; }
+    if (retries >= 4) return;
+    retries++;
+    setTimeout(() => { if (!wc.isDestroyed()) wc.reload(); }, 600 * retries);
+  });
   const onResize = () => { for (const cb of resizeCbs) cb(); };
   win.on('resize', onResize);
 
