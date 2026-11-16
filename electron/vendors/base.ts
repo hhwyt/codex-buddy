@@ -12,6 +12,9 @@ export interface VendorDetails {
   loggedIn?: (url: string) => boolean;
   /** Level 1: console API (same origin as the console page) that creates a key; none = start at level 2 */
   createKeyUrl?: string;
+  /** Level 1 for a console API that needs more than a POST with cookies (智谱: token header, organization and project
+   *  ids): a page script resolving to { status, body } like createKeyScript. Takes precedence over createKeyUrl */
+  createKeyPageScript?: string;
   /** Level 2: response URL pattern that may carry a freshly created key; default: key-ish paths on console hosts */
   keyResponse?: RegExp;
   /** Login told by a cookie instead of the URL: for a console that shows a logged-out visitor the same URL (百炼),
@@ -118,10 +121,10 @@ const COOKIE_POLL_MS = 1000;
 
 type Level1 = { ok: true; key: string } | { ok: false; fallthrough: boolean; detail?: string };
 
-async function level1(browser: BrowserDriver, url: string): Promise<Level1> {
+async function level1(browser: BrowserDriver, script: string): Promise<Level1> {
   let res: { status: number; body: string };
   try {
-    res = await browser.evaluate<{ status: number; body: string }>(createKeyScript(url));
+    res = await browser.evaluate<{ status: number; body: string }>(script);
   } catch (e) {
     if (isClosed(e)) throw e;
     return { ok: false, fallthrough: true };
@@ -174,8 +177,9 @@ export function makeVendor(provider: ProviderInfo, details: VendorDetails = {}):
           if (!ok) return { ok: false, reason: 'cancelled' };
         }
         browser.setMode('pip');
-        if (details.createKeyUrl) {
-          const r = await level1(browser, details.createKeyUrl);
+        const level1Script = details.createKeyPageScript ?? (details.createKeyUrl && createKeyScript(details.createKeyUrl));
+        if (level1Script) {
+          const r = await level1(browser, level1Script);
           if (r.ok) return { ok: true, key: r.key, level: 1 };
           if (!r.fallthrough) return { ok: false, reason: 'failed', detail: r.detail };
         }
