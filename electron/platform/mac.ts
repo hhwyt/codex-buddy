@@ -153,6 +153,8 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
       guardedRemove(nodeFs, tmp, roots);
       if ((await exec('/usr/bin/ditto', [path.join(mnt, name), tmp])).code !== 0) throw new Error('copy');
       nfs.renameSync(tmp, app);
+      // Copied by ditto, not the Finder: tell LaunchServices so Launchpad finds it right away (11-16, 启动台搜不到)
+      if (!sandboxed) await exec('/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', ['-f', app]);
     } finally {
       await exec('/usr/bin/hdiutil', ['detach', mnt, '-force']);
     }
