@@ -254,7 +254,8 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     let r: SwitchResult;
     try { r = await api.invoke('switch:start', { vendor: v }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
     // Right after install: Codex opens the moment the top card is set up (or given up), before any dialog
-    if (openCodexAfterSwitch) { openCodexAfterSwitch = false; void api.invoke('codex:open', {}); }
+    // Only once a domestic model really works (站主 11-16: 没配好 Key 时 ChatGPT 不应该启动)
+    if (openCodexAfterSwitch) { openCodexAfterSwitch = false; if (r.ok) void api.invoke('codex:open', {}); }
     switching = false;
     inflight = null;
     if (run.superseded) {
@@ -469,6 +470,5 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   const autoFirst = autoFirstSwitch.pending;
   autoFirstSwitch.pending = false;
   if (autoFirst && !wallet.active && order[0]) { openCodexAfterSwitch = true; void switchTo(order[0]); }
-  else if (autoFirst) void api.invoke('codex:open', {});
   return () => { for (const off of offs) off(); window.removeEventListener('resize', onResize); document.documentElement.classList.remove('scan-waiting'); };
 }

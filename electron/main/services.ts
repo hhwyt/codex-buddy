@@ -315,6 +315,7 @@ export function createServices(d: ServiceDeps) {
     try { r = await applyVendor(v, paths.codexHome, 'switch', abort.signal); } finally { if (switchAbort === abort) switchAbort = null; }
     if (!r.ok) {
       const { result: _r, ...out } = r;
+      log(`switch ${v} stopped: ${out.kind ?? ''} ${out.reason ?? ''}`);
       if (out.kind === 'no-balance') await openRecharge(v); // M-13: the recharge page opens enlarged
       return out;
     }
