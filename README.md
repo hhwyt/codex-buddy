@@ -1,80 +1,98 @@
-# Codex 搭子
+# CodexBuddy
 
-**一键装好 Codex，免费用 AI。**
+English | [简体中文](README.zh-CN.md)
 
-下载、双击、用微信扫一下码，Codex 就装好了，用的是智谱的免费模型，不用科学上网，不花一分钱。装好以后，还能在搭子里切换模型、切换中文 / 英文界面、改常用设置，或者一键还原到安装前的样子。
+**Use OpenAI's Codex with China's own AI models, set up in one click.**
 
-第一版只支持 Windows 10 和 Windows 11。
+CodexBuddy installs the Codex desktop app for you and connects it to a Chinese model provider: DeepSeek, Zhipu (智谱), Kimi, Qwen (通义), MiniMax or Hunyuan (混元). No VPN, no command line, no config files. Scan a QR code with WeChat, and CodexBuddy gets an API key from your own account on the provider's official site, tests it, and switches Codex over.
 
-## 能做什么
+It runs on macOS (Intel and Apple silicon) and Windows 10 / 11.
 
-**安装（4 个画面）**
+## What it does
 
-1. 欢迎：点「开始」，计时器开始走。
-2. 扫码：用微信扫码登录智谱。搭子会用你自己的智谱账号建一个 API Key，只保存在你的电脑上。
-3. 自动进行：检测电脑、安装 Codex、获取免费 Key、配置模型、测试连通，一行一行打勾。遇到常见问题会自己修，修不好就给你「一键复制日志」。
-4. 完成：显示「从零到能用」用了多少秒，点「打开 Codex」就能用。
+**First run**
 
-**装好以后**
+Click 开始安装 (Install). CodexBuddy downloads the official Codex app and installs it, ticking off each step under a progress ring. If Codex is already installed, it is left as it is.
 
-- 切换模型：智谱免费（排第一）、智谱付费、OpenAI 官方账号登录、其他厂商（自己填地址、Key、模型名）。每次切换前自动备份；切换后自动测试，测通了才保存。
-- 中文 / 英文：汉化版和英文原版一键切换，不用重装。
-- 常用设置：「AI 改文件前要不要问我」「思考深度：快 / 平衡 / 深」。
-- 还原：一键回到安装前的样子。
+**Switching models**
 
-## 安全
+Every provider is a bank card in a stack; the one in use sits on top.
 
-- Key 只存在你自己的电脑上。搭子留着备用的 Key 用 Windows 自带的加密（DPAPI）保存，只有你这个 Windows 账号能解开。
-- 日志和报错里不出现明文 Key，「复制日志」复制出来的内容也没有。
-- 不收费、不中转：Codex 直接连智谱（或你选的厂商），中间不经过我们的服务器。
+- Click a card (or drag it to the top) to switch. The first time, the provider's official sign-in page opens on the right: scan with WeChat, and CodexBuddy creates a key in your account and tests it before saving anything.
+- If the test fails, nothing changes and the card shakes back into place.
+- Change the key, top up your balance on the official page, or add another provider by hand (base URL, key, model).
+- The model you pick inside Codex shows on the card.
 
-## 它是怎么做的
+**Clones (分身)**
 
-- 外壳是 [Electron](https://www.electronjs.org/)，自带浏览器内核，Windows 10 老电脑不用另外装组件。整个项目只用 TypeScript。
-- 安装的核心逻辑直接用开源项目 [codex-install-made-easy](https://github.com/hhwyt/codex-install-made-easy) 的 `codex.ps1`，没有重写：下载官方 Codex 并校验、国内镜像和微软商店自动选源、断点续传、管理员授权、扫码建 Key、测出可用的免费模型、汉化版，以及几种已知故障的处理。搭子打开它的「机器可读进度」开关（`CODEX_SETUP_STEPS=1`），读 `STEP:<id>:<start|done|fail>:<说明>` 这样的行来驱动界面。
-- 装好以后的管理功能（读写 Codex 的配置、切换、测试、还原）在主进程 [`electron/buddy.ts`](electron/buddy.ts)。
+Turn a provider into its own app, for example a "DeepSeek" app with DeepSeek's icon. Each clone has its own chat history and settings and can run next to the original Codex.
+
+**Chinese interface**
+
+Switch Codex between its English original and a Chinese translation without reinstalling.
+
+**One-click restore**
+
+Put everything back the way it was before CodexBuddy: your Codex configuration, the Chinese launcher and the clones. Chat history is kept.
+
+**Community**
+
+The 社群 page has a WeChat Work group QR code for questions, and the author's Xiaohongshu account.
+
+## Privacy and security
+
+- **Your keys stay on your computer.** They are encrypted with AES-256-GCM; the encryption key is kept in the system keychain (macOS Keychain, Windows DPAPI). Keys never appear in logs or copied error reports.
+- **No middleman.** Codex talks to the provider you chose directly. CodexBuddy has no server of its own; when a provider only offers a Chat-style API, a small bridge runs locally on 127.0.0.1.
+- **Short allow-list.** CodexBuddy itself only connects to GitHub, jsDelivr and the providers' own domains. The 🛡 panel lists every host it and the built-in browser have contacted.
+- **Signed remote settings.** The model list, minimum version and community code come from [`remote/config.json`](remote/config.json), signed with Ed25519. The app ignores any copy whose signature does not match.
+- **Check it yourself.** The 🛡 panel can copy a prompt that asks an AI to review this source code for you.
+
+## How it is built
+
+[Electron](https://www.electronjs.org/) and TypeScript only.
 
 ```
-electron/main.ts            主进程：运行 codex.ps1、按行读 STEP 输出、内嵌智谱登录页
-electron/buddy.ts           主进程：读写配置，切换模型、版本、设置、还原
-electron/preload.ts         界面和主进程之间的桥
-ui/                    界面（HTML/CSS + TypeScript，编译到 ui/build/）
-  backend.ts           在 App 里调主进程；在普通浏览器里是模拟后端（预览模式）
-scripts/vendor/codex.ps1  从 codex-install-made-easy 同步过来的安装脚本
-scripts/preview.sh     在 Mac 的浏览器里预览界面
-docs/preview-scenario.md  预览的点击路线
+electron/
+  app.ts          entry: windows, services, network guard
+  core/           platform-free logic: providers, switching, catalogs, remote config, restore, allow-list
+  main/           main process: IPC handlers, right-side browser, local bridge, encryption, hardening
+  platform/       macOS and Windows: install Codex, clones, Chinese launcher
+  vendors/        sign-in and key creation for each provider
+ui/               the interface (TypeScript + CSS, compiled to ui/build/)
+remote/           remote config and its signature
+scripts/          signing, packaging and the vendored Windows installer (codex.ps1)
+test/             unit, integration, UI and end-to-end tests
+docs/             release notes and device test reports
 ```
 
-## 在浏览器里预览界面
+The Windows installation of Codex reuses `codex.ps1` from [codex-install-made-easy](https://github.com/hhwyt/codex-install-made-easy) and reads its machine-readable progress lines (`STEP:<id>:<start|done|fail>:<text>`).
 
-不需要 Windows，在 Mac 上就能把所有画面点一遍（后端是模拟的，不会改你的电脑）：
+## Develop
+
+Node.js 22.
 
 ```bash
 npm install
-scripts/preview.sh
+npm start            # build and run
+npm test             # unit, integration and UI tests
+npm run test:cov     # the same with coverage (85% minimum)
+npm run test:e2e     # end to end: the real Electron app, sandboxed, against fake servers
+npm run lint         # type check and source scan
 ```
 
-然后打开 <http://127.0.0.1:5180/>。点击路线见 [docs/preview-scenario.md](docs/preview-scenario.md)。
+Tests never touch your real `~/.codex` or installed apps: every run uses a throw-away sandbox.
 
-## 构建
-
-产物是一个一键安装包 `CodexBuddy-Setup-<版本>.exe`（NSIS，双击就装、装完自动打开，不用点「下一步」），约 88 MB。推到 `main` 后 GitHub Actions 会在 Windows 上构建一份（见 [.github/workflows/build.yml](.github/workflows/build.yml)）；在 Mac 上也能直接打：
+## Build
 
 ```bash
-npm install
-npm run dist
+npm run dist         # Windows installer: release/CodexBuddy-Setup-<version>.exe
+npm run dist:mac     # macOS: release/CodexBuddy-<version>.dmg (Intel + Apple silicon)
 ```
 
-还没有代码签名，第一次打开时 Windows 可能提示「Windows 已保护你的电脑」，点「更多信息 → 仍要运行」。
+Builds are not signed with a paid certificate yet. On Windows, SmartScreen may say "Windows protected your PC": choose More info → Run anyway. On macOS, right-click the app and choose Open the first time. Releasing is described in [docs/release.md](docs/release.md).
 
-## 赞助商
+## License
 
-搭子里「其他厂商」上方留了一个「推荐厂商」的位置，会明确标注「赞助」。免费的智谱永远排第一。
+[GNU AGPL-3.0-only](LICENSE). Copyright (C) 2026 北京序变科技有限公司.
 
-想合作请联系：（联系方式待补充）
-
-## 协议
-
-[GNU AGPL-3.0-only](LICENSE)，Copyright (C) 2026 北京序变科技有限公司。
-
-改了代码并拿去给别人用（包括通过网络提供服务），要按同一协议公开你改过的源代码。想贡献代码先看 [CONTRIBUTING.md](CONTRIBUTING.md)（需要签 [CLA](CLA.md)）。
+If you modify CodexBuddy and let others use it, including over a network, you must publish your modified source under the same license. To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md); contributions require signing the [CLA](CLA.md).

@@ -1,7 +1,7 @@
-# Release: push a tag v<version> (same as package.json) → build the Windows installer and the Mac test app,
-# attach build provenance, publish both on GitHub Releases, then bump remote/config.json's latest.version so the
-# app's update check (U-01) sees it. Mac builds are unsigned for now (站主 2026-11-13: 签名公证先不买), so the Mac
-# app's 立即更新 opens the download page (U-03).
+# Release: push a tag v<version> (same as package.json) → build the Windows installer and the Mac universal dmg,
+# attach build provenance, publish both on GitHub Releases. Mac builds are ad-hoc signed only (站主 2026-11-13:
+# 签名公证先不买). remote/config.json is NOT bumped here: it must be signed with the release key, which only lives on
+# the owner's Mac (docs/release.md: edit, node scripts/sign-remote-config.mjs, commit config.json + config.json.sig).
 name: release
 on:
   push:
@@ -47,24 +47,18 @@ jobs:
           test "$tag" = "v$version" || { echo "tag $tag does not match package.json $version"; exit 1; }
       - run: npm ci
       - run: npm run ${{ matrix.script }}
-      - name: Zip the Mac app
-        if: runner.os == 'macOS'
-        run: |
-          app="$(find release -maxdepth 2 -name 'CodexBuddy.app' -type d | head -1)"
-          version="$(node -p "require('./package.json').version")"
-          ditto -c -k --keepParent "$app" "release/CodexBuddy-${version}-mac-arm64.zip"
       - name: Build provenance
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
             release/*.exe
-            release/*.zip
+            release/*.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.os }}
           path: |
             release/*.exe
-            release/*.zip
+            release/*.dmg
           if-no-files-found: ignore
 
   publish:
@@ -85,33 +79,3 @@ jobs:
           prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}
           files: out/*
           fail_on_unmatched_files: true
-
-  bump-remote-config:
-    # The app reads remote/config.json through jsDelivr / GitHub: point latest.version at this release
-    needs: publish
-    if: ${{ !contains(inputs.tag || github.ref_name, '-') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - name: Set latest.version
-        run: |
-          tag="${{ inputs.tag || github.ref_name }}"
-          node -e '
-            const fs = require("fs");
-            const f = "remote/config.json";
-            const c = JSON.parse(fs.readFileSync(f, "utf8"));
-            c.latest.version = process.argv[1].replace(/^v/, "");
-            fs.writeFileSync(f, JSON.stringify(c, null, 2) + "\n");
-          ' "$tag"
-      - name: Commit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add remote/config.json
-          git diff --cached --quiet && exit 0
-          git commit -m "remote config: latest ${{ inputs.tag || github.ref_name }}"
-          git push origin HEAD:main

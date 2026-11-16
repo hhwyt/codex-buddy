@@ -7,6 +7,7 @@
 改 `remote/config.json` → `node scripts/sign-remote-config.mjs` → 提交 `config.json` 和 `config.json.sig`；强制升级就把 `minVersion` 改成要求的版本。
 
 - 两个文件必须在同一个提交里改。只改了 `config.json` 没重新签名，所有 App 都会拒收。
+- 发新版：推 `v<版本>` 标签，GitHub Actions（[`release.yml`](../.github/workflows/release.yml)）打 Windows 安装包和 Mac dmg 并发到 Releases；之后在本机把 `latest.version` 和下载直链改成新版、签名、提交。CI 上没有私钥，所以这一步不能交给 CI。
 - 签名脚本签的是文件的原样字节，签完不要再动 `config.json`（连空格和换行都不行）。
 - jsDelivr 有缓存，配置和签名可能一新一旧，这时 App 会自动改读 GitHub 的；想马上生效可以去 jsDelivr 清缓存。
 - 签名脚本会先用 App 里内置的公钥（[`electron/core/remote-key.ts`](../electron/core/remote-key.ts)）验一遍，私钥不对就报错，不会写出 `.sig`。
