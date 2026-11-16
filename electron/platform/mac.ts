@@ -168,6 +168,31 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
         progress({ id: 'download', state: 'done', text: 'Codex 已装好' });
         return (await findCodex()) ? { ok: true } : { ok: false, reason: '应用程序里已有同名的 App，没有覆盖它' };
       }
+      // TEMP demo for the 11-16 product video (revert this commit afterwards): ~/.codexbuddy/demo-fast-install names a
+      // ChatGPT.app already on disk; the download ring runs 0→100 in ~12 s and that copy is put in place instead
+      const demoApp = sandboxed ? null : nodeFs.readText(path.join(os.homedir(), '.codexbuddy', 'demo-fast-install'))?.trim();
+      if (demoApp && nodeFs.exists(demoApp)) {
+        progress({ id: 'download', state: 'start', text: '下载 Codex 0%' });
+        for (let pct = 4; pct <= 100; pct += 4) {
+          await new Promise(r => setTimeout(r, 480));
+          progress({ id: 'download', state: 'start', text: `下载 Codex ${pct}%` });
+        }
+        progress({ id: 'download', state: 'done', text: '下载 Codex' });
+        step = 'copy';
+        progress({ id: 'copy', state: 'start', text: '装进应用程序' });
+        const tmp = `${app}.partial`;
+        guardedRemove(nodeFs, tmp, roots);
+        if ((await exec('/usr/bin/ditto', [demoApp, tmp])).code !== 0) throw new Error('copy');
+        nfs.renameSync(tmp, app);
+        await exec('/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', ['-f', app]);
+        nodeFs.writeText(marker, JSON.stringify({ app }));
+        progress({ id: 'copy', state: 'done', text: '装进应用程序' });
+        step = 'check';
+        progress({ id: 'check', state: 'start', text: '检查 Codex' });
+        if (!(await findCodex())) throw new Error('check');
+        progress({ id: 'check', state: 'done', text: '检查 Codex' });
+        return { ok: true };
+      }
       progress({ id: 'download', state: 'start', text: '下载 Codex' });
       await resumableDownload(downloadUrl, dmg, doFetch, pct => progress({ id: 'download', state: 'start', text: `下载 Codex ${pct}%` }));
       progress({ id: 'download', state: 'done', text: '下载 Codex' });
