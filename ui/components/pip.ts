@@ -7,6 +7,7 @@
 import type { BuddyApi, IpcEvents } from '../../electron/main/ipc-contract.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
+import { toast } from './toast.js';
 
 export type BrowserState = IpcEvents['browser'];
 
@@ -41,7 +42,11 @@ export function mountBrowser(api: BuddyApi, root: HTMLElement): () => void {
         btn(TID.browser.back, '后退', '‹', () => void api.invoke('browser:back'), !s.canGoBack),
         btn(TID.browser.reload, '刷新', '↻', () => void api.invoke('browser:reload')),
         h('input', { class: 'browser-panel-address', 'data-testid': TID.browser.address, readonly: true, value: s.url, 'aria-label': '地址' }),
-        btn(TID.browser.shrink, '缩小', '⤡', () => void api.invoke('browser:show', { mode: 'pip' })),
+        btn(TID.browser.shrink, '缩小', '⤡', () => {
+          // A scan or 「创建」 on the official page needs the big page (in the small window the QR is too small to scan)
+          if (document.documentElement.classList.contains('scan-waiting')) { toast('扫完码再缩小'); return; }
+          void api.invoke('browser:show', { mode: 'pip' });
+        }),
         close()),
       h('div', { class: 'browser-panel-view' })));
   }

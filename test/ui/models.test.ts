@@ -848,6 +848,35 @@ describe('按窗口高度缩放（ui-design/app 滚动条第 2 版）', () => {
   });
 });
 
+describe('等扫码时不让缩小（ui-design/app 扫码第 1 版）', () => {
+  it('M-08 扫码登录、在官网点创建时整页标记「在等扫码」；测试连通时和切完后去掉；离开模型页也去掉', async () => {
+    await mount();
+    const gate = deferred<any>();
+    api.handle('switch:start', () => gate.promise);
+    const waiting = () => document.documentElement.classList.contains('scan-waiting');
+    expect(waiting()).toBe(false);
+    tap(card('kimi'));
+    await settle();
+    api.emit('step', { flow: 'switch', id: 'login', state: 'start', text: '扫码登录' });
+    expect(waiting()).toBe(true);
+    api.emit('step', { flow: 'switch', id: 'create', state: 'start', text: '在右边的官方页面点「创建」' });
+    expect(waiting()).toBe(true);
+    api.emit('step', { flow: 'switch', id: 'test', state: 'start', text: '测试连通' });
+    expect(waiting()).toBe(false);
+    api.emit('step', { flow: 'switch', id: 'login', state: 'start', text: '扫码登录' });
+    cleanup!();
+    cleanup = undefined;
+    expect(waiting()).toBe(false);
+    gate.resolve({ ok: true });
+    await settle();
+  });
+
+  it('B-02 浏览器展开、卡片让到左边时，「＋ 其他厂商」先藏起来', () => {
+    const css = readFileSync('ui/models.css', 'utf8');
+    expect(css).toContain('.models.switch.beside-browser .add { opacity: 0; pointer-events: none; }');
+  });
+});
+
 describe('分身', () => {
   it('C-09 模型页顶上「切换｜分身」来回切：摊开成 3 列，切换模式的状态不变', async () => {
     await mount(walletOf({ active: 'kimi', order: ['kimi', 'deepseek', 'zhipu', 'qwen', 'minimax', 'hunyuan', 'openai'] }, { deepseek: { cloneMade: true } }));

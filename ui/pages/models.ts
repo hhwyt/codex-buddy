@@ -140,6 +140,8 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     const n = order.length;
     page.className = `models ${mode}${isBusy() ? ' busy' : ''}${browserWidth ? ' beside-browser' : ''}`;
     page.dataset.mode = mode;
+    // ui-design/app ?t=scan v1: while the user scans or creates the key on the official page, the browser stays big
+    document.documentElement.classList.toggle('scan-waiting', waitingOnUser());
     for (const b of modeBar.querySelectorAll<HTMLElement>('.mode-seg')) b.setAttribute('aria-selected', String(b.dataset.m === mode));
     if (mode === 'switch') {
       order.forEach((v, i) => {
@@ -458,5 +460,5 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
 
   syncCards();
   layout();
-  return () => { for (const off of offs) off(); window.removeEventListener('resize', onResize); };
+  return () => { for (const off of offs) off(); window.removeEventListener('resize', onResize); document.documentElement.classList.remove('scan-waiting'); };
 }

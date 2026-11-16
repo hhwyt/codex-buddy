@@ -69,6 +69,19 @@ describe('right-side browser', () => {
     expect(root.style.getPropertyValue('--browser-width')).toBe('0px');
   });
 
+  test('M-08 等扫码时「缩小」不缩，只提示「扫完码再缩小」；扫完照常能缩', () => {
+    const f = setup();
+    f.emit('browser', panel);
+    document.documentElement.classList.add('scan-waiting');
+    try {
+      get(TID.browser.shrink)!.click();
+      expect(f.invoke).not.toHaveBeenCalled();
+      expect(document.querySelector(`[data-testid="${TID.toast}"]`)!.textContent).toBe('扫完码再缩小');
+    } finally { document.documentElement.classList.remove('scan-waiting'); }
+    get(TID.browser.shrink)!.click();
+    expect(f.invoke).toHaveBeenCalledWith('browser:show', { mode: 'pip' });
+  });
+
   test('B-03 放大后能缩回画中画', () => {
     const f = setup();
     f.emit('browser', panel);

@@ -12,7 +12,9 @@
 .models.switch.beside-browser { --stack-x: var(--beside-x); }
 .models.switch.beside-browser .stage { transform: scale(var(--beside-scale)); }
 .models.switch.beside-browser .mode { transform: translateX(var(--beside-shift)); }
-.models.switch .add { align-self: flex-start; margin-left: calc(var(--stack-x) - 190px); transition: margin-left .4s cubic-bezier(.2, .8, .2, 1); }
+/* ＋ 其他厂商 would sit half under the browser: hidden until the browser shrinks or closes */
+.models.switch.beside-browser .add { opacity: 0; pointer-events: none; }
+.models.switch .add { align-self: flex-start; margin-left: calc(var(--stack-x) - 190px); transition: margin-left .4s cubic-bezier(.2, .8, .2, 1), opacity .25s; }
 
 /* 切换｜分身 */
 .models .mode { display: flex; background: var(--selected); border-radius: var(--pill); padding: 3px; font-size: 13px; transition: transform .45s cubic-bezier(.2, .8, .2, 1); }

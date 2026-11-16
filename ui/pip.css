@@ -4,6 +4,9 @@
 .browser-btn { width: 26px; height: 26px; border: 0; border-radius: var(--r-sm); background: none; color: var(--ink-2); pointer-events: auto; }
 .browser-btn:hover:not(:disabled) { background: var(--hover); }
 .browser-btn:disabled { color: var(--ink-3); cursor: default; }
+/* while the user scans (ui-design/app ?t=scan v1) 缩小 is greyed: a click only says 扫完码再缩小 */
+.scan-waiting [data-testid="browser-shrink"] { color: var(--ink-3); cursor: not-allowed; }
+.scan-waiting [data-testid="browser-shrink"]:hover { background: none; }
 
 .pip { position: absolute; right: 16px; bottom: 16px; width: 320px; height: 210px; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: 0 8px 24px var(--shadow); overflow: hidden; pointer-events: auto; cursor: pointer; }
 .pip-bar { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
