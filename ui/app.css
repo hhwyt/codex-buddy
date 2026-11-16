@@ -28,6 +28,9 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .icon-btn:hover { background: var(--hover); }
 .page { flex: 1; overflow: auto; padding: 8px 32px 32px; }
 .pip-open .page { padding-bottom: 250px; } /* room above the picture-in-picture window (320x210, 16px inset) */
+/* 设置 beside the small window (ui-design/app ?t=settingspip v5): the content narrows so nothing sits under it */
+.settings { transition: max-width .3s cubic-bezier(.2, .8, .2, 1); }
+.pip-open .settings { max-width: calc(100% - 330px); }
 
 /* Buttons: at most one black primary per screen (UI-02) */
 .btn { border-radius: var(--pill); padding: 8px 18px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }

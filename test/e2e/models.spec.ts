@@ -371,7 +371,9 @@ test('M-02 从上往下：切到智谱、再切到 Kimi，最近用的排上面�
   await top('kimi');
   expect((await wallet(run.page)).order.slice(0, 2)).toEqual(['kimi', 'zhipu']); // the one used before comes second
   const boxes = await cardBoxes(run.page, ['kimi', 'zhipu']);
-  expect(boxes.zhipu.y - boxes.kimi.y).toBeCloseTo(240 - 22, 0);
+  // the page may be scaled to fit the window's height (models.ts fitHeight): distances on screen scale with it
+  const zoom = await run.page.evaluate(() => Number((document.querySelector('.models') as HTMLElement).style.zoom || 1));
+  expect(boxes.zhipu.y - boxes.kimi.y).toBeCloseTo((240 - 22) * zoom, 0);
   await shot('3-kimi');
   // gift credit → 先用着: the recharge page stays in the picture-in-picture while DeepSeek is the card in use
   run.vendors.setScenario('trial', 'deepseek');
@@ -386,6 +388,6 @@ test('M-02 从上往下：切到智谱、再切到 Kimi，最近用的排上面�
     const apart = b.x + b.width <= p.x || p.x + p.width <= b.x || b.y + b.height <= p.y || p.y + p.height <= b.y;
     expect(apart, id).toBe(true);
   }
-  expect((await card('deepseek').boundingBox())!.x + 380).toBeLessThanOrEqual(p.x);
+  expect((await card('deepseek').boundingBox())!.x + 380 * zoom).toBeLessThanOrEqual(p.x);
   await shot('4-pip');
 });

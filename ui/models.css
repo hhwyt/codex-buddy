@@ -6,7 +6,7 @@
    (page padding) left of the window edge and the PiP starts 336px from it, so card right ≤ 100% − 304px − 16px gap,
    centre ≤ 100% − 510px; never past the stage's left edge (190px = half a card) */
 .models { --stack-x: 50%; position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 4px; }
-.pip-open .models.switch { --stack-x: max(190px, min(50%, calc(100% - 510px))); }
+.pip-open .models.switch { --stack-x: max(190px, min(50%, calc(100% - 510px / var(--fit-zoom, 1)))); } /* 510 window px, whatever the page's fit zoom */
 /* Beside the expanded browser (ui-design/app ?t=browser v1): the pile slides into the free space left of it, scaled
    down only when it does not fit; the 切换｜分身 bar follows. models.ts sets --beside-x / --beside-scale / --beside-shift */
 .models.switch.beside-browser { --stack-x: var(--beside-x); }

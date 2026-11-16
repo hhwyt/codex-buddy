@@ -31,6 +31,8 @@ const SHAKE_MS = 400;
 const PAGE_PAD_RIGHT = 32;
 /** Space kept between the pile and the expanded browser */
 const BROWSER_GAP = 24;
+/** The model page never scales below this to fit the window's height (then it scrolls) */
+const MIN_FIT_ZOOM = 0.7;
 
 export const renderModels: Page = async ({ api, root }) => {
   const [view, state] = await Promise.all([api.invoke('wallet:get'), api.invoke('app:state')]);
@@ -136,7 +138,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   /** skip: the card under the finger keeps its own position */
   function layout(skip?: VendorKey): void {
     const n = order.length;
-    page.className = `models ${mode}${isBusy() ? ' busy' : ''}`;
+    page.className = `models ${mode}${isBusy() ? ' busy' : ''}${browserWidth ? ' beside-browser' : ''}`;
     page.dataset.mode = mode;
     for (const b of modeBar.querySelectorAll<HTMLElement>('.mode-seg')) b.setAttribute('aria-selected', String(b.dataset.m === mode));
     if (mode === 'switch') {
@@ -147,7 +149,10 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
         // the whole top card lies above everything; below it, each card under the one above
         if (v !== skip) { ys.set(v, slotY(i)); place(el, -CARD_WIDTH / 2, slotY(i)); el.style.zIndex = String(i === 0 ? n + 1 : n - i); }
       });
-      stage.style.height = `${n > 1 ? slotY(n - 1) + CARD_HEAD : CARD_HEIGHT}px`;
+      stageTarget = n > 1 ? slotY(n - 1) + CARD_HEAD : CARD_HEIGHT;
+      // the bottom card shows only its head, but its whole 240px box still reaches below the stage
+      stageReach = n > 1 ? slotY(n - 1) + CARD_HEIGHT : CARD_HEIGHT;
+      stage.style.height = `${stageTarget}px`;
     } else {
       const cw = CARD_WIDTH * SPREAD_SCALE, ch = CARD_HEIGHT * SPREAD_SCALE;
       const rank = (c: CardView) => ({ orig: 0, made: 1, making: 2, todo: 3 })[cloneState(c)];
@@ -160,9 +165,36 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
         place(el, x0 + (i % SPREAD_COLS) * (cw + SPREAD_GAP), Math.floor(i / SPREAD_COLS) * (ch + SPREAD_GAP), SPREAD_SCALE);
         el.style.zIndex = String(10 + i);
       });
-      stage.style.height = `${Math.ceil(list.length / SPREAD_COLS) * (ch + SPREAD_GAP)}px`;
+      stageTarget = Math.ceil(list.length / SPREAD_COLS) * (ch + SPREAD_GAP);
+      stageReach = stageTarget;
+      stage.style.height = `${stageTarget}px`;
     }
+    fitHeight();
   }
+
+  // ---- fit the window's height (ui-design/app ?t=scroll v2): the whole page scales down so nothing scrolls ----
+  let stageTarget = 0;
+  let stageReach = 0;
+  let zoom = 1;
+  /** Zoom on .models so its content fits the page area; measured at full size against the stage's target height
+   *  (it animates), never below MIN_FIT_ZOOM; a taller window gives full size back */
+  function fitHeight(): void {
+    const scroller = root.closest<HTMLElement>('.page') ?? root;
+    if (!scroller.clientHeight) return; // not on screen (tests, hidden)
+    page.style.zoom = '1';
+    // The page's own box, not scrollHeight: cards still flying between pile and spread would count there
+    const pad = getComputedStyle(scroller);
+    const own = page.offsetHeight - stage.offsetHeight + stageTarget; // the page laid out with the stage at its final height
+    const reach = stage.offsetTop + stageReach; // where the lowest card's box ends
+    const natural = (parseFloat(pad.paddingTop) || 0) + Math.max(own + (parseFloat(pad.paddingBottom) || 0), reach);
+    // rounded down, with 2px to spare: a rounded-up zoom left the page 1px too tall, and the scrollbar came back
+    zoom = Math.max(MIN_FIT_ZOOM, Math.min(1, Math.floor(((scroller.clientHeight - 2) / natural) * 1000) / 1000));
+    page.style.zoom = zoom === 1 ? '' : zoom.toFixed(3);
+    page.style.setProperty('--fit-zoom', zoom.toFixed(3)); // window-px rules (the PiP's room in models.css) divide by it
+    if (browserWidth) besideBrowser(browserWidth);
+  }
+  const onResize = () => fitHeight();
+  window.addEventListener('resize', onResize);
 
   function applyWallet(w: WalletView): void {
     wallet = w;
@@ -395,11 +427,14 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
 
   // ---- beside the expanded browser (ui-design/app ?t=browser v1) ----
   /** The pile moves into the free space left of a browser this wide (0 = closed / small window), smaller only if needed */
+  let browserWidth = 0;
   function besideBrowser(width: number): void {
+    browserWidth = width;
     page.classList.toggle('beside-browser', width > 0);
     if (!width) return;
+    // stage px are the page's own (zoomed) px; the browser's width and the page padding are window px
     const stageWidth = stage.clientWidth;
-    const free = stageWidth - (width - PAGE_PAD_RIGHT) - BROWSER_GAP;
+    const free = stageWidth - (width - PAGE_PAD_RIGHT + BROWSER_GAP) / zoom;
     const scale = Math.max(0.5, Math.min(1, free / (CARD_WIDTH + 8)));
     const x = Math.max((CARD_WIDTH / 2) * scale, free / 2);
     page.style.setProperty('--beside-x', `${x}px`);
@@ -423,5 +458,5 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
 
   syncCards();
   layout();
-  return () => { for (const off of offs) off(); };
+  return () => { for (const off of offs) off(); window.removeEventListener('resize', onResize); };
 }

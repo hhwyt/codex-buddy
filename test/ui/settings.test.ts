@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 // L3: settings page (T-01..T-03, L-01..L-07, U-04). Owner: A6.
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { motion, renderSettings } from '../../ui/pages/settings';
 import { TID } from '../../ui/testids';
@@ -327,5 +328,12 @@ describe('一键还原出错时（T-03）', () => {
     await settle();
     const ps = [...$(TID.dialog.root)!.querySelectorAll('p')].map(p => p.textContent);
     expect(ps).toEqual(['卸掉 CodexBuddy 装的 Codex', '聊天记录和分身的聊天记录都留着']);
+  });
+});
+
+describe('画中画开着时（ui-design/app 设置页第 5 版）', () => {
+  it('设置页内容变窄，给右下角的画中画让位，按钮不被挡', () => {
+    const css = readFileSync('ui/app.css', 'utf8');
+    expect(css).toContain('.pip-open .settings { max-width: calc(100% - 330px); }');
   });
 });

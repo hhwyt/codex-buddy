@@ -805,6 +805,49 @@ describe('右侧浏览器展开时（ui-design/app 浏览器第 1 版）', () =>
   });
 });
 
+describe('按窗口高度缩放（ui-design/app 滚动条第 2 版）', () => {
+  it('内容比窗口高 → 整页按比例缩小到正好放下；最小 0.7 倍；窗口够高恢复原大小', async () => {
+    let client = 600;
+    Object.defineProperty(root, 'clientHeight', { configurable: true, get: () => client });
+    root.style.padding = '8px 0 32px';
+    await mount();
+    const stage = document.querySelector<HTMLElement>('.models .stage')!;
+    const page = q(TID.models.root)!;
+    Object.defineProperty(stage, 'offsetHeight', { configurable: true, get: () => 540 });
+    Object.defineProperty(page, 'offsetHeight', { configurable: true, get: () => 700 });
+    window.dispatchEvent(new Event('resize'));
+    expect(page.style.zoom).toBe('0.808'); // (600 − 2) / (8 + 32 + 700 − 540 + 540 target), rounded down
+    client = 300;
+    window.dispatchEvent(new Event('resize'));
+    expect(page.style.zoom).toBe('0.700');
+    client = 900;
+    window.dispatchEvent(new Event('resize'));
+    expect(page.style.zoom).toBe('');
+  });
+
+  it('B-02 缩放后让开浏览器时，浏览器宽度按页面缩放换算；切换中重画卡片也不丢「让开」', async () => {
+    Object.defineProperty(root, 'clientHeight', { configurable: true, get: () => 400 });
+    await mount();
+    const stage = document.querySelector<HTMLElement>('.models .stage')!;
+    Object.defineProperty(stage, 'offsetHeight', { configurable: true, get: () => 540 });
+    Object.defineProperty(q(TID.models.root)!, 'offsetHeight', { configurable: true, get: () => 800 });
+    Object.defineProperty(stage, 'clientWidth', { configurable: true, get: () => 1000 });
+    window.dispatchEvent(new Event('resize')); // zoom 0.7
+    const page = q(TID.models.root)!;
+    api.emit('browser', { open: true, mode: 'expanded', url: 'https://x', canGoBack: false, width: 500 });
+    // free = 1000 − (500 − 32 + 24) / 0.7 = 297.1
+    expect(page.style.getPropertyValue('--beside-x')).toBe(`${(1000 - 492 / 0.7) / 2}px`);
+    const gate = deferred<any>();
+    api.handle('switch:start', () => gate.promise);
+    tap(card('kimi'));
+    await settle();
+    api.emit('step', { flow: 'switch', id: 'login', state: 'start', text: '扫码登录' });
+    expect(page.classList.contains('beside-browser')).toBe(true);
+    gate.resolve({ ok: false, kind: 'cancelled', reason: '取消了' });
+    await settle();
+  });
+});
+
 describe('分身', () => {
   it('C-09 模型页顶上「切换｜分身」来回切：摊开成 3 列，切换模式的状态不变', async () => {
     await mount(walletOf({ active: 'kimi', order: ['kimi', 'deepseek', 'zhipu', 'qwen', 'minimax', 'hunyuan', 'openai'] }, { deepseek: { cloneMade: true } }));
