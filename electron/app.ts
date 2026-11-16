@@ -53,6 +53,9 @@ const realCodex = !!sandbox && !testMode && process.env.CODEXBUDDY_REAL_CODEX ==
 // WebRTC's mDNS responder listens on UDP 5353 on every network card, which makes Windows Firewall ask the user whether
 // to let CodexBuddy onto public networks. Official pages get no local WebRTC ports anyway (browser.ts WEBRTC_POLICY)
 app.commandLine.appendSwitch('disable-features', ['WebRtcHideLocalIpsWithMdns', ...(testMode ? ['CalculateNativeWinOcclusion'] : [])].join(','));
+// No OS keychain (站主 11-16): Chromium's own cookie encryption ("codex-buddy Safe Storage") asked for the login
+// password on every rebuild. A fixed in-app key instead, like Codex keeping its keys in plain files
+if (process.platform === 'darwin') app.commandLine.appendSwitch('use-mock-keychain');
 
 // In a sandbox nothing is ever opened or launched: every open / reveal / external link goes to <sandbox>/opened.log.
 // Real-Codex runs on Mac are used by a person, so there they really happen (an installer still only goes to the log)
@@ -93,7 +96,8 @@ async function main(): Promise<void> {
   // Codex's traffic to the vendors goes through the whitelist and shows under 「CodexBuddy 连过的」 (S-04, S-05)
   const bridge = await startBridge(upstreams, { fetch: ((url: string, init?: RequestInit) => guardedFetch(url, init)) as typeof fetch });
   const keyFile = path.join(platform.paths.buddyDir, 'data-key.bin');
-  // Keychain only to read a key file written before 11-16, once; then the key is kept plain (owner-only)
+  // A key file written before 11-16 (wrapped by the real keychain) cannot be opened under use-mock-keychain on Mac:
+  // it is replaced and the old state set aside. Windows (DPAPI, no prompt) still unwraps it once
   const legacyUnwrap = sandbox ? undefined : (b: Buffer) => Buffer.from(safeStorage.decryptString(b), 'base64');
   const dataKey = loadDataKey(platform.fs, keyFile, legacyUnwrap);
   try { nfs.chmodSync(keyFile, 0o600); } catch { /* best effort */ }

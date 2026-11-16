@@ -141,7 +141,7 @@ test('O-01 开始安装：下载、装进应用程序、检查，依次打勾', 
   const events: string[] = [];
   expect(await p.findCodex()).toBeNull();
   expect(await p.installCodex(e => events.push(`${e.id}:${e.state}`))).toEqual({ ok: true });
-  expect(events).toEqual(['download:start', 'download:done', 'copy:start', 'copy:done', 'check:start', 'check:done']);
+  expect(events.filter((e, i) => e !== events[i - 1])).toEqual(['download:start', 'download:done', 'copy:start', 'copy:done', 'check:start', 'check:done']);
   expect(await p.findCodex()).toMatchObject({ location: app(), version: '26.1.0' });
   expect(fs.existsSync(path.join(paths.buddyDir, 'downloads', 'Codex.dmg'))).toBe(false);
   expect(fs.existsSync(`${app()}.partial`)).toBe(false);
@@ -193,6 +193,20 @@ test('O-07 安装中途断了再打开：已下载的部分不重下，从断点
   const n = requests.length;
   await resumableDownload(url, file, fetch);
   expect(requests).toHaveLength(n);
+});
+
+test('下载 Codex 时圆环跟着走：报整份文件的百分比，续传从已下的那部分起步', async () => {
+  const file = path.join(root, 'dl', 'Codex.dmg');
+  cutAfter = 50_000;
+  const first: number[] = [];
+  await expect(resumableDownload(url, file, fetch, p => first.push(p))).rejects.toThrow();
+  expect(first[0]).toBe(0);
+  cutAfter = null;
+  const second: number[] = [];
+  await resumableDownload(url, file, fetch, p => second.push(p));
+  expect(second[0]).toBeGreaterThan(0);
+  expect(second.at(-1)).toBe(100);
+  expect([...second].sort((a, b) => a - b)).toEqual(second);
 });
 
 test('O-07 断点已经是完整文件（服务器回 416）直接算下完；服务器不支持续传就从头下', async () => {

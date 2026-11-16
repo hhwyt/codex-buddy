@@ -75,8 +75,9 @@ export async function plistValue(plist: string, key: string, exec: Exec): Promis
   return r.code === 0 && r.stdout.trim() ? r.stdout.trim() : null;
 }
 
-/** Downloads url into file, resuming from file.part (O-07). A finished file is never fetched again */
-export async function resumableDownload(url: string, file: string, doFetch: typeof fetch): Promise<void> {
+/** Downloads url into file, resuming from file.part (O-07). A finished file is never fetched again. onPercent gets the
+ *  whole file's 0–100 each time it moves by at least 1 (only when the server says how big the file is) */
+export async function resumableDownload(url: string, file: string, doFetch: typeof fetch, onPercent?: (pct: number) => void): Promise<void> {
   if (nfs.existsSync(file)) return;
   const part = `${file}.part`;
   nfs.mkdirSync(path.dirname(file), { recursive: true });
@@ -86,11 +87,23 @@ export async function resumableDownload(url: string, file: string, doFetch: type
   if (!res.ok || !res.body) throw new Error(`download http ${res.status}`);
   const append = res.status === 206 && have > 0;
   const out = nfs.createWriteStream(part, { flags: append ? 'a' : 'w' });
+  let got = append ? have : 0;
+  const length = res.headers.get('content-length');
+  const total = length === null ? 0 : got + Number(length);
+  let shown = -1;
+  const report = () => {
+    if (!onPercent || total <= 0) return;
+    const pct = Math.min(100, Math.floor((got / total) * 100));
+    if (pct !== shown) { shown = pct; onPercent(pct); }
+  };
+  report();
   try {
     const reader = res.body.getReader();
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      got += value.length;
+      report();
       if (!out.write(value)) await new Promise<void>(r => out.once('drain', () => r()));
     }
   } finally {
@@ -154,7 +167,7 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
         return (await findCodex()) ? { ok: true } : { ok: false, reason: '应用程序里已有同名的 App，没有覆盖它' };
       }
       progress({ id: 'download', state: 'start', text: '下载 Codex' });
-      await resumableDownload(downloadUrl, dmg, doFetch);
+      await resumableDownload(downloadUrl, dmg, doFetch, pct => progress({ id: 'download', state: 'start', text: `下载 Codex ${pct}%` }));
       progress({ id: 'download', state: 'done', text: '下载 Codex' });
       step = 'copy';
       progress({ id: 'copy', state: 'start', text: '装进应用程序' });
