@@ -170,7 +170,7 @@ describe('叠卡', () => {
     api.handle('switch:start', () => gate.promise);
     tap(card('kimi'));
     await settle();
-    expect(text('kimi')).toContain('测试连通');
+    expect(text('kimi')).toContain('正在切换');
     tap(card('qwen'));
     drag(card('minimax'), -400);
     tap(card('kimi'));
@@ -314,7 +314,7 @@ describe('叠卡', () => {
     api.emit('step', { flow: 'switch', id: 'create', state: 'start', text: '在右边的官方页面点「创建」' });
     expect(text('zhipu')).toContain('点右边的「创建」');
     api.emit('step', { flow: 'switch', id: 'test', state: 'start', text: '测试连通' });
-    expect(text('zhipu')).toContain('测试连通');
+    expect(text('zhipu')).toContain('正在切换');
     api.emit('step', { flow: 'switch', id: 'login', state: 'start', text: '' });
     expect(text('zhipu')).toContain('扫码登录');
     api.emit('step', { flow: 'install', id: 'test', state: 'start', text: '' });
@@ -331,7 +331,7 @@ describe('叠卡', () => {
     api.handle('switch:start', () => gate.promise);
     tap(card('kimi'));
     await settle();
-    expect(text('kimi')).toContain('测试连通');
+    expect(text('kimi')).toContain('正在切换');
     gate.resolve({ ok: true });
     await settle();
   });

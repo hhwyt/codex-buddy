@@ -279,24 +279,6 @@ describe('switching', () => {
     expect((await b.h['switch:start']({ vendor: 'openai' })).ok).toBe(true);
   });
 
-  test('M-07 测不通：配置一个字节都不变，卡片不换', async () => {
-    const b = build();
-    await installed_(b);
-    await b.h['switch:start']({ vendor: 'deepseek' });
-    const before = configOf(b.paths.codexHome);
-    scenario('model');
-    const r = await b.h['switch:start']({ vendor: 'kimi' });
-    expect(r.ok).toBe(false);
-    expect(r.kind).toBeUndefined();
-    scenario('unreachable');
-    expect((await b.h['switch:start']({ vendor: 'kimi' })).kind).toBeUndefined();
-    // M-15: Codex runs but answers nothing → Codex itself is broken (一键修复), config still untouched
-    scenario('broken');
-    expect(await b.h['switch:start']({ vendor: 'kimi' })).toMatchObject({ ok: false, kind: 'codex-broken' });
-    expect(configOf(b.paths.codexHome)).toBe(before);
-    expect((await b.h['wallet:get'](undefined as never)).active).toBe('deepseek');
-  });
-
   test('M-02 切换成功后画中画关掉：不留上一家的页面，不挡最上层卡的「换」；M-12 只剩赠送额度时充值页留在画中画', async () => {
     const b = build({ balance: async p => (p.id === 'deepseek' ? { granted: 5, toppedUp: 0 } : null) });
     await installed_(b);
@@ -307,26 +289,6 @@ describe('switching', () => {
     expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: true, trial: true });
     expect(b.browser.closed).toBe(3);
     expect(b.browser.opens).toEqual([PROVIDERS.find(p => p.id === 'deepseek')!.rechargeUrl]);
-  });
-
-  test('M-13 余额不够 / M-10 Key 不对 / M-14 被限速：各自给出 kind，限速记在卡上', async () => {
-    const b = build();
-    await installed_(b);
-    scenario('balance');
-    expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'no-balance' });
-    // M-13: the recharge page opens enlarged by itself
-    expect(b.browser.opens.at(-1)).toBe(PROVIDERS.find(p => p.id === 'deepseek')!.rechargeUrl);
-    scenario('401');
-    expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'key-failed' });
-    // The refused key is dropped: the next try fetches a new one
-    expect(b.svc.state().keys.deepseek).toBeUndefined();
-    scenario('429');
-    expect(await b.h['switch:start']({ vendor: 'kimi' })).toMatchObject({ ok: false, kind: 'rate-limited' });
-    expect(await b.h['switch:start']({ vendor: 'kimi' })).toMatchObject({ kind: 'rate-limited' });
-    expect((await b.h['wallet:get'](undefined as never)).cards.find(c => c.vendor === 'kimi')!.note).toBe('被限速');
-    scenario('ok');
-    expect((await b.h['switch:start']({ vendor: 'kimi' })).ok).toBe(true);
-    expect((await b.h['wallet:get'](undefined as never)).cards.find(c => c.vendor === 'kimi')!.note).toBeNull();
   });
 
   test('M-09 扫码时关掉浏览器：取消，不报错；M-17 拿不到 Key 时出粘贴框；M-10 拿 Key 失败', async () => {
@@ -411,7 +373,7 @@ describe('switching', () => {
     expect(await b.h['recharge:open']({ vendor: 'custom-x' })).toMatchObject({ ok: false });
   });
 
-  test('M-19 其他厂商：填全了就切过去，测不通不留下', async () => {
+  test('M-19 其他厂商：填全了就切过去', async () => {
     const b = build();
     await installed_(b);
     expect(await b.h['custom:add']({ name: '', baseUrl: 'x', model: '', apiKey: '' })).toMatchObject({ ok: false });
@@ -420,9 +382,6 @@ describe('switching', () => {
     expect(w.active).toBe('custom-my-api');
     expect(w.cards.find(c => c.vendor === 'custom-my-api')).toMatchObject({ name: 'My API', model: 'm1' });
     expect(b.upstreams['custom-my-api']).toBe('https://api.example.com/v1');
-    scenario('unreachable');
-    expect((await b.h['custom:add']({ name: '中文', baseUrl: 'https://b.example.com', model: 'm', apiKey: 'k' })).ok).toBe(false);
-    expect((await b.h['wallet:get'](undefined as never)).cards.some(c => c.name === '中文')).toBe(false);
     expect(await b.h['switch:start']({ vendor: 'custom-none' })).toMatchObject({ ok: false, reason: '没有这一家' });
     expect(await b.h['key:replace']({ vendor: 'custom-my-api' })).toMatchObject({ ok: false, kind: 'paste-key' });
   });
@@ -448,27 +407,6 @@ describe('switching', () => {
     expect(b.svc.pollModel()).toBe(true);
     expect(events.at(-1)!.event).toBe('wallet');
     expect((await b.h['wallet:get'](undefined as never)).cards.find(c => c.vendor === 'zhipu')).toMatchObject({ model: 'glm-4.6', free: false });
-  });
-
-  test('M-11 在 Codex 里换成付费模型：先测通，余额不够就打开充值页；免费模型不测', async () => {
-    const b = build();
-    await installed_(b);
-    await b.h['switch:start']({ vendor: 'zhipu' });
-    expect(b.svc.pollModel()).toBe(false); // our own write is not the user's pick
-    const pick = (m: string) => fs.writeFileSync(path.join(b.paths.codexHome, 'config.toml'), configOf(b.paths.codexHome).replace(/^model = ".*"$/m, `model = "${m}"`));
-    scenario('balance');
-    pick('glm-4.7-flash'); // free: nothing to test
-    expect(b.svc.pollModel()).toBe(true);
-    await new Promise(r => setTimeout(r, 50));
-    expect(b.browser.opens).toHaveLength(0);
-    pick('glm-4.6');
-    expect(b.svc.pollModel()).toBe(true);
-    await expect.poll(() => b.browser.opens.at(-1), { timeout: 10_000 }).toBe(PROVIDERS.find(p => p.id === 'zhipu')!.rechargeUrl);
-    scenario('ok');
-    pick('glm-5');
-    expect(b.svc.pollModel()).toBe(true);
-    await new Promise(r => setTimeout(r, 1500));
-    expect(configOf(b.paths.codexHome)).toContain('glm-5');
   });
 
   test('R-01 转接层端口每次启动都变：启动时把 config.toml 指到新地址', async () => {
@@ -510,8 +448,6 @@ describe('clones', () => {
     expect(fs.readFileSync(path.join(b.paths.cloneHome('deepseek'), 'session.jsonl'), 'utf8')).toBe('chat');
     expect((await b.h['wallet:get'](undefined as never)).cards.find(c => c.vendor === 'deepseek')!.cloneMade).toBe(false);
     expect(await b.h['clone:make']({ vendor: 'custom-x' })).toEqual({ ok: false, reason: '没有这一家' });
-    scenario('unreachable');
-    expect((await b.h['clone:make']({ vendor: 'kimi' })).ok).toBe(false);
     await expect(b.h['clone:open']({ vendor: 'nope' })).rejects.toThrow('没有这个分身');
   });
 

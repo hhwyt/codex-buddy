@@ -1,10 +1,8 @@
-// The switch state machine: backup → write a scratch home → 测试连通 → save, or roll back. Owner: A1.
-// Invariant (M-07): a failed test leaves config.toml, auth.json and the model menu byte for byte unchanged, because
-// nothing under codexHome is written until the test has passed.
+// The switch state machine: backup → write config → save, or roll back. Owner: A1.
+// No connectivity test since 11-16 (站主: the user checks it in Codex); a failed save puts the old files back.
 // Writes model_catalog_json with only this vendor's models (M-24) or removes it for OpenAI (M-26).
 import { backup } from './backup';
 import { buildCatalog, CATALOG_FILE } from './catalogs';
-import { testConnectivity } from './connectivity';
 import { PROVIDERS } from './providers';
 import { getValue, joinLines, setConfig, splitLines, tomlString } from './toml';
 import type { Cipher, CodexRunner, Emit, FileSystem, ModelEntry, ProviderInfo, TestResult } from './types';
@@ -114,19 +112,9 @@ export async function switchVendor(req: SwitchRequest, deps: SwitchDeps): Promis
   const lines = splitLines(oldConfig);
   const model = official ? '' : pickModel(req);
   const catalog = official ? null : `${JSON.stringify(buildCatalog(req.models), null, 2)}\n`;
-  const scratch = deps.scratchDir();
-  fs.mkdirp(scratch);
-  const scratchCatalog = `${scratch}/${CATALOG_FILE}`;
-  if (catalog) fs.writeText(scratchCatalog, catalog);
-  fs.writeText(`${scratch}/config.toml`, joinLines(configFor(lines, req, catalog ? scratchCatalog : null)));
-  fs.writeText(`${scratch}/auth.json`, auth);
   emit({ id: 'write', state: 'done', text: '新配置准备好了' });
 
-  emit({ id: 'test', state: 'start', text: model ? `测试连通：让 ${model} 回一句话` : '测试连通：让 Codex 回一句话' });
-  const test = await testConnectivity(deps.runCodex, scratch);
-  if (!test.ok) return fail('test', test, { backupDir });
-  emit({ id: 'test', state: 'done', text: `通了，回复：${test.reply}` });
-
+  // No 测试连通 (站主 11-16: 「不要验证了，让用户手动在 ChatGPT 验证」): the config is saved as is
   emit({ id: 'save', state: 'start', text: '保存' });
   try {
     if (catalog) fs.writeText(catalogPath, catalog);
@@ -141,5 +129,5 @@ export async function switchVendor(req: SwitchRequest, deps: SwitchDeps): Promis
     return fail('save', { ok: false, reason: '保存没成功，配置已经退回原样' }, { backupDir });
   }
   emit({ id: 'save', state: 'done', text: '已保存' });
-  return { ok: true, reply: test.reply, backupDir, model: model || undefined };
+  return { ok: true, backupDir, model: model || undefined };
 }

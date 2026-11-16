@@ -76,7 +76,7 @@ function status(c: CardView, o: FaceOptions): HTMLElement {
   const s = o.front ? o.state : null;
   if (s?.kind === 'login') return h('span', { class: 'st' }, spin(), '扫码登录');
   if (s?.kind === 'create') return h('span', { class: 'st' }, spin(), '点右边的「创建」');
-  if (s?.kind === 'test') return h('span', { class: 'st' }, spin(), '测试连通');
+  if (s?.kind === 'test') return h('span', { class: 'st' }, spin(), '正在切换');
   if (s?.kind === 'fail') return h('span', { class: 'st bad' }, '✗ 连不上');
   if (s?.kind === 'balance') return h('span', { class: 'st bad' }, '余额不够');
   if (s?.kind === 'rate') return h('span', { class: 'st bad' }, '被限速');

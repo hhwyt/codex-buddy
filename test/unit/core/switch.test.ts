@@ -34,11 +34,11 @@ const req = (id: Parameters<typeof providerOf>[0], extra: Partial<SwitchRequest>
 const snapshotOf = (fs: FileSystem) => [fs.readText(`${HOME}/config.toml`), fs.readText(`${HOME}/auth.json`), fs.readText(`${HOME}/${CATALOG_FILE}`)];
 
 describe('switchVendor', () => {
-  test('M-02 切换成功：备份、测试连通、保存，菜单只有这一家', async () => {
+  test('M-02 切换成功：备份、保存（不测连通，站主 11-16），菜单只有这一家', async () => {
     const { fs, events, deps } = setup();
     const r = await switchVendor(req('deepseek'), deps);
-    expect(r).toMatchObject({ ok: true, reply: '好了', model: 'deepseek-flash', backupDir: '/u/backups/20261113000000-deepseek' });
-    expect(events.map(e => `${e.id}:${e.state}`)).toEqual(['backup:start', 'backup:done', 'write:start', 'write:done', 'test:start', 'test:done', 'save:start', 'save:done']);
+    expect(r).toMatchObject({ ok: true, model: 'deepseek-flash', backupDir: '/u/backups/20261113000000-deepseek' });
+    expect(events.map(e => `${e.id}:${e.state}`)).toEqual(['backup:start', 'backup:done', 'write:start', 'write:done', 'save:start', 'save:done']);
     const lines = splitLines(fs.readText(`${HOME}/config.toml`));
     expect(getValue(lines, '', 'model_provider')).toBe('deepseek');
     expect(getValue(lines, '', 'model')).toBe('deepseek-flash');
@@ -50,41 +50,6 @@ describe('switchVendor', () => {
     // The backup holds the old files; auth.json only encrypted
     expect(fs.readText('/u/backups/20261113000000-deepseek/config.toml')).toBe(ORIGINAL_CONFIG);
     expect(fs.readText('/u/backups/20261113000000-deepseek/auth.json.bin')).not.toContain('tok-aaaaaaaa');
-  });
-
-  test('M-07 测试连通没通过：配置、Key、菜单逐字节没变', async () => {
-    const { fs, events, deps } = setup(failWith('ERROR: unexpected status 401 Unauthorized: invalid api key'));
-    const before = snapshotOf(fs);
-    const r = await switchVendor(req('kimi'), deps);
-    expect(r).toMatchObject({ ok: false, code: 'auth', reason: 'Key 不对，或者没有权限用这个模型' });
-    expect(snapshotOf(fs)).toEqual(before);
-    expect(events.at(-1)).toEqual({ id: 'test', state: 'fail', text: 'Key 不对，或者没有权限用这个模型' });
-  });
-
-  test.each([
-    ['ERROR: unexpected status 402: insufficient balance', 'balance'],
-    ['ERROR: unexpected status 429 Too Many Requests', 'rate-limit'],
-    ['ERROR: unexpected status 404 Not Found: Model not available: x', 'model'],
-  ])('M-07 各种失败都不动配置 %s', async (err, code) => {
-    const { fs, deps } = setup(failWith(err));
-    const before = snapshotOf(fs);
-    expect((await switchVendor(req('zhipu'), deps)).code).toBe(code);
-    expect(snapshotOf(fs)).toEqual(before);
-  });
-
-  test('M-07 超时也不动配置', async () => {
-    const { fs, deps } = setup(async () => ({ out: '', err: '', timedOut: true }));
-    const before = snapshotOf(fs);
-    expect((await switchVendor(req('qwen'), deps)).code).toBe('timeout');
-    expect(snapshotOf(fs)).toEqual(before);
-  });
-
-  test('M-07 测试用的是临时目录，里面的菜单和配置指向临时目录', async () => {
-    const seen: string[] = [];
-    const { fs, deps } = setup(async (args, opts) => { seen.push(opts.codexHome); return { out: '好了', err: '', timedOut: false }; });
-    await switchVendor(req('minimax'), deps);
-    expect(seen).toEqual(['/tmp/scratch-1']);
-    expect(getValue(splitLines(fs.readText('/tmp/scratch-1/config.toml')), '', 'model_catalog_json')).toBe(`/tmp/scratch-1/${CATALOG_FILE}`);
   });
 
   test('M-24 每一家切换后菜单里只有这一家的模型', async () => {
@@ -219,20 +184,6 @@ describe('switchVendor with real files and fake Codex', () => {
     execFile(process.execPath, [fakeCodex, ...args], { env: { ...process.env, CODEX_HOME: opts.codexHome, FAKE_CODEX_SCENARIO: scenario }, timeout: opts.timeoutMs }, (e, out, err) => resolve({ out: String(out), err: String(err), timedOut: false }));
   });
   const bytes = (dir: string) => Object.fromEntries(nodeFs.readdirSync(dir).map(f => [f, nodeFs.readFileSync(path.join(dir, f)).toString('hex')]));
-
-  test.each(['401', 'balance', 'model', 'unreachable'])('M-07 假 Codex 返回 %s：文件逐字节没变', async scenario => {
-    const root = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'cb-a1-'));
-    const home = path.join(root, '.codex');
-    realFs.writeText(path.join(home, 'config.toml'), ORIGINAL_CONFIG);
-    realFs.writeText(path.join(home, 'auth.json'), ORIGINAL_AUTH);
-    const before = bytes(home);
-    let n = 0;
-    const deps: SwitchDeps = { fs: realFs, cipher: testCipher, runCodex: runner(scenario), now: () => new Date(), scratchDir: () => path.join(root, `s${++n}`), emit: () => {} };
-    const r = await switchVendor({ ...req('deepseek'), codexHome: home, backupRoot: path.join(root, 'b') }, deps);
-    expect(r.ok).toBe(false);
-    expect(bytes(home)).toEqual(before);
-    nodeFs.rmSync(root, { recursive: true, force: true });
-  });
 
   test('M-24 假 Codex 按清单检查：菜单里的模型都能用', async () => {
     const root = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'cb-a1-'));
