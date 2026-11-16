@@ -12,7 +12,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-import { aesCipher, loadDataKey, plainWrap } from '../../electron/main/cipher';
+import { aesCipher, loadDataKey } from '../../electron/main/cipher';
 import { registerIpc, sendEvent } from '../../electron/main/ipc';
 import { CHANNELS } from '../../electron/main/ipc-contract';
 import { nodeFs } from '../../electron/platform/node-fs';
@@ -36,14 +36,29 @@ describe('cipher', () => {
     expect(() => aesCipher(new Uint8Array(16))).toThrow('32 bytes');
   });
 
-  test('S-08 数据密钥第一次生成并包一层存下，之后读回同一把', () => {
+  test('S-08 数据密钥第一次生成后明文存（不走钥匙串），之后读回同一把', () => {
     const file = path.join(root, 'buddy', 'data-key.bin');
-    const wrap = { encrypt: (b: Buffer) => Buffer.from(b.toString('hex')), decrypt: (b: Buffer) => Buffer.from(b.toString(), 'hex') };
-    const k1 = loadDataKey(nodeFs, file, wrap);
-    expect(k1).toHaveLength(32);
-    expect(fs.readFileSync(file, 'utf8')).toBe(Buffer.from(k1).toString('hex'));
-    expect(Buffer.from(loadDataKey(nodeFs, file, wrap))).toEqual(Buffer.from(k1));
-    expect(plainWrap.decrypt(plainWrap.encrypt(Buffer.from('x'))).toString()).toBe('x');
+    const first = loadDataKey(nodeFs, file);
+    expect(first.key).toHaveLength(32);
+    expect(first.replaced).toBe(false);
+    expect(Buffer.from(fs.readFileSync(file))).toEqual(Buffer.from(first.key));
+    expect(Buffer.from(loadDataKey(nodeFs, file).key)).toEqual(Buffer.from(first.key));
+  });
+
+  test('S-08 11-16 之前钥匙串包过的密钥文件：解一次后改存明文；解不开就换新钥匙并报 replaced', () => {
+    const file = path.join(root, 'buddy', 'data-key.bin');
+    const key = Buffer.alloc(32, 7);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, key.toString('hex'));
+    const unwrap = (b: Buffer) => Buffer.from(b.toString(), 'hex');
+    expect(loadDataKey(nodeFs, file, unwrap)).toEqual({ key: new Uint8Array(key), replaced: false });
+    expect(Buffer.from(fs.readFileSync(file))).toEqual(key);
+
+    fs.writeFileSync(file, 'wrapped-by-a-keychain-we-cannot-open');
+    const r = loadDataKey(nodeFs, file, () => { throw new Error('refused'); });
+    expect(r.replaced).toBe(true);
+    expect(r.key).toHaveLength(32);
+    expect(Buffer.from(fs.readFileSync(file))).toEqual(Buffer.from(r.key));
   });
 });
 

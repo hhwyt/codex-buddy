@@ -1,5 +1,6 @@
-// Secrets at rest: AES-256-GCM (iv 12 bytes | tag 16 bytes | ciphertext). The 32-byte key lives in the OS keychain
-// through Electron safeStorage in the app; in sandbox runs (tests, e2e) it is a random key file inside the sandbox.
+// Secrets at rest: AES-256-GCM (iv 12 bytes | tag 16 bytes | ciphertext). The 32-byte key is a plain file next to the
+// state (buddyDir/data-key.bin, owner-only). No OS keychain (站主 11-16: Codex keeps its own keys in plain files, and the
+// keychain prompted on every rebuild and quit the app when refused).
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import type { Cipher, FileSystem } from '../core/types';
 
@@ -21,14 +22,22 @@ export function aesCipher(key: Uint8Array): Cipher {
   };
 }
 
-/** Wraps the data key with `wrap` (safeStorage) and keeps the wrapped bytes in keyFile; creates one the first time */
-export function loadDataKey(fs: FileSystem, keyFile: string, wrap: { encrypt(b: Buffer): Buffer; decrypt(b: Buffer): Buffer }): Uint8Array {
+/** Reads the 32-byte data key from keyFile, or creates one. A key file from before 11-16 holds the key wrapped by the
+ *  OS keychain: `legacyUnwrap` gets it out once and it is saved plain. replaced = the old key could not be read (the
+ *  secrets encrypted with it are lost) */
+export function loadDataKey(fs: FileSystem, keyFile: string, legacyUnwrap?: (b: Buffer) => Buffer): { key: Uint8Array; replaced: boolean } {
   const saved = fs.readBytes(keyFile);
-  if (saved) return new Uint8Array(wrap.decrypt(Buffer.from(saved)));
+  if (saved && saved.length === 32) return { key: new Uint8Array(saved), replaced: false };
+  if (saved && legacyUnwrap) {
+    try {
+      const key = legacyUnwrap(Buffer.from(saved));
+      if (key.length === 32) {
+        fs.writeBytes(keyFile, new Uint8Array(key));
+        return { key: new Uint8Array(key), replaced: false };
+      }
+    } catch { /* keychain refused or entry gone: start over below */ }
+  }
   const key = randomBytes(32);
-  fs.writeBytes(keyFile, new Uint8Array(wrap.encrypt(key)));
-  return new Uint8Array(key);
+  fs.writeBytes(keyFile, new Uint8Array(key));
+  return { key: new Uint8Array(key), replaced: !!saved };
 }
-
-/** No wrapping: only for sandbox runs, where the sandbox folder is thrown away */
-export const plainWrap = { encrypt: (b: Buffer) => b, decrypt: (b: Buffer) => b };

@@ -15,7 +15,7 @@ import { REMOTE_CONFIG_PUBLIC_KEY } from './core/remote-key';
 import { startBridge } from './main/bridge-server';
 import { BROWSER_PARTITION, browserHandlers, createRightBrowser, electronViewHost, openLoginWindows } from './main/browser';
 import { debugSwitchesIn, debuggable } from './main/hardening';
-import { aesCipher, loadDataKey, plainWrap } from './main/cipher';
+import { aesCipher, loadDataKey } from './main/cipher';
 import { registerIpc, sendEvent } from './main/ipc';
 import type { ConnectionView } from './main/ipc-contract';
 import { connections, defaultAllowedHosts, guardedFetch, installNetGuard, readBytes } from './main/net';
@@ -93,8 +93,16 @@ async function main(): Promise<void> {
   // Codex's traffic to the vendors goes through the whitelist and shows under 「CodexBuddy 连过的」 (S-04, S-05)
   const bridge = await startBridge(upstreams, { fetch: ((url: string, init?: RequestInit) => guardedFetch(url, init)) as typeof fetch });
   const keyFile = path.join(platform.paths.buddyDir, 'data-key.bin');
-  const wrap = sandbox || !safeStorage.isEncryptionAvailable() ? plainWrap : { encrypt: (b: Buffer) => safeStorage.encryptString(b.toString('base64')), decrypt: (b: Buffer) => Buffer.from(safeStorage.decryptString(b), 'base64') };
-  const cipher = aesCipher(loadDataKey(platform.fs, keyFile, wrap));
+  // Keychain only to read a key file written before 11-16, once; then the key is kept plain (owner-only)
+  const legacyUnwrap = sandbox ? undefined : (b: Buffer) => Buffer.from(safeStorage.decryptString(b), 'base64');
+  const dataKey = loadDataKey(platform.fs, keyFile, legacyUnwrap);
+  try { nfs.chmodSync(keyFile, 0o600); } catch { /* best effort */ }
+  if (dataKey.replaced) {
+    // Secrets saved with the unreadable old key: set the state aside instead of failing on it
+    const stateFile = path.join(platform.paths.buddyDir, 'state.json');
+    try { nfs.renameSync(stateFile, `${stateFile}.unreadable-${Date.now()}`); } catch { /* none */ }
+  }
+  const cipher = aesCipher(dataKey.key);
   const bundled = validateRemote(platform.fs.readText(path.join(__dirname, '..', 'remote', 'config.json')) ?? '');
   if (!bundled) throw new Error('remote/config.json is broken');
 
