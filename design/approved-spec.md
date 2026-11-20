@@ -182,7 +182,7 @@
 - 模型清单、横幅、社群链接都放进我们自己的远程配置 `remote/config.json`。
 - 脚本和代码内部的 HumansLive 名字（进程锁、临时文件、注入的变量名、注释）统一改成 CodexBuddy。
 
-**发布和远程配置：用免费的 GitHub**（站主 2026-11-13：「那就用免费的 GitHub 吧」，不用腾讯云 COS）
+**发布和远程配置：用免费的 GitHub**（站主 2026-11-13：「那就用免费的 GitHub 吧」）
 - 安装包放在 GitHub Releases。
 - 版本号、模型清单、社群码、远程开关合成一个文件 `remote/config.json`，放在仓库里。
 - App 先经 jsDelivr 读这个文件，读不到再直接读 GitHub；App 里自带一份兜底，两边都读不到时用它。
