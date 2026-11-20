@@ -141,10 +141,21 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .community { height: 100%; display: flex; flex-direction: column; }
 .community-body { flex: 1; display: flex; align-items: center; justify-content: center; gap: 56px; text-align: center; flex-wrap: wrap; }
 .community-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.community-qr { width: 220px; height: 220px; display: block; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--line); padding: 8px; background: var(--bg); image-rendering: pixelated; }
+.community-qr { width: 220px; height: 220px; display: block; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--line); padding: 8px; background: var(--qr-bg); image-rendering: pixelated; }
 .community-line { font-size: 17px; font-weight: 600; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .xhs-chip { background: var(--xhs); color: var(--on-ink); font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 6px; }
 .community-sub { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; }
+
+/* 社群锁定页：整页盖在 App 上，侧边栏被遮罩挡住，只能「返回」原弹窗 */
+.community-gate { position: fixed; inset: 0; background: var(--bg); z-index: 1100; display: grid; grid-template-columns: var(--side-width) 1fr; grid-template-rows: minmax(0, 1fr); }
+.community-gate .side { position: relative; }
+.side-mask { position: absolute; left: 0; top: 0; bottom: 0; width: var(--side-width); background: var(--scrim); display: grid; place-items: center; color: var(--on-ink); font-size: 28px; z-index: 2; }
+.lock-main { flex: 1; min-width: 0; padding: 0 48px 40px; overflow: auto; display: flex; flex-direction: column; }
+.lock-top { height: 64px; display: flex; align-items: center; flex: none; }
+.back { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font-size: 14px; font-weight: 550; padding: 9px 16px; }
+.back:hover { background: var(--hover); }
+.community-gate h1 { font-size: 22px; font-weight: 600; margin: 0 0 20px; letter-spacing: -0.02em; }
+.community-gate .community-body { flex: 1; }
 
 /* Security panel 🛡 */
 .security { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; background: var(--bg); border-left: 1px solid var(--line); box-shadow: -8px 0 30px var(--shadow); padding: 16px 18px; overflow: auto; z-index: 40; display: flex; flex-direction: column; gap: 6px; }

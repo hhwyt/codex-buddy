@@ -9,6 +9,7 @@
   --ink-2: #5d5d5d;
   --ink-3: #8f8f8f;
   --on-ink: #fff;
+  --qr-bg: #fff;         /* QR codes stay on white in every theme so they scan */
   --blue: #0285ff;         /* only「正在用 / ✓ 能用」and selected */
   --accent: #0c8df6;
   --accent-fill: #0a77d1;
@@ -47,4 +48,25 @@
   --card-width: 380px;
   --card-ratio: 1.586;
   --card-peek: 64px;
+}
+
+/* Dark theme tokens (prototype design/upgrade-fail/v1.html). Inert unless html[data-theme=dark] is set;
+   the app ships light-only (approved-spec: 不做深色主题), but every screen must still render correctly if applied. */
+[data-theme="dark"] {
+  --bg: #17191d;
+  --side: #1e2126;
+  --line: #35383e;
+  --ink: #f2f3f5;
+  --ink-2: #aeb3bb;
+  --ink-3: #7c818a;
+  --on-ink: #fff;
+  --accent: #3fa0ff;
+  --accent-fill: #0a77d1;
+  --blue: #3fa0ff;
+  --blue-bg: #18222e;
+  --red: #ff6b66;
+  --scrim: rgba(0, 0, 0, 0.62);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --hover: #25282e;
+  --selected: rgba(255, 255, 255, 0.08);
 }

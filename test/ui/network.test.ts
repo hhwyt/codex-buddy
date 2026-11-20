@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { createApp } from '../../ui/app';
+import { BUNDLED_QR } from '../../ui/pages/community';
 import { TID } from '../../ui/testids';
 import { appState, fakeApi, settle } from './settings.fake';
 
 const query = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`)!;
 let root: HTMLElement;
-beforeEach(() => { root = document.createElement('div'); document.body.replaceChildren(root); });
+beforeEach(() => { root = document.createElement('div'); document.body.replaceChildren(root); localStorage.clear(); });
 afterEach(() => { document.body.replaceChildren(); });
 
 test('N-01 启动先转圈，连接完成前不读取功能数据或显示入口', async () => {
@@ -26,7 +27,7 @@ test('N-01 启动先转圈，连接完成前不读取功能数据或显示入口
 test('N-02 连接失败只显示网络问题、退出和重试，Esc 和背景不能跳过', async () => {
   const fake = fakeApi({ 'network:check': { ok: false } });
   const app = await createApp(root, fake.api);
-  expect(query(TID.network.error).textContent).toBe('网络问题请检查网络后重试。退出重试');
+  expect(query(TID.network.error).textContent).toBe('网络问题请检查网络后重试。退出去社群问问重试');
   expect(query(TID.shell.side)).toBeNull();
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   (root.querySelector('.network-scrim') as HTMLElement).click();
@@ -36,6 +37,24 @@ test('N-02 连接失败只显示网络问题、退出和重试，Esc 和背景�
   expect(fake.called('app:state')).toHaveLength(0);
   query(TID.network.quit).click();
   expect(fake.called('app:quit')).toHaveLength(1);
+});
+
+test('N-02 去社群问问打开社群页，返回回到同一个网络弹窗，断网显示自带群码且不读后端', async () => {
+  const fake = fakeApi({ 'network:check': { ok: false } });
+  const app = await createApp(root, fake.api);
+  const button = query(TID.network.community);
+  expect(button.textContent).toBe('去社群问问');
+  button.click();
+  const full = query(TID.community.full);
+  expect(full).not.toBeNull();
+  expect(query(TID.community.back).textContent).toBe('← 返回');
+  expect(query(TID.community.qr).getAttribute('src')).toBe(BUNDLED_QR);
+  expect(fake.called('app:state')).toHaveLength(0);
+  query(TID.community.back).click();
+  expect(document.querySelector(`[data-testid="${TID.community.full}"]`)).toBeNull();
+  expect(query(TID.network.error)).not.toBeNull();
+  expect(query(TID.network.community)).not.toBeNull();
+  expect(app.route()).toBeNull();
 });
 
 test('N-02 重试重新检测，失败不能进入，成功后才显示功能页', async () => {
@@ -89,11 +108,13 @@ test('N-04 后台拒绝读取时锁住界面，重试后只恢复读取，不自
   expect(fake.called('zh:set')).toHaveLength(0);
 });
 
-test('N-02 检测异常也显示同一报错，Tab 焦点只能在退出和重试之间移动', async () => {
+test('N-02 检测异常也显示同一报错，Tab 焦点只能在退出、去社群问问和重试之间移动', async () => {
   const fake = fakeApi({ 'network:check': () => { throw new Error('internal'); } });
   await createApp(root, fake.api);
   expect(query(TID.network.error).textContent).not.toContain('internal');
   expect(document.activeElement).toBe(query(TID.network.quit));
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+  expect(document.activeElement).toBe(query(TID.network.community));
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
   expect(document.activeElement).toBe(query(TID.network.retry));
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));

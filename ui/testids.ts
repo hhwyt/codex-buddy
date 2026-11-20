@@ -71,6 +71,8 @@ export const TID = {
   // H-02: 社群 page
   community: {
     root: 'community-root',
+    full: 'community-full', // 锁定状态下盖在 App 上的社群页
+    back: 'community-back', // 返回原弹窗
     qr: 'community-qr', // 企业微信群码
     xhsQr: 'community-xhs-qr', // 小红书码
   },
@@ -109,6 +111,7 @@ export const TID = {
     download: 'upgrade-download', // 下载新版 / 下载并安装
     progress: 'upgrade-progress', // the ring
     ask: 'upgrade-ask', // 有问题？加群咨询
+    community: 'upgrade-community', // 去社群问问
     qr: 'upgrade-qr',
     qrClose: 'upgrade-qr-close',
     reopen: 'upgrade-reopen', // Mac: 再打开安装包
@@ -120,6 +123,7 @@ export const TID = {
     loading: 'network-loading',
     error: 'network-error',
     retry: 'network-retry',
+    community: 'network-community', // 去社群问问
     quit: 'network-quit',
   },
   restart: {

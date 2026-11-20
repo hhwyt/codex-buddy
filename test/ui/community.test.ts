@@ -2,9 +2,9 @@
 // L3: 社群 page (H-02, ui-design/nav-community.html v1). Owner: A6.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'node:fs';
-import { BUNDLED_QR, communityQr, renderCommunity, XHS_QR } from '../../ui/pages/community';
+import { BUNDLED_QR, communityQr, renderCommunity, showCommunityOverlay, XHS_QR } from '../../ui/pages/community';
 import { TID } from '../../ui/testids';
-import { appState, fakeApi } from './settings.fake';
+import { appState, fakeApi, settle } from './settings.fake';
 
 const $ = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 const QR = 'data:image/png;base64,QUJD';
@@ -46,6 +46,30 @@ describe('社群页（H-02）', () => {
   it('H-02 断网时显示上次取到的', async () => {
     await mount(fakeApi({ 'app:state': appState({ community: { qrUrl: QR } }) }));
     await mount(fakeApi({ 'app:state': appState({ community: { qrUrl: null } }) }));
+    expect(src()).toBe(QR);
+  });
+
+  it('锁定页 offline：不读后端，显示自带群码，返回回到原弹窗', async () => {
+    const fake = fakeApi();
+    const root = document.createElement('div');
+    document.body.replaceChildren(root);
+    const onBack = vi.fn();
+    const overlay = showCommunityOverlay(fake.api, root, { offline: true }, onBack);
+    expect($(TID.community.full)).not.toBeNull();
+    expect(src()).toBe(BUNDLED_QR);
+    expect(fake.called('app:state')).toHaveLength(0);
+    $(TID.community.back)!.click();
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect($(TID.community.full)).toBeNull();
+  });
+
+  it('锁定页 online：先用缓存/自带群码渲染，再用远程最新码刷新', async () => {
+    const fake = fakeApi({ 'app:state': appState({ community: { qrUrl: QR } }) });
+    const root = document.createElement('div');
+    document.body.replaceChildren(root);
+    showCommunityOverlay(fake.api, root, { offline: false }, vi.fn());
+    expect(src()).toBe(BUNDLED_QR);
+    await settle();
     expect(src()).toBe(QR);
   });
 

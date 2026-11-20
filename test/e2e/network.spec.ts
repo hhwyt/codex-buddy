@@ -57,6 +57,25 @@ test('N-02 N-03 缓存不放行，Esc 和背景不能跳过，后台拒绝修改
   await expect.poll(() => child.exitCode !== null || child.signalCode !== null).toBe(true);
 });
 
+test('N-02 网络问题弹窗有去社群问问，社群页盖住 App，返回回到同一个弹窗，后台不放行', async () => {
+  await offline();
+  const community = run.page.getByTestId(TID.network.community);
+  await expect(community).toBeVisible();
+  await expect(community).toHaveText('去社群问问');
+  await community.click();
+  const full = run.page.getByTestId(TID.community.full);
+  await expect(full).toBeVisible();
+  await expect(run.page.getByTestId(TID.community.back)).toHaveText('← 返回');
+  await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', /community-qr\.png$/);
+  // 社群页开着，后台功能接口仍然被拒绝，不能借社群页绕过网络检查
+  const blocked = await run.page.evaluate(() => (window as unknown as { buddy: { invoke(c: string, a?: unknown): Promise<unknown> } }).buddy.invoke('install:run'));
+  expect(blocked).toEqual({ ok: false, kind: 'network', reason: '网络问题' });
+  await run.page.getByTestId(TID.community.back).click();
+  await expect(full).toHaveCount(0);
+  await expect(error()).toBeVisible();
+  await expect(run.page.getByTestId(TID.network.community)).toBeVisible();
+});
+
 test('N-04 使用中失联自动锁定，重试后恢复原页面，系统断网立即锁定', async () => {
   run = await launch({ seed });
   await expect(run.page.getByTestId(TID.models.root)).toBeVisible();

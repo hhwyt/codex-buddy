@@ -73,6 +73,19 @@ test('V-01 断网阻止界面和后台操作，联网重试后恢复使用', asy
   await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('网络问题');
   const result = await run.page.evaluate(() => (window as any).buddy.invoke('codex:open', {}));
   expect(result.ok).toBe(false);
+  // 断网的升级弹窗也有「去社群问问」；社群页盖住 App，返回后还是同一个弹窗
+  const community = run.page.getByTestId(TID.upgrade.community);
+  await expect(community).toBeVisible();
+  await expect(community).toHaveText('去社群问问');
+  await community.click();
+  const full = run.page.getByTestId(TID.community.full);
+  await expect(full).toBeVisible();
+  await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', /community-qr\.png$/);
+  const blocked = await run.page.evaluate(() => (window as any).buddy.invoke('codex:open', {}));
+  expect(blocked.ok).toBe(false);
+  await run.page.getByTestId(TID.community.back).click();
+  await expect(full).toHaveCount(0);
+  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('网络问题');
   run.config.setMode('jsdelivr', 'ok'); run.config.setMode('github', 'ok');
   await run.page.getByRole('button', { name: '重试' }).click();
   await expect(run.page.getByTestId(TID.upgrade.root)).toBeHidden();
