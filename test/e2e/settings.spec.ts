@@ -2,6 +2,7 @@
 import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { sandboxPaths } from '../../electron/platform/sandbox';
 import { TID } from '../../ui/testids';
 import { clickClear, finishOnboarding, makeCloneOf, nav, switchTo, webContentsUrls } from './flows';
 import { hashTree } from './hash';
@@ -18,7 +19,7 @@ const REMOTE = JSON.parse(fs.readFileSync(path.join(REPO, 'remote', 'config.json
 const withRemote = (patch: Record<string, unknown>) => ({ ...REMOTE, ...patch });
 
 async function ready(env: Record<string, string> = {}, clones: string[] = []): Promise<Launched> {
-  run = await launch({ env, seed: s => { seedCodex(s); seedUserData(s, clones); } });
+  run = await launch({ env, seed: s => { seedCodex(s); seedUserData(s, clones); const dir = sandboxPaths(s).buddyDir; fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ onboarded: true, firstSuccess: true })); } });
   await finishOnboarding(run.page);
   return run;
 }
@@ -27,7 +28,7 @@ const zhLauncher = () => process.platform === 'win32'
   : path.join(sandboxApps(run.sandbox), 'ChatGPT 汉化版.app');
 const chatgptApp = () => path.join(sandboxApps(run.sandbox), 'Test-ChatGPT.app');
 const cjk = (s: string) => (s.match(/[一-鿿]/g) ?? []).length;
-const toSettings = async () => { await nav.settings(run.page); await expect(run.page.getByTestId(TID.settings.root)).toBeVisible(); };
+const toSettings = async () => { await nav.settings(run.page); await expect(run.page.getByTestId(TID.settings.root)).toBeVisible(); const close = run.page.getByTestId(TID.browser.close); if (await close.isVisible()) await close.click(); };
 const zhOn = async () => (await appState(run.page)).zh.on;
 /** The previews ignore clicks while the line-by-line animation runs (language-final.html); wait for it to finish */
 const settled = () => expect(run.page.getByTestId(TID.settings.zhCard)).toHaveAttribute('aria-busy', 'false', { timeout: 10_000 });
@@ -192,7 +193,7 @@ test('T-02 检查更新：有新版本、已是最新、断网三种情况', asy
   await ready();
   await toSettings();
   await run.page.getByTestId(TID.settings.checkUpdate).click();
-  await expect(run.page.getByTestId(TID.toast)).toContainText('最新');
+  await expect(run.page.getByTestId(TID.update.root)).toHaveCount(0);
   run.config.setConfig(withRemote({ latest: { ...REMOTE.latest, version: '9.9.9', notes: '修了一些问题' } }));
   await run.page.getByTestId(TID.settings.checkUpdate).click();
   await expect(run.page.getByTestId(TID.update.root)).toBeVisible();
@@ -202,8 +203,7 @@ test('T-02 检查更新：有新版本、已是最新、断网三种情况', asy
   run.config.setMode('github', 'down');
   await run.page.getByTestId(TID.settings.checkUpdate).click();
   const toast = run.page.getByTestId(TID.toast);
-  await expect(toast).toBeVisible();
-  await expect(toast).not.toContainText('最新');
+  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('连上网后才能使用');
 });
 
 test('T-03 一键还原先列出会做的事，先不了就什么都不做', async () => {
@@ -249,6 +249,7 @@ test('T-04 还原时卸掉这次装的 Codex', async () => {
   run = await launch({ seed: s => seedUserData(s) });
   await finishOnboarding(run.page);
   expect(fs.existsSync(chatgptApp())).toBe(true);
+  await run.page.evaluate(() => (window as any).buddy.invoke('switch:cancel'));
   await toSettings();
   await clickClear(run.page.getByTestId(TID.settings.restore));
   await run.page.getByTestId(TID.dialog.confirm).click();
@@ -288,15 +289,14 @@ test('U-02 立即更新显示进度并重启，模型、Key、设置都保留', 
   expect(after.cards.find(c => c.vendor === 'deepseek')!.keyTail).toBe(before.cards.find(c => c.vendor === 'deepseek')!.keyTail);
 });
 
-test('U-03 Mac 没签名时立即更新改成在右侧浏览器打开下载页', async () => {
+test('U-03 Mac 更新包无校验信息时拒绝安装', async () => {
   test.skip(process.platform !== 'darwin', '只在 Mac');
   await ready();
   run.config.setConfig(withRemote({ latest: { ...REMOTE.latest, version: '9.9.9' } }));
   await toSettings();
   await run.page.getByTestId(TID.settings.checkUpdate).click();
   await run.page.getByTestId(TID.update.now).click();
-  await expect.poll(async () => [...await webContentsUrls(run.app), ...(await run.external()).opened].join('\n'), { timeout: 20_000 })
-    .toContain(REMOTE.latest.macUrl.replace('https://', ''));
+  await expect(run.page.getByTestId(TID.toast)).toContainText('校验失败');
 });
 
 test('U-04 远程开关能隐藏某张卡或汉化入口', async () => {
@@ -315,10 +315,9 @@ test('U-04 远程开关能隐藏某张卡或汉化入口', async () => {
 
 // Remote code replacing the bundled one and the offline cache are L2/L3 (services.test.ts, community.test.ts): here the
 // fake config server cannot serve the image, which must come from an https GitHub/jsDelivr address.
-test('H-02 社群页：从没取到远程配置时显示 App 自带的群码，旁边是小红书码', async () => {
+test('H-02 社群页：远程未设置群码时显示内置群码，旁边是小红书码', async () => {
   run = await launch({ seed: s => seedCodex(s) });
-  run.config.setMode('jsdelivr', 'down');
-  run.config.setMode('github', 'down');
+  run.config.setConfig(withRemote({ community: { qrUrl: '', text: '' } }));
   run = await run.relaunch();
   await finishOnboarding(run.page);
   await nav.community(run.page);

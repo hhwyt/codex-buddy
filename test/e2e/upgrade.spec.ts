@@ -1,6 +1,7 @@
 // Forced upgrade (remote minVersion) on the real app: the whole window becomes ui-design/force-upgrade.html v4. Owner: A7.
 import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as path from 'node:path';
@@ -30,7 +31,7 @@ async function slowFile(): Promise<string> {
   return `http://127.0.0.1:${(files.address() as AddressInfo).port}/`;
 }
 /** The remote config only takes GitHub download links (H-03): send that one link to the local file server instead */
-const RELEASE = 'https://github.com/hhwyt/codex-buddy/releases/download/v9.9.9/CodexBuddy-9.9.9';
+const RELEASE = 'https://github.com/hhwyt/codex-buddy-releases/releases/download/v9.9.9/CodexBuddy-9.9.9';
 const routeDownloads = (local: string) => run!.app.evaluate((_e, [release, to]) => {
   const real = globalThis.fetch;
   globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => real(String(url).startsWith(release) ? to : url, init)) as typeof fetch;
@@ -41,30 +42,48 @@ test('强制升级：配置抬高下限 → 整个窗口换成升级页；重开
   const url = await slowFile();
   run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
   await finishOnboarding(run.page);
-  run.config.setConfig({ ...REMOTE, minVersion: '9.9.9', latest: { ...REMOTE.latest, version: '9.9.9', macUrl: `${RELEASE}.dmg`, winUrl: `${RELEASE}.exe` } });
+  run.config.setConfig({ ...REMOTE, minVersion: '9.9.9', latest: { ...REMOTE.latest, version: '9.9.9', macUrl: `${RELEASE}.dmg`, winUrl: `${RELEASE}.exe`, macSha256: createHash('sha256').update(Buffer.alloc(4 * 1024 * 1024, 1)).digest('hex'), winSha256: createHash('sha256').update(Buffer.alloc(4 * 1024 * 1024, 1)).digest('hex') } });
   await run.page.getByTestId(TID.shell.navSettings).click();
   await run.page.getByTestId(TID.settings.checkUpdate).click();
   const screen = run.page.getByTestId(TID.upgrade.root);
   await expect(screen).toBeVisible();
-  await expect(run.page.getByTestId(TID.shell.side)).toBeHidden();
+  await expect(run.page.locator('.shell')).toHaveJSProperty('inert', true);
 
   run = await run.relaunch();
   await routeDownloads(url);
-  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('该升级了');
-  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('需要 9.9.9');
+  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('升级后继续使用');
+  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('请升级到 9.9.9');
   await shot('1-idle');
-  await run.page.getByTestId(TID.upgrade.ask).click();
-  await expect(run.page.getByTestId(TID.upgrade.qr)).toBeVisible();
-  await shot('2-qr');
-  await run.page.getByTestId(TID.upgrade.qrClose).click();
-
   await run.page.getByTestId(TID.upgrade.download).click();
-  await expect(run.page.getByTestId(TID.upgrade.progress)).toContainText(/[4-8]\d%/, { timeout: 10_000 });
-  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('/ 4.0 MB');
+  await expect.poll(() => run!.page.getByTestId(TID.upgrade.progress).evaluate((el: HTMLProgressElement) => el.value)).toBeGreaterThan(30);
   await shot('3-download');
   const win = process.platform === 'win32';
-  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText(win ? '正在安装' : '把它拖进「应用程序」', { timeout: 20_000 });
+  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText(win ? '正在安装' : '拖进「应用程序」', { timeout: 20_000 });
   await shot('4-done');
   const opened = fs.readFileSync(path.join(run.sandbox, 'opened.log'), 'utf8');
   expect(opened).toContain(`CodexBuddy-9.9.9.${win ? 'exe' : 'dmg'}`);
+});
+
+
+test('V-01 断网阻止界面和后台操作，联网重试后恢复使用', async () => {
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
+  await finishOnboarding(run.page);
+  run.config.setMode('jsdelivr', 'down'); run.config.setMode('github', 'down');
+  run = await run.relaunch();
+  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('连上网后才能使用');
+  const result = await run.page.evaluate(() => (window as any).buddy.invoke('codex:open', {}));
+  expect(result.ok).toBe(false);
+  run.config.setMode('jsdelivr', 'ok'); run.config.setMode('github', 'ok');
+  await run.page.getByRole('button', { name: '重新连接' }).click();
+  await expect(run.page.getByTestId(TID.upgrade.root)).toBeHidden();
+  await expect(run.page.getByTestId(TID.models.root)).toBeVisible();
+});
+
+test('V-02 运行中每分钟校验，服务端提高最低版本后自动拦截', async () => {
+  test.setTimeout(90_000);
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
+  await finishOnboarding(run.page);
+  run.config.setConfig({ ...REMOTE, minVersion: '9.9.9', latest: { ...REMOTE.latest, version: '9.9.9' } });
+  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('请升级到 9.9.9', { timeout: 75_000 });
+  await expect(run.page.locator('.shell')).toHaveJSProperty('inert', true);
 });

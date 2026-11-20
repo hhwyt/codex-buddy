@@ -128,3 +128,12 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .update-notes { text-align: left; color: var(--ink-2); padding-left: 18px; margin: 6px 0; line-height: 1.7; }
 .update-ring { width: 120px; height: 120px; margin: 4px auto 12px; border-radius: 50%; border: 6px solid var(--line); border-top-color: var(--ink); display: grid; place-items: center; }
 .update-ring .pct { font-size: 26px; }
+
+.version-dialog { width: 450px; padding: 30px; }
+.version-dialog h2 { font-size: 23px; margin-bottom: 13px; }
+.version-dialog p { font-size: 14px; line-height: 1.8; }
+.version-dialog p:empty { display: none; }
+.version-dialog .row { margin-top: 27px; gap: 10px; }
+.version-dialog .btn { border-radius: 10px; padding: 11px 18px; }
+.version-dialog .btn.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-ink); }
+.version-dialog progress { width: 100%; accent-color: var(--accent-fill); margin-top: 20px; height: 6px; }

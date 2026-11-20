@@ -249,7 +249,7 @@ describe('版本和检查更新（T-02）', () => {
     await mount(fakeApi({ 'update:check': { kind: 'latest' } }));
     click($(TID.settings.checkUpdate));
     await settle();
-    expect($(TID.toast)!.textContent).toBe('已是最新版本');
+    expect($(TID.toast)).toBeNull();
     expect($(TID.update.root)).toBeNull();
   });
 

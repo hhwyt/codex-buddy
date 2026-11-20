@@ -1,5 +1,5 @@
 # Release: push a tag v<version> (same as package.json) → build the Windows installer and the Mac universal dmg,
-# attach build provenance, publish both on GitHub Releases. Mac builds are ad-hoc signed only (站主 2026-11-13:
+# attach build provenance and upload build artifacts. The owner verifies them on Windows and publishes with npm run release:publish. Mac builds are ad-hoc signed only (站主 2026-11-13:
 # 签名公证先不买). remote/config.json is NOT bumped here: it must be signed with the release key, which only lives on
 # the owner's Mac (docs/release.md: edit, node scripts/sign-remote-config.mjs, commit config.json + config.json.sig).
 name: release
@@ -11,6 +11,9 @@ on:
       tag:
         description: 'Existing tag to release, e.g. v0.1.1'
         required: true
+      source_ref:
+        description: 'Source branch or commit to build'
+        required: false
 
 permissions:
   contents: read
@@ -34,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.source_ref || inputs.tag || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -61,21 +64,3 @@ jobs:
             release/*.dmg
           if-no-files-found: ignore
 
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: out
-          merge-multiple: true
-      - name: Publish to GitHub Releases
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
-          name: CodexBuddy ${{ inputs.tag || github.ref_name }}
-          prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}
-          files: out/*
-          fail_on_unmatched_files: true

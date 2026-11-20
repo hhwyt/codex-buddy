@@ -42,6 +42,10 @@ export function validateRemote(text: string): RemoteConfig | null {
   const { latest, models, community, switches, minVersion = '0.0.0' } = d;
   if (!str(minVersion) || !VERSION.test(minVersion)) return null;
   if (!isObj(latest) || ![latest.version, latest.notes, latest.macUrl, latest.winUrl].every(str)) return null;
+  if (!VERSION.test(latest.version as string)) return null;
+  for (const digest of [latest.macSha256, latest.winSha256]) {
+    if (digest !== undefined && (typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest))) return null;
+  }
   if (!isObj(models) || !isObj(community) || !str(community.qrUrl) || !str(community.text)) return null;
   if (![latest.macUrl, latest.winUrl, community.qrUrl].every(u => isSafeUrl(u as string))) return null;
   if (!isObj(switches) || !Array.isArray(switches.hiddenVendors) || !switches.hiddenVendors.every(str)) return null;
@@ -54,7 +58,8 @@ export function validateRemote(text: string): RemoteConfig | null {
   }
   return {
     schema: 1,
-    latest: { version: latest.version as string, notes: latest.notes as string, macUrl: latest.macUrl as string, winUrl: latest.winUrl as string },
+    latest: { version: latest.version as string, notes: latest.notes as string, macUrl: latest.macUrl as string, winUrl: latest.winUrl as string,
+      ...(latest.macSha256 ? { macSha256: latest.macSha256 as string } : {}), ...(latest.winSha256 ? { winSha256: latest.winSha256 as string } : {}) },
     models: out,
     community: { qrUrl: community.qrUrl, text: community.text },
     switches: { hiddenVendors: [...switches.hiddenVendors], hideZh: switches.hideZh, hideClone: switches.hideClone },

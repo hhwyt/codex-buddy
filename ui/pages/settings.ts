@@ -171,7 +171,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
     checkBtn.disabled = false;
     checkBtn.textContent = '检查更新';
     if (res.kind === 'new') showUpdate(api, document.body, { version: res.version, notes: res.notes });
-    else if (res.kind === 'latest') toast('已是最新版本');
+    else if (res.kind === 'latest') return;
     else toast('连不上网，稍后再试', { error: true });
   }
 
