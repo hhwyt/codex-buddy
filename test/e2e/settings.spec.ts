@@ -295,6 +295,7 @@ test('U-02 立即更新显示进度并重启，模型、Key、设置都保留', 
   await run.page.getByTestId(TID.update.now).click();
   await expect.poll(() => fs.readFileSync(path.join(run.sandbox, 'opened.log'), 'utf8')).toContain(`CodexBuddy-9.9.9.${process.platform === 'win32' ? 'exe' : 'dmg'}`);
   run = await run.relaunch();
+  await expect(run.page.getByTestId(TID.models.root)).toBeVisible();
   const after = await wallet(run.page);
   expect(after.active).toBe(before.active);
   expect(after.cards.find(c => c.vendor === 'deepseek')!.keyTail).toBe(before.cards.find(c => c.vendor === 'deepseek')!.keyTail);
@@ -303,15 +304,7 @@ test('U-02 立即更新显示进度并重启，模型、Key、设置都保留', 
 test('U-03 Mac 更新包无校验信息时拒绝安装', async () => {
   test.skip(process.platform !== 'darwin', '只在 Mac');
   await ready();
-  const bytes = Buffer.alloc(1024, 1);
-  const digest = createHash('sha256').update(bytes).digest('hex');
-  const release = 'https://github.com/hhwyt/codex-buddy-releases/releases/download/v9.9.9/CodexBuddy-9.9.9';
-  await run.app.evaluate((_electron, prefix) => {
-    const real = globalThis.fetch;
-    globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => String(url).startsWith(prefix)
-      ? Promise.resolve(new Response(new Uint8Array(1024).fill(1))) : real(url, init)) as typeof fetch;
-  }, release);
-  run.config.setConfig(withRemote({ latest: { ...REMOTE.latest, version: '9.9.9', winUrl: `${release}.exe`, macUrl: `${release}.dmg`, winSha256: digest, macSha256: digest } }));
+  run.config.setConfig(withRemote({ latest: { ...REMOTE.latest, version: '9.9.9', macSha256: undefined } }));
   await toSettings();
   await run.page.getByTestId(TID.settings.checkUpdate).click();
   await run.page.getByTestId(TID.update.now).click();

@@ -42,45 +42,48 @@ function publishMetadata(files, version) {
 
 export function publishRelease(root, directory = path.join(root, 'release')) {
   const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version;
-  const configPath = path.join(root, 'remote', 'config.json');
-  const metadata = releaseMetadata(JSON.parse(fs.readFileSync(configPath)), version, directory);
-  fs.writeFileSync(configPath, `${JSON.stringify(metadata, null, 2)}\n`);
-  const signature = signConfigFile(configPath, readPrivateKey(), publicKeyIn(path.join(root, 'electron/core/remote-key.ts')));
-  const tag = `v${version}`;
-  // Release assets are immutable after publication: reruns publish only matching, already-uploaded installers.
-  let release;
-  try { release = JSON.parse(gh(['release', 'view', tag, '--repo', DISTRIBUTION_REPO, '--json', 'isDraft,assets'])); } catch { /* first publication */ }
-  const installers = [path.join(directory, `CodexBuddy-Setup-${version}.exe`), path.join(directory, `CodexBuddy-${version}.dmg`)];
-  if (!release) {
-    // Initialize the repository before creating its first release tag.
-    try { api(`repos/${DISTRIBUTION_REPO}/git/ref/heads/main`); } catch {
-      gh(['api', `repos/${DISTRIBUTION_REPO}/contents/README.md`, '--method', 'PUT', '--input', '-'], {
-        message: 'Initialize distribution repository', branch: 'main', content: Buffer.from('# CodexBuddy\n\n安装包和签名版本配置。\n').toString('base64'),
-      });
-    }
-    gh(['release', 'create', tag, ...installers, '--repo', DISTRIBUTION_REPO, '--draft', '--target', 'main', '--title', `CodexBuddy ${version}`, '--notes', '联网版本校验、强制升级和安装包校验']);
-  } else {
-    for (const file of installers) {
-      const asset = release.assets.find(item => item.name === path.basename(file));
-      if (!asset) {
-        if (!release.isDraft) throw new Error('Published release is missing an installer');
-        gh(['release', 'upload', tag, file, '--repo', DISTRIBUTION_REPO]);
-        continue;
+  const metadata = releaseMetadata(JSON.parse(fs.readFileSync(path.join(root, 'remote', 'config.json'))), version, directory);
+  const metadataDir = fs.mkdtempSync(path.join(directory, '.metadata-'));
+  const configPath = path.join(metadataDir, 'config.json');
+  try {
+    fs.writeFileSync(configPath, `${JSON.stringify(metadata, null, 2)}\n`);
+    const signature = signConfigFile(configPath, readPrivateKey(), publicKeyIn(path.join(root, 'electron/core/remote-key.ts')));
+    const tag = `v${version}`;
+    // Release assets are immutable after publication: reruns publish only matching, already-uploaded installers.
+    let release;
+    try { release = JSON.parse(gh(['release', 'view', tag, '--repo', DISTRIBUTION_REPO, '--json', 'isDraft,assets'])); } catch { /* first publication */ }
+    const installers = [path.join(directory, `CodexBuddy-Setup-${version}.exe`), path.join(directory, `CodexBuddy-${version}.dmg`)];
+    if (!release) {
+      // Initialize the repository before creating its first release tag.
+      try { api(`repos/${DISTRIBUTION_REPO}/git/ref/heads/main`); } catch {
+        gh(['api', `repos/${DISTRIBUTION_REPO}/contents/README.md`, '--method', 'PUT', '--input', '-'], {
+          message: 'Initialize distribution repository', branch: 'main', content: Buffer.from('# CodexBuddy\n\n安装包和签名版本配置。\n').toString('base64'),
+        });
       }
-      if (asset.digest === `sha256:${sha256(file)}`) continue;
-      const temporary = fs.mkdtempSync(path.join(directory, '.verify-'));
-      try {
-        gh(['release', 'download', tag, '--repo', DISTRIBUTION_REPO, '--dir', temporary, '--pattern', path.basename(file)]);
-        if (sha256(file) !== sha256(path.join(temporary, path.basename(file)))) throw new Error('Published installer differs; choose a new version');
-      } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
+      gh(['release', 'create', tag, ...installers, '--repo', DISTRIBUTION_REPO, '--draft', '--target', 'main', '--title', `CodexBuddy ${version}`, '--notes', '联网版本校验、强制升级和安装包校验']);
+    } else {
+      for (const file of installers) {
+        const asset = release.assets.find(item => item.name === path.basename(file));
+        if (!asset) {
+          if (!release.isDraft) throw new Error('Published release is missing an installer');
+          gh(['release', 'upload', tag, file, '--repo', DISTRIBUTION_REPO]);
+          continue;
+        }
+        if (asset.digest === `sha256:${sha256(file)}`) continue;
+        const temporary = fs.mkdtempSync(path.join(directory, '.verify-'));
+        try {
+          gh(['release', 'download', tag, '--repo', DISTRIBUTION_REPO, '--dir', temporary, '--pattern', path.basename(file)]);
+          if (sha256(file) !== sha256(path.join(temporary, path.basename(file)))) throw new Error('Published installer differs; choose a new version');
+        } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
+      }
     }
-  }
-  gh(['release', 'edit', tag, '--repo', DISTRIBUTION_REPO, '--draft=false', '--latest']);
-  publishMetadata([['remote/config.json', fs.readFileSync(configPath)], ['remote/config.json.sig', fs.readFileSync(signature)]], version);
-  const prefix = `repos/${DISTRIBUTION_REPO}`;
-  try { api(`${prefix}/pages`); } catch { api(`${prefix}/pages`, { build_type: 'legacy', source: { branch: 'main', path: '/' } }); }
-  console.log(`Published https://github.com/${DISTRIBUTION_REPO}/releases/tag/${tag}`);
-  console.log('Version endpoint: https://hhwyt.xyz/codex-buddy-releases/remote/config.json');
+    gh(['release', 'edit', tag, '--repo', DISTRIBUTION_REPO, '--draft=false', '--latest']);
+    publishMetadata([['remote/config.json', fs.readFileSync(configPath)], ['remote/config.json.sig', fs.readFileSync(signature)]], version);
+    const prefix = `repos/${DISTRIBUTION_REPO}`;
+    try { api(`${prefix}/pages`); } catch { api(`${prefix}/pages`, { build_type: 'legacy', source: { branch: 'main', path: '/' } }); }
+    console.log(`Published https://github.com/${DISTRIBUTION_REPO}/releases/tag/${tag}`);
+    console.log('Version endpoint: https://hhwyt.xyz/codex-buddy-releases/remote/config.json');
+  } finally { fs.rmSync(metadataDir, { recursive: true, force: true }); }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

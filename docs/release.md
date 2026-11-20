@@ -1,34 +1,35 @@
 # 发布
 
-## 发布远程配置
+客户端从 [GitHub Pages](https://hhwyt.xyz/codex-buddy-releases/remote/config.json) 获取版本配置，并读取同目录的 `config.json.sig`。备用地址为 GitHub Pages 默认域名、jsDelivr 和 GitHub Raw。只有内置公钥验签通过的在线响应才能放行；本机缓存和内置配置仅用于展示。
 
-所有装好的 CodexBuddy 都会去读 GitHub 上的 [`remote/config.json`](../remote/config.json)（先 jsDelivr，再 GitHub），同时读旁边的 `remote/config.json.sig`。签名对不上、或者没有签名的配置一律不用，当作连不上（用上次存下的那份）。
+## 安装包与版本配置
 
-改 `remote/config.json` → `node scripts/sign-remote-config.mjs` → 提交 `config.json` 和 `config.json.sig`；强制升级就把 `minVersion` 改成要求的版本。
+安装包发布到公开仓库 [codex-buddy-releases](https://github.com/hhwyt/codex-buddy-releases/releases)，源码仓库保持私有。下载直链固定到具体版本，例如 `https://github.com/hhwyt/codex-buddy-releases/releases/download/v0.2.2/CodexBuddy-Setup-0.2.2.exe`。
 
-- 两个文件必须在同一个提交里改。只改了 `config.json` 没重新签名，所有 App 都会拒收。
-- 发新版：推 `v<版本>` 标签，GitHub Actions（[`release.yml`](../.github/workflows/release.yml)）打 Windows 安装包和 Mac dmg 并发到 Releases；之后在本机把 `latest.version` 和下载直链改成新版、签名、提交。CI 上没有私钥，所以这一步不能交给 CI。
-- 签名脚本签的是文件的原样字节，签完不要再动 `config.json`（连空格和换行都不行）。
-- jsDelivr 有缓存，配置和签名可能一新一旧，这时 App 会自动改读 GitHub 的；想马上生效可以去 jsDelivr 清缓存。
-- 签名脚本会先用 App 里内置的公钥（[`electron/core/remote-key.ts`](../electron/core/remote-key.ts)）验一遍，私钥不对就报错，不会写出 `.sig`。
+应用通过 GitHub 官方 API 查找同一版本、同一文件名和同一直链对应的安装包，再使用文件下载接口获取字节。下载完成后必须符合签名配置中的 SHA-256；校验失败不执行，缓存的安装包也必须重新核对哈希。
 
-### 强制升级（minVersion）
+## 发布命令
 
-- 正在用的版本低于 `minVersion` 时，App 会挡住所有页面，只让用户去下载最新版（`latest` 里的下载地址）。Codex 本身不受影响。
-- 只升不降：App 记住自己接受过的最高 `minVersion`（加密存在本机），之后配置里改低、断网、一键还原都不会放开。要放开只能发一个更高版本的 App。
-- 用户从来没取到过远程配置（比如第一次打开就没网）时不拦。
-- `latest.version` 要不低于 `minVersion`，否则用户下载到的还是被拦的版本。
-- 挡住时整个窗口是升级页（强制升级原型第 4 版）：点按钮后 App 自己下载，圆环显示进度。Mac 下好打开 dmg，教用户拖进「应用程序」；Windows 下好运行安装包（旧版退出，装好打开新版）。
-- 所以 `latest.macUrl` / `latest.winUrl` 必须是**安装包本身的直链**（如 `https://github.com/hhwyt/codex-buddy/releases/download/v0.2.0/CodexBuddy-0.2.0.dmg`），不能是发布页；Mac 发 `npm run dist:mac` 出的 `release/CodexBuddy-<版本>.dmg`。地址只能在 GitHub / jsDelivr 上，否则整份配置不认。
+1. 设置 `package.json` 与锁文件的版本，运行静态检查、测试和打包。
+2. Windows 使用 `npm run dist`，Mac 使用 `npm run dist:mac`。安装包名称分别为 `CodexBuddy-Setup-<版本>.exe`、`CodexBuddy-<版本>.dmg`。CI 将构建包保存在私有源码仓库的草稿 Release。
+3. 将两个安装包放进同一目录，执行 `npm run release:publish -- <安装包目录>`。需要已登录的 GitHub CLI 和本机签名私钥。
 
-### 签名密钥
+发布脚本计算两个安装包的哈希，生成并签署版本配置，发布公开 Release，再用一次 Git 提交发布 `remote/config.json` 和签名。`latest.version` 与 `minVersion` 都设为当前包版本。源仓库内置的配置只提供离线展示，不随发布命令改写。草稿允许补齐缺失安装包，已发布版本的安装包不可替换；重复执行必须核对文件哈希。
 
-- 私钥只在站主电脑上：`~/.codexbuddy/remote-config-ed25519.pem`（权限 0600），不进仓库（`.gitignore` 挡了 `*.pem`）。也可以用环境变量 `CODEXBUDDY_SIGNING_KEY` 给（私钥 PEM 原文或文件路径）。
-- 私钥丢了就再也发不出 App 认的新配置（包括强制升级），只能换一把新钥匙、发新版 App。请把私钥另外备份到安全的地方（比如密码管理器）。
-- 换钥匙：`node scripts/gen-signing-key.mjs --force`，把打印出的公钥写进 `electron/core/remote-key.ts`，重新签名，发新版 App。旧版 App 只认旧公钥，换完之后它们收不到新配置。
+私钥位于 `~/.codexbuddy/remote-config-ed25519.pem`，不上传到 GitHub。签名脚本会核对内置公钥；私钥不匹配时停止发布。配置与签名必须成对发布，签署后不可修改文件字节。
 
-## 打包
+## 联网与强制升级
 
-- 正式包：Mac `npm run dist:mac` → `release/CodexBuddy-<版本>.dmg`（Intel + Apple 芯片通用，ad-hoc 签名：没有 Apple 开发者证书，浏览器下载的要右键「打开」放行一次；App 内强制升级自己下的不带隔离标记，直接能开），Windows `npm run dist`。打包时 electron-builder 按 `package.json` 里 `build.electronFuses` 打开 Electron fuses：不认 `NODE_OPTIONS` 和 `--inspect`，只从 `app.asar` 加载代码并校验它的完整性，cookie 加密存。`runAsNode` 保持打开，因为汉化版启动器要用 CodexBuddy 自己的 Electron 跑 `zh-runner.js`。另外正式包打不开 DevTools，命令行带 `--remote-debugging-port`、`--inspect` 之类的开关会直接退出（[`electron/main/hardening.ts`](../electron/main/hardening.ts)）。
-- 查 fuses：`npx @electron/fuses read --app release/mac-universal/CodexBuddy.app`。
-- 驱动测试（[`test/drive`](../test/drive)）用的包：`npm run dist:drive -- --mac dir` 或 `npm run dist:drive -- --win dir`。它不开 fuses、可以调试，只给 Playwright 用，不能发给用户。
+启动时先检查联网状态并校验签名版本配置。运行中每 60 秒检查版本，恢复前台或电脑唤醒时也会检查。未取得有效在线版本配置时不能使用功能。
+
+当前版本低于最低版本时，弹窗只显示「升级后继续使用」「请升级到 <版本>」，保留「退出 CodexBuddy」「立即升级」。界面与后台功能接口同时限制，不能关闭弹窗继续使用。客户端保存接受过的最高最低版本，降低服务端下限、断网或还原配置都不能解除限制。
+
+Windows 下载并验证安装包后退出程序，由安装包替换程序并打开新版。每用户安装目录、应用标识和数据目录保持固定；卸载设置禁止删除用户数据。CodexBuddy 的密钥与设置、Codex 聊天目录均保留。启动时本机转接地址的临时端口可以变化，模型和账号设置必须保留。
+
+Mac 构建为 Intel 与 Apple 芯片通用 DMG，使用 ad-hoc 签名。下载后打开 DMG，用户将应用拖进「应用程序」完成替换。
+
+## 正式包检查
+
+正式包启用 `package.json` 中的 Electron fuses，禁止 DevTools、调试开关与测试环境覆盖，仅从完整性校验的 `app.asar` 加载。驱动测试包允许调试，不能发布给用户。
+
+Windows 升级验证使用两个实际发布的安装包。升级前备份并记录聊天文件、配置、加密密钥的哈希；升级后核对实际运行版本、受保护文件与模型设置，检查代理仍关闭。
