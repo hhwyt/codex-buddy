@@ -4,8 +4,7 @@
 import { BrowserWindow, screen } from 'electron';
 import * as path from 'node:path';
 
-/** Window chrome colors = ui/tokens.css --side / --ink (the window paints before the page) */
-const SIDE = '#f9f9f9';
+/** Transparent native button background lets page content and modal scrims paint beneath it. */
 const INK = '#0d0d0d';
 export const WINDOW_SIZE = { width: 980, height: 680 };
 
@@ -17,7 +16,7 @@ export function windowOptions(os: 'mac' | 'win', devTools = true): Electron.Brow
     icon: path.join(__dirname, '..', '..', 'ui', 'assets', 'icon.png'),
     ...(os === 'mac'
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 16, y: 18 } }
-      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: SIDE, symbolColor: INK, height: 40 } }),
+      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#00000000', symbolColor: INK, height: 40 } }),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
       contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false, devTools,

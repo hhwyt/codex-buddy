@@ -6,6 +6,13 @@ import type { BuiltinVendorId, ProviderInfo } from './types';
 
 export const PROVIDERS: ProviderInfo[] = [
   {
+    id: 'openai', name: 'OpenAI 官方账号',
+    // Codex's own provider and its own model list: no catalog, no key, login through `codex login` (M-22, M-26)
+    baseUrl: 'https://api.openai.com/v1', wireApi: 'responses', defaultModel: '',
+    models: [], loginUrl: 'https://chatgpt.com/', keysUrl: 'https://platform.openai.com/api-keys', rechargeUrl: null,
+    hosts: ['api.openai.com', 'chatgpt.com', 'auth.openai.com'], officialAccount: true,
+  },
+  {
     id: 'zhipu', name: '智谱',
     // Shipped in 0.1.x with wire_api = "responses" against /api/v1 (see main branch electron/buddy.ts)
     baseUrl: 'https://open.bigmodel.cn/api/v1', wireApi: 'responses', defaultModel: 'glm-4.5-flash',
@@ -79,13 +86,6 @@ export const PROVIDERS: ProviderInfo[] = [
     ],
     loginUrl: 'https://cloud.tencent.com/login?s_url=https%3A%2F%2Fconsole.cloud.tencent.com%2Fhunyuan%2Fstart', keysUrl: 'https://console.cloud.tencent.com/hunyuan/start',
     rechargeUrl: 'https://console.cloud.tencent.com/expense/recharge', hosts: ['api.hunyuan.cloud.tencent.com', 'console.cloud.tencent.com'],
-  },
-  {
-    id: 'openai', name: 'OpenAI 官方账号',
-    // Codex's own provider and its own model list: no catalog, no key, login through `codex login` (M-22, M-26)
-    baseUrl: 'https://api.openai.com/v1', wireApi: 'responses', defaultModel: '',
-    models: [], loginUrl: 'https://chatgpt.com/', keysUrl: 'https://platform.openai.com/api-keys', rechargeUrl: null,
-    hosts: ['api.openai.com', 'chatgpt.com', 'auth.openai.com'], officialAccount: true,
   },
 ];
 

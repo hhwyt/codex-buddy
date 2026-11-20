@@ -831,6 +831,13 @@ describe('security, community, update, restore', () => {
   });
 });
 
+test('M-01 默认官方账号排第一，保存的卡片顺序不强制重排', async () => {
+  const b = build();
+  expect((await b.h['wallet:get'](undefined as never)).order.slice(0, 3)).toEqual(['openai', 'zhipu', 'deepseek']);
+  await b.h['wallet:reorder']({ order: ['kimi', 'openai', 'zhipu', 'deepseek'] });
+  expect((await b.h['wallet:get'](undefined as never)).order.slice(0, 2)).toEqual(['kimi', 'openai']);
+});
+
 describe('配置生效与重启确认', () => {
   test('M-21 只有成功且有变化、应用运行时才要求重启；待重启状态跨进程保存', async () => {
     const b = build();
@@ -847,10 +854,13 @@ describe('配置生效与重启确认', () => {
     expect(b.svc.state().restartRequired).toBe(true);
   });
 
-  test('M-21 应用未运行时保存配置无需重启', async () => {
+  test('M-21 应用未运行时保存配置邀请打开，无变化不邀请', async () => {
     const b = build();
     await installed_(b);
-    expect((await b.h['switch:start']({ vendor: 'deepseek' })).restartRequired).toBe(false);
+    const result = await b.h['switch:start']({ vendor: 'deepseek' });
+    expect(result.restartRequired).toBe(false);
+    expect(result.openRequired).toBe(true);
+    expect((await b.h['switch:start']({ vendor: 'deepseek' })).openRequired).not.toBe(true);
     expect(b.svc.state().restartRequired).toBe(false);
   });
 
@@ -874,6 +884,18 @@ describe('配置生效与重启确认', () => {
     expect(configOf(b.paths.codexHome)).toBe(before);
     expect(fs.readFileSync(path.join(b.paths.codexHome, 'session.json'), 'utf8')).toBe('keep-chat');
     expect(events).toContainEqual({ event: 'restartRequired', payload: false });
+  });
+
+  test('M-21 保存时未运行，确认时也不依赖运行检测而直接执行重启流程', async () => {
+    const b = build();
+    await installed_(b);
+    const saved = await b.h['switch:start']({ vendor: 'deepseek' });
+    expect(saved.openRequired).toBe(true);
+    const restart = vi.spyOn(b.platform, 'restartCodex').mockResolvedValue(undefined);
+    const detection = vi.spyOn(b.platform, 'isCodexRunning').mockResolvedValue(false);
+    expect(await b.h['codex:restart'](undefined as never)).toEqual({ ok: true });
+    expect(restart).toHaveBeenCalledTimes(1);
+    expect(detection).not.toHaveBeenCalled();
   });
 
   test('M-21 重启失败保留待重启状态，再试一次可以恢复', async () => {

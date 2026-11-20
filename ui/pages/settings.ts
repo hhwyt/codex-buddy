@@ -125,7 +125,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
     mark(to);
     if (to === 'zh') launcher = true;
     showTrash();
-    if (res.restartRequired) {
+    if (res.restartRequired || res.openRequired) {
       say();
     } else if (to === 'zh') {
       say(ok(), ' 好了：从「ChatGPT 汉化版」打开就是中文 ', btn('打开看看', openCodex, true));
@@ -133,7 +133,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
       say(ok(), ' 已切回英文原版；分身也变回英文。「ChatGPT 汉化版」图标还留着，想去掉点它右下角的垃圾桶');
     }
     setBusy(false);
-    if (res.restartRequired) await promptRestart(api);
+    if (res.restartRequired || res.openRequired) await promptRestart(api, !res.restartRequired);
   }
 
   async function removeZh(): Promise<void> { // L-04: removes the launcher only

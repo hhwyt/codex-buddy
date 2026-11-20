@@ -19,6 +19,7 @@ test('X-01 测试版跑完全部端到端后，真实 ~/.codex 和 /Applications
       await switchTo(run, 'deepseek');
       await nav.settings(run.page);
       await run.page.getByTestId(TID.settings.zhCard).click();
+      await run.page.getByTestId(TID.restart.later).click();
       await clickClear(run.page.getByTestId(TID.settings.restore));
       await run.page.getByTestId(TID.dialog.confirm).click();
     } finally {

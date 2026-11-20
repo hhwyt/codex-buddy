@@ -32,8 +32,10 @@ test('G-01 去掉汉化版、删除分身、一键还原前后，数据目录的
   await nav.settings(page);
   await page.getByTestId(TID.settings.zhCard).click();
   await expect(page.getByTestId(TID.settings.zhTrash)).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId(TID.restart.later).click();
   let before = data();
   await page.getByTestId(TID.settings.zhTrash).click();
+  await page.getByTestId(TID.restart.later).click();
   await expect(page.getByTestId(TID.settings.zhTrash)).toHaveCount(0, { timeout: 10_000 });
   expect(data()).toEqual(before);
 

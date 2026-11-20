@@ -43,8 +43,6 @@ export const renderModels: Page = async ({ api, root, go }) => {
 
 export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletView, opts: { codexMissing?: boolean; onCodexMissing?: () => void } = {}): () => void {
   let wallet = initial;
-  /** Set once right after install: open Codex when the automatic first switch returns */
-  let openCodexAfterSwitch = false;
   let order: VendorKey[] = initial.order.slice();
   let mode = initial.mode;
   let front: FrontState | null = null;
@@ -236,7 +234,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     if (!switching) putBack();
   }
 
-  async function switchTo(v: VendorKey, before?: VendorKey[], previousChange = false): Promise<void> {
+  async function switchTo(v: VendorKey, before?: VendorKey[], previousChange: Outcome | null = null): Promise<void> {
     if (isBusy()) return;
     // Without Codex, selecting a card only changes its place. Installation belongs to the shared banner.
     if (opts.codexMissing) {
@@ -257,9 +255,6 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     layout();
     let r: SwitchResult;
     try { r = await api.invoke('switch:start', { vendor: v }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
-    // Right after install: Codex opens the moment the top card is set up (or given up), before any dialog
-    // Only once a domestic model really works (站主 11-16: 没配好 Key 时 ChatGPT 不应该启动)
-    if (openCodexAfterSwitch) { openCodexAfterSwitch = false; if (r.ok) void api.invoke('codex:open', {}); }
     switching = false;
     inflight = null;
     if (run.superseded) {
@@ -269,8 +264,8 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
       return;
     }
     finish();
-    if (r.ok) return succeed(v, { ...r, restartRequired: r.restartRequired || previousChange });
-    if (previousChange) await promptRestart(api);
+    if (r.ok) return succeed(v, { ...r, restartRequired: r.restartRequired || previousChange?.restartRequired, openRequired: r.openRequired || previousChange?.openRequired });
+    if (previousChange?.restartRequired || previousChange?.openRequired) await promptRestart(api, !previousChange.restartRequired);
     const kind = typeof r.kind === 'string' ? r.kind : '';
     if (kind === 'codex-missing') { putBack(); opts.onCodexMissing?.(); return; }
     if (kind === 'cancelled') { putBack(); toast('取消了，什么都没改'); return; }
@@ -319,7 +314,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     syncCards();
     pendingWallet = null;
     layout();
-    if (r.restartRequired) await promptRestart(api);
+    if (r.restartRequired || r.openRequired) await promptRestart(api, !r.restartRequired, name);
     else if (r.firstTime) await firstSuccess(api, r.seconds ?? 0);
   }
 
@@ -332,7 +327,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     switching = false;
     if (!r.ok) { layout(); toast(r.reason ?? '没修好', { error: true }); return; }
     front = null;
-    await switchTo(v, undefined, !!r.restartRequired);
+    await switchTo(v, undefined, r);
   }
 
   async function pasteKey(v: VendorKey, key: string): Promise<void> {
@@ -340,7 +335,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     try { r = await api.invoke('key:paste', { vendor: v, key }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
     if (!r.ok) { toast(r.reason ?? '这个 Key 用不了', { error: true }); return; }
     front = null;
-    await switchTo(v, undefined, !!r.restartRequired);
+    await switchTo(v, undefined, r);
   }
 
   async function changeKey(v: VendorKey): Promise<void> {
@@ -352,7 +347,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     try { r = await api.invoke('key:replace', { vendor: v }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
     switching = false;
     front = null;
-    if (r.ok) { toast('换好了，新 Key 测通了'); await refresh(); if (r.restartRequired) await promptRestart(api); return; }
+    if (r.ok) { toast('换好了，新 Key 测通了'); await refresh(); if (r.restartRequired || r.openRequired) await promptRestart(api, !r.restartRequired); return; }
     layout();
     toast(r.reason ? `没换成，还在用原来的 Key：${r.reason}` : '没换成，还在用原来的 Key', { error: true });
   }
@@ -472,9 +467,9 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
 
   syncCards();
   layout();
-  // Just installed and nothing set up yet: set up the top card (智谱), then open Codex on it (站主 11-16)
+  // Configure the top card after installation; opening ChatGPT requires confirmation.
   const autoFirst = autoFirstSwitch.pending;
   autoFirstSwitch.pending = false;
-  if (autoFirst && !wallet.active && order[0]) { openCodexAfterSwitch = true; void switchTo(order[0]); }
+  if (autoFirst && !wallet.active && order[0]) { void switchTo(order[0]); }
   return () => { for (const off of offs) off(); window.removeEventListener('resize', onResize); document.documentElement.classList.remove('scan-waiting'); };
 }

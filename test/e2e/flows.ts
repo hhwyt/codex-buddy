@@ -90,7 +90,7 @@ export async function dragToFront(page: Page, vendor: string): Promise<void> {
 }
 
 /** Switches to a vendor by clicking its card, scanning the fake QR code when a login page shows up */
-export async function switchTo(run: Launched, vendor: string, opts: { expectOk?: boolean; via?: 'click' | 'drag' } = {}): Promise<void> {
+export async function switchTo(run: Launched, vendor: string, opts: { expectOk?: boolean; via?: 'click' | 'drag'; keepOpenPrompt?: boolean } = {}): Promise<void> {
   const { page, app } = run;
   if (opts.via === 'drag') await dragToFront(page, vendor);
   else {
@@ -105,6 +105,10 @@ export async function switchTo(run: Launched, vendor: string, opts: { expectOk?:
   }
   if (opts.expectOk === false) return;
   await expect.poll(async () => (await wallet(page)).active, { timeout: 30_000 }).toBe(vendor);
+  if (!opts.keepOpenPrompt) {
+    const open = page.getByTestId(TID.restart.root).filter({ has: page.getByRole('button', { name: '打开 ChatGPT', exact: true }) });
+    await open.waitFor({ state: 'visible', timeout: 2000 }).then(() => open.getByTestId(TID.restart.later).click()).catch(() => undefined);
+  }
   const dlg = page.getByTestId(TID.firstSuccess.root);
   if (await dlg.isVisible().catch(() => false)) await page.keyboard.press('Escape');
 }

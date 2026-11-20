@@ -113,7 +113,7 @@ test('S-08 日志和界面里任何地方都不出现完整的 Key', async () =>
   await switchTo(run, 'zhipu');
   await run.page.getByTestId(TID.models.changeKey('zhipu')).click();
   await fakeScan(run.app, 'zhipu').catch(() => undefined);
-  await run.page.waitForTimeout(2000);
+  await run.page.getByTestId(TID.restart.later).click();
   await openPanel();
   await run.page.getByTestId(TID.security.askAi).click();
   const keys = allKeys();

@@ -708,7 +708,7 @@ export function createServices(d: ServiceDeps) {
       st.restartRequired = restartRequired;
       save();
       d.emit('restartRequired', restartRequired);
-      return { ...result, restartRequired };
+      return { ...result, restartRequired, openRequired: !restartRequired };
     };
   }
 

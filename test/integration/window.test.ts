@@ -40,7 +40,7 @@ describe('窗口（W-01）', () => {
   it('W-01 Windows：没有标题栏，右上角是系统画的三个窗口按钮', () => {
     const o = windowOptions('win');
     expect(o.titleBarStyle).toBe('hidden');
-    expect(o.titleBarOverlay).toMatchObject({ height: 40 });
+    expect(o.titleBarOverlay).toMatchObject({ color: '#00000000', symbolColor: '#0d0d0d', height: 40 });
     expect(o.trafficLightPosition).toBeUndefined();
   });
 

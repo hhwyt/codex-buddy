@@ -75,6 +75,7 @@ test('L-03 点英文原版字倒回英文，汉化版图标留着', async () => 
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect.poll(zhOn).toBe(true);
   await settled();
+  await run.page.getByTestId(TID.restart.later).click();
   const zhText = cjk(await run.page.getByTestId(TID.settings.zhCard).innerText());
   await run.page.getByTestId(TID.settings.enCard).click();
   await expect.poll(zhOn).toBe(false);
@@ -94,6 +95,7 @@ test('L-04 垃圾桶只在汉化版加上后出现，在预览框右下角不配
   await expect(trash).toHaveCount(0);
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect(trash).toBeVisible({ timeout: 10_000 });
+  await run.page.getByTestId(TID.restart.later).click();
   const card = (await run.page.getByTestId(TID.settings.zhCard).boundingBox())!;
   const t = (await trash.boundingBox())!;
   // inside the zh preview frame, bottom right quarter
@@ -110,19 +112,21 @@ test('L-04 垃圾桶只在汉化版加上后出现，在预览框右下角不配
   const data = hashTree(codexHome(run.sandbox));
   const app = hashTree(chatgptApp());
   await trash.click();
+  await run.page.getByTestId(TID.restart.later).click();
   await expect.poll(() => fs.existsSync(zhLauncher()), { timeout: 10_000 }).toBe(false);
   await expect(trash).toHaveCount(0);
   expect(hashTree(codexHome(run.sandbox))).toBe(data);
   expect(hashTree(chatgptApp())).toBe(app);
 });
 
-test('L-05 只有 Codex 正开着时才问要不要重新打开', async () => {
+test('L-05 未运行时邀请打开，运行时确认重启', async () => {
   await ready();
   await toSettings();
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect.poll(zhOn).toBe(true);
   await settled();
-  await expect(langMsg()).not.toContainText('重新打开');
+  await expect(run.page.getByTestId(TID.restart.root)).toContainText('现在打开 ChatGPT，体验新配置？');
+  await run.page.getByTestId(TID.restart.later).click();
   setCodexRunning(run.sandbox, true);
   await run.page.getByTestId(TID.settings.enCard).click();
   await expect(run.page.getByTestId(TID.restart.root)).toContainText('现在重启 ChatGPT？');
@@ -154,6 +158,7 @@ test('L-07 分身跟着汉化开关走', async () => {
   await expect.poll(zhOn).toBe(true);
   await settled();
   await expect.poll(() => hashTree(path.join(appsDir, cloneApp()))).not.toBe(english); // its launcher now opens in Chinese
+  await run.page.getByTestId(TID.restart.later).click();
   await run.page.getByTestId(TID.settings.enCard).click();
   await expect.poll(zhOn).toBe(false);
   await settled();
@@ -168,9 +173,11 @@ test('T-01 汉化版和英文原版切换，失败时提示', async () => {
   await run.page.getByTestId(TID.settings.zhCard).click();
   await expect.poll(zhOn).toBe(true);
   await settled();
+  await run.page.getByTestId(TID.restart.later).click();
   await run.page.getByTestId(TID.settings.enCard).click();
   await expect.poll(zhOn).toBe(false);
   await settled();
+  await run.page.getByTestId(TID.restart.later).click();
   // failure path: the 汉化版 entry cannot be added (its folder is a file), the page says so and stays English
   fs.rmSync(zhLauncher(), { recursive: true, force: true });
   if (process.platform === 'win32') {

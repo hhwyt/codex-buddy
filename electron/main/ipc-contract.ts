@@ -49,7 +49,7 @@ export interface UpgradeRequiredView { version: string; notes: string; url: stri
 export type VersionStatus = 'checking' | 'offline' | 'allowed';
 
 export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'upgrade' | 'repair'; id: string; state: 'start' | 'done' | 'fail'; text: string }
-export interface Outcome { ok: boolean; reason?: string; restartRequired?: boolean; [extra: string]: unknown }
+export interface Outcome { ok: boolean; reason?: string; restartRequired?: boolean; openRequired?: boolean; [extra: string]: unknown }
 export type NetworkState = 'checking' | 'online' | 'offline';
 
 /** invoke channels: name → [args, result] */

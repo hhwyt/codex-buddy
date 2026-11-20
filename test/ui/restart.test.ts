@@ -85,3 +85,32 @@ test('M-21 共享提示接收变化事件，可以重新弹出重启确认框', 
   query(TID.restart.notice).querySelector('button')!.click();
   expect(query(TID.restart.root)).toBeTruthy();
 });
+
+test('M-21 未运行时显示保存成功与打开邀请，点击仍执行可靠重启路径', async () => {
+  const api = fakeApi(walletOf());
+  const pending = promptRestart(api, true, 'DeepSeek');
+  expect(query(TID.restart.root).textContent).toContain('配置已保存');
+  expect(query(TID.restart.root).textContent).toContain('现在打开 ChatGPT，试试 DeepSeek？');
+  expect(query(TID.restart.root).textContent).toContain('正在进行的任务会中断');
+  expect(query(TID.restart.now).textContent).toBe('打开 ChatGPT');
+  query(TID.restart.now).click();
+  expect(await pending).toBe(true);
+  expect(api.callsOf('codex:restart')).toHaveLength(1);
+  expect(api.callsOf('codex:open')).toHaveLength(0);
+});
+
+test('M-21 未运行时稍后不启动；打开失败可以重试', async () => {
+  const api = fakeApi(walletOf());
+  const later = promptRestart(api, true);
+  query(TID.restart.later).click();
+  expect(await later).toBe(false);
+  expect(api.callsOf('codex:restart')).toHaveLength(0);
+  let attempts = 0;
+  api.handle('codex:restart', () => ({ ok: ++attempts > 1 }));
+  const pending = promptRestart(api, true);
+  query(TID.restart.now).click();
+  await settle();
+  expect(query(TID.restart.root).textContent).toContain('没能打开 ChatGPT');
+  query(TID.restart.now).click();
+  expect(await pending).toBe(true);
+});

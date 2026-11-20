@@ -45,7 +45,7 @@ export function customVendor(api: BuddyApi, root: HTMLElement = document.body): 
       submit.textContent = '正在添加';
       let r;
       try { r = await api.invoke('custom:add', args); } catch { r = { ok: false }; }
-      if (r.ok) { close(true); if (r.restartRequired) await promptRestart(api); return; }
+      if (r.ok) { close(true); if (r.restartRequired || r.openRequired) await promptRestart(api, !r.restartRequired); return; }
       submit.disabled = false;
       submit.textContent = '添加';
       err.textContent = r.reason ?? '没连通，检查一下再试';

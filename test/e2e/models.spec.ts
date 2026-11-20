@@ -46,12 +46,12 @@ test('M-01 第一次进来所有卡都在且没有正在用的', async () => {
   await ready();
   const w = await wallet(run.page);
   expect(w.active).toBeNull();
-  expect(w.order.slice(0, 7)).toEqual([...VENDOR_IDS]);
+  expect(w.order.slice(0, 7)).toEqual(['openai', ...VENDOR_IDS.filter(v => v !== 'openai')]);
   for (const v of VENDOR_IDS) await expect(card(v)).toBeAttached();
   await expect(run.page.getByTestId(TID.models.addVendor)).toBeVisible();
   // the same pile as later (model-page-top.html): the first card whole on top, but nothing says ✓ 能用
   await expect(run.page.locator('.card.whole')).toHaveCount(1);
-  await expect(card(VENDOR_IDS[0])).toHaveClass(/\bwhole\b/);
+  await expect(card('openai')).toHaveClass(/\bwhole\b/);
   await expect(run.page.getByText('✓ 能用')).toHaveCount(0);
 });
 
@@ -248,6 +248,7 @@ test('M-17 换 Key：扫码后新 Key 测通才替换，不通保持旧的', asy
   await expect.poll(() => authKey(), { timeout: 30_000 }).not.toBe(first);
   const second = authKey();
   expect(second).toBe(lastKey('zhipu'));
+  await run.page.getByTestId(TID.restart.later).click();
   run.vendors.setScenario('401', 'zhipu');
   setCodexScenario(run.sandbox, '401');
   const created = (vendorState(run.vendors).keys.zhipu ?? []).length;
@@ -284,21 +285,18 @@ test('M-19 其他厂商：填写后保存配置并加一张卡', async () => {
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe(id);
 });
 
-test('M-20 第一次成功弹窗显示从零到能用 N 秒，有打开 Codex 和关注行', async () => {
+test('M-20 第一次保存配置后邀请打开，稍后不启动应用', async () => {
   await ready();
-  await card('deepseek').click({ position: { x: 60, y: 45 } });
-  await fakeScan(run.app, 'deepseek').catch(() => undefined);
-  const dlg = run.page.getByTestId(TID.firstSuccess.root);
-  await expect(dlg).toBeVisible({ timeout: 30_000 });
-  await expect(run.page.getByTestId(TID.firstSuccess.seconds)).toHaveText(/\d+/);
-  await expect(dlg).toContainText('从零到能用');
-  await expect(dlg).toContainText('关注');
-  await run.page.getByTestId(TID.firstSuccess.openCodex).click();
+  await switchTo(run, 'deepseek', { keepOpenPrompt: true });
+  const dlg = run.page.getByTestId(TID.restart.root);
+  await expect(dlg).toContainText('配置已保存');
+  await expect(dlg).toContainText('现在打开 ChatGPT，试试 DeepSeek？');
+  const before = await run.external();
+  await dlg.getByTestId(TID.restart.later).click();
   await expect(dlg).toBeHidden();
-  // Only the first success shows it; 打开 Codex appears nowhere else
+  expect(await run.external()).toEqual(before);
   await switchTo(run, 'kimi');
   await expect(dlg).toBeHidden();
-  await expect(run.page.getByText('打开 Codex', { exact: true })).toHaveCount(0);
 });
 
 test('M-21 配置变化后确认重启，稍后跨页保留，再重启后收起', async () => {
@@ -393,4 +391,21 @@ test('M-02 从上往下：切到智谱、再切到 Kimi，最近用的排上面�
   }
   expect((await card('deepseek').boundingBox())!.x + 380 * zoom).toBeLessThanOrEqual(p.x);
   await shot('4-pip');
+});
+
+
+test('M-21 未运行时邀请打开，确认前应用已启动也执行退出再打开', async () => {
+  await ready();
+  setCodexRunning(run.sandbox, false);
+  await switchTo(run, 'deepseek', { keepOpenPrompt: true });
+  const modal = run.page.getByTestId(TID.restart.root);
+  await expect(modal).toContainText('现在打开 ChatGPT，试试 DeepSeek？');
+  await expect(modal.getByTestId(TID.restart.now)).toHaveText('打开 ChatGPT');
+  await run.page.screenshot({ path: 'test-results/open-chatgpt-confirm.png' });
+  const before = configToml(run.sandbox);
+  setCodexRunning(run.sandbox, true);
+  await modal.getByTestId(TID.restart.now).click();
+  await expect(modal).toBeHidden();
+  expect(configToml(run.sandbox)).toBe(before);
+  expect((await run.external()).revealed.some(p => p.includes('Test-ChatGPT'))).toBe(true);
 });

@@ -171,3 +171,6 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .version-dialog progress { width: 100%; accent-color: var(--accent-fill); margin-top: 20px; height: 6px; }
 
 .version-gate { z-index: 900; }
+
+.restart-saved { width: 43px; height: 43px; border: 1px solid var(--line); border-radius: 13px; display: grid; place-items: center; font-size: 25px; color: var(--accent); margin-bottom: 19px; }
+.restart-dialog .restart-consequence { font-size: 12px; margin-top: 14px; }
