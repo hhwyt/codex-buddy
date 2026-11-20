@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { TID } from '../../ui/testids';
 import { clickClear, finishOnboarding, makeCloneOf, nav, switchTo } from './flows';
 import { hashAll, hashTree, realProtectedPaths } from './hash';
-import { cloneHome, codexDataDir, codexHome, launch, seedCodex, seedUserData, type Launched } from './launch';
+import { cloneHome, codexDataDir, codexHome, launch, seedConfigured, seedCodex, seedUserData, type Launched } from './launch';
 import { BASE_NEEDS, merge, needs } from './pending';
 
 let run: Launched;
@@ -15,7 +15,7 @@ test.afterEach(async () => { await run?.close(); });
 
 test('G-01 去掉汉化版、删除分身、一键还原前后，数据目录的哈希不变', async () => {
   const real = hashAll(realProtectedPaths());
-  run = await launch({ seed: s => { seedCodex(s); seedUserData(s, ['deepseek']); } });
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s, ['deepseek']); seedConfigured(s); } });
   const { page, sandbox } = run;
   const data = () => ({
     codex: hashTree(codexHome(sandbox)),

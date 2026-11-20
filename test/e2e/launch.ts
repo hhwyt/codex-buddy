@@ -18,6 +18,7 @@ import { _electron as electron, type ElectronApplication, type Page } from '@pla
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { sandboxPaths } from '../../electron/platform/sandbox';
 import { pathToFileURL } from 'node:url';
 import type * as VendorFake from '../fakes/vendor-server.mjs';
 import type * as ConfigFake from '../fakes/config-server.mjs';
@@ -165,6 +166,13 @@ export function seedUserData(sandbox: string, clones: string[] = []): void {
   write(path.join(home, 'history.jsonl'), '{"text":"hello"}\n');
   write(path.join(codexDataDir(sandbox), 'Local Storage', 'leveldb', '000003.log'), 'electron data');
   for (const c of clones) write(path.join(cloneHome(sandbox, c), 'sessions', 'rollout-clone.jsonl'), `{"clone":"${c}"}\n`);
+}
+
+/** Management tests start after onboarding, without racing the install page's automatic first configuration. */
+export function seedConfigured(sandbox: string): void {
+  const dir = sandboxPaths(sandbox).buddyDir;
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ onboarded: true }));
 }
 
 export const setCodexRunning = (sandbox: string, on: boolean) => {

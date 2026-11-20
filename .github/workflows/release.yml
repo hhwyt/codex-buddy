@@ -21,7 +21,7 @@ permissions:
 jobs:
   build:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -51,6 +51,7 @@ jobs:
       - run: npm ci
       - run: npm run ${{ matrix.script }}
       - name: Build provenance
+        continue-on-error: true
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
@@ -63,4 +64,3 @@ jobs:
             release/*.exe
             release/*.dmg
           if-no-files-found: ignore
-

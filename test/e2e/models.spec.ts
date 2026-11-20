@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { TID } from '../../ui/testids';
 import { cardBoxes, cardsSettled, dragCardTo, dragToFront, fakeScan, finishOnboarding, inWebContents, switchTo, webContentsUrls } from './flows';
 import {
-  codexHome, configToml, launch, readText, sandboxApps, seedCodex, seedUserData, setCodexRunning, setCodexScenario,
+  codexHome, configToml, launch, readText, sandboxApps, seedConfigured, seedCodex, seedUserData, setCodexRunning, setCodexScenario,
   tomlValue, VENDOR_IDS, vendorState, wallet, type Launched,
 } from './launch';
 import { recordSteps, steps } from './steps';
@@ -19,7 +19,7 @@ needs(merge(BASE_NEEDS, { ui: { models: ['TID.models.changeKey(', 'TID.models.re
 test.afterEach(async () => { await run?.close(); });
 
 async function ready(env: Record<string, string> = {}): Promise<Launched> {
-  run = await launch({ env, seed: s => { seedCodex(s); seedUserData(s); } });
+  run = await launch({ env, seed: s => { seedCodex(s); seedUserData(s); seedConfigured(s); } });
   await finishOnboarding(run.page);
   return run;
 }
