@@ -69,7 +69,7 @@ button,select{font:inherit;letter-spacing:inherit}button{cursor:pointer;border:1
 .mscrim{position:absolute;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:2;animation:fade .15s}
 .dlg{background:#fff;border-radius:18px;padding:26px;width:380px;max-width:calc(100% - 24px);box-shadow:0 12px 40px var(--shadow);animation:up .18s ease-out}
 .dlg h2{margin:0 0 14px;font-size:20px;letter-spacing:-.4px;display:flex;align-items:center;gap:10px}
-.kv{display:grid;grid-template-columns:44px 1fr;gap:10px 8px;font-size:13px;line-height:1.6}
+.kv{display:grid;grid-template-columns:20px 1fr;gap:10px 8px;font-size:13px;line-height:1.6}
 .kv dt{color:var(--ink-3)}.kv dd{margin:0;word-break:break-all;display:flex;gap:6px;align-items:center}
 #sa{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}#sa:empty{display:none}
 .dlg .close{margin-top:16px;display:flex;justify-content:flex-end}
@@ -81,7 +81,7 @@ button,select{font:inherit;letter-spacing:inherit}button{cursor:pointer;border:1
 </style>
 <div class="pre">
 <h1>GitHub 已登录 · 第 2 版：验证弹窗</h1>
-<p>用户电脑上 gh 命令行或右边浏览器已经登录 GitHub。验证时旁边有一个勾选框「顺手给 CodexBuddy 点个 Star」，不默认勾上；勾上后，页面一打开就在右边自动点好，之后只留「✓ 已点 Star」。</p>
+<p>已登录 GitHub：勾上「给 CodexBuddy 点个 Star」，页面打开后自动点好。</p>
 <nav class="tabs" aria-label="版本"><a href="index.html">目录</a><a href="a1.html">GitHub 已登录 · 1 步骤清单</a><a href="a2.html">GitHub 已登录 · 2 验证弹窗</a><a href="a3.html">GitHub 已登录 · 3 打勾那一刻</a><a href="b1.html">GitHub 没登录 · 1 步骤清单</a><a href="b2.html">GitHub 没登录 · 2 验证弹窗</a><a href="b3.html">GitHub 没登录 · 3 打勾那一刻</a></nav>
 <div class="controls">
 <label>选好的模型 <select id="model"><option value="deepseek">DeepSeek</option><option value="zhipu">智谱 GLM（免费）</option><option value="openai">OpenAI 官方账号</option></select></label>
@@ -156,11 +156,11 @@ const MODE='auto';let verified=false,starBusy=false,skipped=false;
 function renderStar(){const a=$('sa');if(!a)return;
  if(window.__starred&&!starBusy){a.innerHTML='<p class="sa-done"><span class="ok">✓</span> 已点 Star</p>';return}
  if(starBusy){a.innerHTML='<p class="sa-done"><span class="spin"></span> 正在右边点 Star</p>';return}
- if(MODE==='auto'){const who=lg()==='gh'?' gh 命令行':'右边浏览器';a.innerHTML=`<label class="opt"><input type="checkbox" id="opt"${window.__opt?' checked':''}><span>顺手给 CodexBuddy 点个 Star<small>用${who}里登录的 GitHub 账号</small></span></label>`;
+ if(MODE==='auto'){a.innerHTML=`<label class="opt"><input type="checkbox" id="opt"${window.__opt?' checked':''}><span>给 CodexBuddy 点个 Star</span></label>`;
   $('opt').onchange=e=>{window.__opt=e.target.checked;if(e.target.checked&&pageOk)go()};return}
  if(skipped){a.innerHTML='<p class="sa-done"><span class="ok">✓</span> 装好了</p>';return}
  if(!verified){a.innerHTML='';return}
- a.innerHTML='<div class="sa-ask"><p>觉得好用，给 CodexBuddy 点个 Star？<small>需要先登录 GitHub</small></p><div class="row even"><button id="skip">跳过</button><button id="star">去点赞</button></div></div>';
+ a.innerHTML='<div class="sa-ask"><p>给 CodexBuddy 点个 Star？</p><div class="row even"><button id="skip">跳过</button><button id="star">去点赞</button></div></div>';
  $('skip').onclick=()=>{skipped=true;closePanel();renderStar();caption('跳过了点赞，也算装好。')};$('star').onclick=go}
 function go(){starBusy=true;renderStar();autoStar()}
 function onStarred(){starBusy=false;renderStar()}
@@ -172,9 +172,10 @@ function lg(){return $('login').value}
 let A;
 function dlg(){const m=M();const head=A.state==='run'?'<span class="spin"></span>正在验证':A.state==='fail'?'<span class="err">✕</span>没验证成功':`<span class="ok">✓</span>${m.name} 能用了`;
  const page=A.page==='run'?'<span class="spin"></span>正在打开':A.page==='done'?`<span class="ok">✓</span>${SHORT}`:A.page==='fail'?'<span class="err">没打开，可能是网络问题</span>':'—';
- $('dh').innerHTML=head;$('kv').innerHTML=`<dt>模型</dt><dd>${m.name}</dd><dt>问</dt><dd>${QUESTION}</dd><dt>答</dt><dd>${A.ans}</dd><dt>页面</dt><dd>${page}</dd>`}
-const UI={asking(){A={state:'run',ans:'<span class="caret"></span>',page:''};$('tail').innerHTML='';dlg();caption('弹窗里依次显示：用的模型、问答、打开的页面。')},
- failed(r){A.state='fail';A.ans=r.answer?esc(r.answer):'—';dlg();$('tail').innerHTML=`<p class="err" style="margin:14px 0 0;font-size:14px">${r.reason}</p><div class="row"><button id="later">稍后再试</button><button id="retry">重试</button></div>`;$('retry').onclick=()=>flow(UI);$('later').onclick=()=>{document.querySelector('.mscrim').remove();caption('关了弹窗，可以去换模型或换 Key。')};caption('失败：一句原因 + 重试。')},
+ const q=A.state==='fail'?'<span class="err">✕</span>':A.ans?'<span class="ok">✓</span>':'<span class="spin"></span>';const pg=A.page==='run'?'<span class="spin"></span>':A.page==='done'?'<span class="ok">✓</span>':A.page==='fail'?'<span class="err">✕</span>':'·';
+ $('dh').innerHTML=head;$('kv').innerHTML=`<dt>${q}</dt><dd>测试 ${m.name} 中</dd><dt>${pg}</dt><dd>尝试打开本项目的 GitHub Repo</dd>`}
+const UI={asking(){A={state:'run',ans:'',page:''};$('tail').innerHTML='';dlg();caption('弹窗里依次显示：用的模型、问答、打开的页面。')},
+ failed(r){A.state='fail';dlg();$('tail').innerHTML=`<p class="err" style="margin:14px 0 0;font-size:14px">${r.reason}</p><div class="row"><button id="later">稍后再试</button><button id="retry">重试</button></div>`;$('retry').onclick=()=>flow(UI);$('later').onclick=()=>{document.querySelector('.mscrim').remove();caption('关了弹窗，可以去换模型或换 Key。')};caption('失败：一句原因 + 重试。')},
  answered(r){A.ans=`<mark>${REPO}</mark>`;dlg()},
  opening(){A.page='run';dlg()},
  opened(ok){if(!$('kv')||A.state==='fail')return;verified=true;A.state='ok';A.page=ok?'done':'fail';dlg();if(!$('done'))$('tail').innerHTML='<div class="close"><button id="done">完成</button></div>';$('done').onclick=()=>{document.querySelector('.mscrim').remove();$('cardst').textContent='✓ 能用';caption('关掉弹窗，回到模型页。')}}};
