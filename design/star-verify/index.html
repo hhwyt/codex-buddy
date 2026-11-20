@@ -1,14 +1,13 @@
 <!doctype html>
 <html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>装好后验证 · 5 版原型</title>
+<title>装好后验证</title>
 <style>
-:root{--accent:#0c8df6;--fill:#0a77d1;--ink:#0d0d0d;--ink-2:#5d5d5d;--ink-3:#8f8f8f;--line:#ededed;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:#fff}
-body{margin:0;padding:40px 24px}main{max-width:760px;margin:auto}h1{font-size:24px;margin:0 0 10px;letter-spacing:-.5px}
-p{color:var(--ink-2);font-size:14px;line-height:1.8;margin:0 0 8px}ul{list-style:none;padding:0;margin:24px 0;display:flex;flex-direction:column;gap:10px}
-a{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:14px;padding:16px 18px;color:var(--ink);text-decoration:none}a:hover{border-color:var(--accent)}
-a span{color:var(--ink-2);font-size:14px;line-height:1.7}.rule{font-size:13px;color:var(--ink-3)}
+:root{--accent:#0c8df6;--ink:#0d0d0d;--ink-2:#5d5d5d;--ink-3:#8f8f8f;--line:#ededed;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:#fff}
+body{margin:0;padding:40px 24px}main{max-width:760px;margin:auto}h1{font-size:24px;margin:0 0 10px;letter-spacing:-.5px}h2{font-size:18px;margin:28px 0 6px}
+p{color:var(--ink-2);font-size:14px;line-height:1.8;margin:0 0 8px}ul{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+a{display:block;border:1px solid var(--line);border-radius:14px;padding:14px 16px;color:var(--ink);text-decoration:none;font-size:14px}a:hover{border-color:var(--accent)}.rule{font-size:13px;color:var(--ink-3)}
 </style>
-<main><h1>装好后验证 · 5 版原型</h1>
-<p>装好 Codex 后，让 Codex 用选好的模型真的回答一句「CodexBuddy 的 GitHub 地址是什么？」，答对了算验证通过。它给的地址在 App 右侧的内置浏览器里打开（和扫码登录智谱是同一个面板），用的模型、它的回答、打开的页面，用户都看得见。</p>
-<p class="rule">点赞分三种情况：电脑上 gh 命令行登录过，点「帮我点赞」直接用 gh 点；右侧浏览器登录过 GitHub，点「帮我点赞」在右边自动点；都没登录，按钮是「去点赞」，右边打开 GitHub 登录页，用户自己登录后自动接着点（GitHub 不登录不能点赞，实测接口返回 401）。「跳过」和「帮我点赞」一样大，跳过也算装好。每版都能点：验证中、回答、失败重试、GitHub 打不开、没登录、已点过、帮我点赞、跳过，上方可切换。仓库开源前这个功能先关着。界面和现在的 App 一样只有白天主题。</p>
-<ul><li><a href="v1.html"><b>第 1 版 · 步骤清单</b><span>安装完成页是一张步骤清单：下载、装好、设置之后，接着两行「问 DeepSeek」「在右边打开它给的地址」，每行转圈再打勾。清单下面是点赞邀请。</span></a></li><li><a href="v2.html"><b>第 2 版 · 验证弹窗</b><span>模型页上弹一个框，只盖住左边：框里依次是「用的模型」「问了什么、它答了什么」「打开了哪个页面」；右边浏览器不被遮住，页面打开的过程看得见。</span></a></li><li><a href="v3.html"><b>第 3 版 · 对话记录</b><span>左边像聊天一样，一条条列出这次验证：CodexBuddy 问 DeepSeek 什么、DeepSeek 怎么答、打开了哪个页面；最后一条是 CodexBuddy 的点赞邀请，按钮就在这条消息里。</span></a></li><li><a href="v4.html"><b>第 4 版 · 卡片上验证 + 小链接</b><span>不弹框，不换屏。模型卡片右上角自己转圈、打勾，卡片下面两行小字写它答了什么、打开了哪个页面；最下面一行小字「帮我点赞」和「跳过」，一样大小。</span></a></li><li><a href="v5.html"><b>第 5 版 · 打勾那一刻顺带邀请</b><span>左边整屏只做一件事：中间一个大圈在转，下面三行小字依次亮起（模型、回答、页面）；页面在右边打开时圈画成对勾，写「DeepSeek 能用了」，邀请淡入。动效只在打勾这一下。</span></a></li></ul></main></html>
+<main><h1>装好后验证</h1>
+<p>装好 Codex 后，让 Codex 用选好的模型回答「CodexBuddy 的 GitHub 地址是什么？」，答对了算验证通过；它给的地址在 App 右边的内置浏览器里打开，用的模型、回答、打开的页面都看得见。</p>
+<p class="rule">每版都能点：验证中、回答、失败重试、GitHub 打不开、点 Star、跳过，上方可切换。仓库开源前这个功能先关着。</p>
+<h2>GitHub 已登录</h2><p>用户电脑上 gh 命令行或右边浏览器已经登录 GitHub。验证时旁边有一个勾选框「顺手给 CodexBuddy 点个 Star」，不默认勾上；勾上后，页面一打开就在右边自动点好，之后只留「✓ 已点 Star」。</p><ul><li><a href="a1.html"><b>第 1 版 · 步骤清单</b></a></li><li><a href="a2.html"><b>第 2 版 · 验证弹窗</b></a></li><li><a href="a3.html"><b>第 3 版 · 打勾那一刻</b></a></li></ul><h2>GitHub 没登录</h2><p>用户没登录 GitHub（GitHub 不登录不能点赞，实测接口返回 401）。验证完一句「觉得好用，给 CodexBuddy 点个 Star？」和两个一样大的按钮「跳过」「去点赞」；去点赞会在右边打开 GitHub 登录页，用户自己登录后自动点好。</p><ul><li><a href="b1.html"><b>第 1 版 · 步骤清单</b></a></li><li><a href="b2.html"><b>第 2 版 · 验证弹窗</b></a></li><li><a href="b3.html"><b>第 3 版 · 打勾那一刻</b></a></li></ul></main></html>

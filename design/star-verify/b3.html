@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>装好后验证 · 第 5 版</title>
+<title>GitHub 没登录 · 第 3 版：打勾那一刻</title>
 <style>
 :root{--accent:#0c8df6;--fill:#0a77d1;--ink:#0d0d0d;--ink-2:#5d5d5d;--ink-3:#8f8f8f;--line:#ededed;--side:#f9f9f9;--blue:#0285ff;--blue-bg:#e5f3ff;--green:#00a240;--red:#e02e2a;--scrim:rgba(0,0,0,.32);--shadow:rgba(0,0,0,.12);--face-zhipu:#1c1c1e;--face-deepseek:#4d6bfe;--face-openai:#ececec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;letter-spacing:-.01em;color:var(--ink);background:#fff}
 *{box-sizing:border-box}body{margin:0;padding:28px 36px 40px;-webkit-font-smoothing:antialiased}
@@ -66,31 +66,33 @@ button,select{font:inherit;letter-spacing:inherit}button{cursor:pointer;border:1
 @keyframes spin{to{transform:rotate(360deg)}}@keyframes blink{50%{opacity:0}}@keyframes fade{from{opacity:0}}@keyframes up{from{opacity:0;transform:translateY(8px)}}@keyframes bin{from{margin-right:-470px}}@keyframes bload{from{width:0}to{width:100%}}@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(12,141,246,.25)}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important}.spin{animation-duration:2s!important}}
 
-.stage{margin:auto;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;width:100%;max-width:400px}
+.stage{margin:auto;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;width:100%;max-width:380px}
 .stage h2{margin:4px 0 0;font-size:24px;letter-spacing:-.5px}
-.stage p{margin:0;color:var(--ink-2);font-size:14px;line-height:1.7}
 .ring{width:92px;height:92px}
 .ring circle{fill:none;stroke-width:4}.ring .track{stroke:var(--line)}
 .ring .arc{stroke:var(--accent);stroke-dasharray:70 220;transform-origin:50% 50%;animation:spin 1s linear infinite}
 .ring.ok .arc{animation:draw .5s ease-out forwards;stroke:var(--green);stroke-dasharray:283;stroke-dashoffset:283}
 .ring .tick{fill:none;stroke:var(--green);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:60;stroke-dashoffset:60;animation:draw .35s .45s ease-out forwards}
 .ring.bad .arc{animation:none;stroke:var(--red);stroke-dasharray:none}.ring .cross{stroke:var(--red);stroke-width:5;stroke-linecap:round}
-.facts{list-style:none;margin:4px 0 0;padding:0;font-size:13px;color:var(--ink-3);display:flex;flex-direction:column;gap:6px;text-align:left}
+.facts{list-style:none;margin:0;padding:0;font-size:13px;color:var(--ink-3);display:flex;flex-direction:column;gap:6px;text-align:left}
 .facts li{display:flex;gap:8px;align-items:center;word-break:break-all}.facts li.on{color:var(--ink-2)}
 .facts .mk{width:16px;flex:none;text-align:center}
-.invite{display:flex;flex-direction:column;gap:12px;width:100%;opacity:0;animation:rise .4s .9s ease-out forwards;border-top:1px solid var(--line);padding-top:16px;margin-top:4px}
-.invite .row{margin-top:0}
-@keyframes draw{to{stroke-dashoffset:0}}@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#sa{width:100%;border-top:1px solid var(--line);padding-top:16px;margin-top:4px;display:flex;justify-content:center;animation:fade .4s}#sa:empty{display:none}
+@keyframes draw{to{stroke-dashoffset:0}}
 
+.opt{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer;text-align:left;line-height:1.5}.opt input{margin:3px 0 0;width:16px;height:16px;accent-color:var(--fill)}
+.opt small,.sa-ask small{display:block;color:var(--ink-3);font-size:12px}
+.sa-done{margin:0;font-size:14px;display:flex;gap:8px;align-items:center}
+.sa-ask p{margin:0;font-size:14px;line-height:1.6}
 </style>
 <div class="pre">
-<h1>装好后验证 · 第 5 版：打勾那一刻顺带邀请</h1>
-<p>左边整屏只做一件事：中间一个大圈在转，下面三行小字依次亮起（模型、回答、页面）；页面在右边打开时圈画成对勾，写「DeepSeek 能用了」，邀请淡入。动效只在打勾这一下。</p>
-<nav class="tabs" aria-label="版本"><a href="index.html">目录</a><a href="v1.html">1 · 步骤清单</a><a href="v2.html">2 · 验证弹窗</a><a href="v3.html">3 · 对话记录</a><a href="v4.html">4 · 卡片上验证 + 小链接</a><a href="v5.html">5 · 打勾那一刻顺带邀请</a></nav>
+<h1>GitHub 没登录 · 第 3 版：打勾那一刻</h1>
+<p>用户没登录 GitHub（GitHub 不登录不能点赞，实测接口返回 401）。验证完一句「觉得好用，给 CodexBuddy 点个 Star？」和两个一样大的按钮「跳过」「去点赞」；去点赞会在右边打开 GitHub 登录页，用户自己登录后自动点好。</p>
+<nav class="tabs" aria-label="版本"><a href="index.html">目录</a><a href="a1.html">GitHub 已登录 · 1 步骤清单</a><a href="a2.html">GitHub 已登录 · 2 验证弹窗</a><a href="a3.html">GitHub 已登录 · 3 打勾那一刻</a><a href="b1.html">GitHub 没登录 · 1 步骤清单</a><a href="b2.html">GitHub 没登录 · 2 验证弹窗</a><a href="b3.html">GitHub 没登录 · 3 打勾那一刻</a></nav>
 <div class="controls">
 <label>选好的模型 <select id="model"><option value="deepseek">DeepSeek</option><option value="zhipu">智谱 GLM（免费）</option><option value="openai">OpenAI 官方账号</option></select></label>
 <label>模拟结果 <select id="scenario"><option value="ok">一次就成功</option><option value="key">第一次失败：Key 不对，重试成功</option><option value="net">第一次失败：连不上模型，重试成功</option><option value="wrong">第一次答非所问，重试成功</option><option value="gh">模型答对，GitHub 第一次没打开</option></select></label>
-<label>用户的 GitHub <select id="login"><option value="gh">命令行 gh 登录过</option><option value="in">右侧浏览器登录过</option><option value="out">都没登录</option><option value="starred">登录过，之前点过 Star</option></select></label>
+<select id="login" hidden><option value="out">都没登录</option></select>
 <button id="replay">重新体验</button>
 <span class="off">假数据演示。仓库开源前这个功能先关着。</span>
 </div>
@@ -142,10 +144,6 @@ function showLogin(then){$('bview').innerHTML=`<div class="gh"><div class="login
 function clickStar(){if(!loggedIn){showLogin(()=>{window.__starred=true;renderRepo();starred()});return}
  window.__starred=!window.__starred;renderRepo();if(window.__starred)starred();else caption('取消了 Star。')}
 function starred(){wantStar=false;if(typeof onStarred==='function')onStarred()}
-const ENCOURAGE='CodexBuddy 是作者为爱发电做的免费开源工具。你的一个 Star，是对作者最大的鼓励，会让它越做越好，也让作者有动力做出更多好用的工具。';
-function lg(){return $('login').value}
-function inviteText(){const c={gh:'点「帮我点赞」，会用你电脑上 gh 命令行登录的 GitHub 账号点 Star。',in:'点「帮我点赞」，会用右边浏览器里登录的 GitHub 账号点 Star。',out:'点赞要先登录 GitHub：点「去点赞」，右边会打开 GitHub 登录页。',starred:'你之前已经给 CodexBuddy 点过 Star 了，谢谢支持！'}[lg()];return ENCOURAGE+'<br><span style="color:var(--ink-3);font-size:13px">'+c+'</span>'}
-function starLabel(){return {gh:'帮我点赞',in:'帮我点赞',out:'去点赞',starred:'好的'}[lg()]}
 /* 帮我点赞: open (or reload) the repo page on the right, then CodexBuddy clicks Star with the user's own GitHub login,
    in plain view. Only after the user pressed the button that says so. */
 async function autoStar(){wantStar=true;if(!panel())await openPanel();else if(!pageOk)await load();if(!pageOk){caption('GitHub 没打开，点不了。可以在右边重新加载，或者跳过。');return}
@@ -156,25 +154,39 @@ async function autoStar(){wantStar=true;if(!panel())await openPanel();else if(!p
 function press(){mark('正在帮你点 Star…');caption('在右边的浏览器里自动点 Star，看得见每一步。');later(()=>{window.__starred=true;renderRepo();mark('✓ 已点 Star');caption('点好了：用的是你自己的 GitHub 账号。不想要可以在右边再点一下取消。');starred()},1100)}
 function reset(){timers.forEach(clearTimeout);timers=[];attempt=0;pageTries=0;pageOk=false;wantStar=false;loggedIn=['in','starred'].includes($('login').value);window.__starred=$('login').value==='starred';closePanel();caption('');start()}
 $('replay').onclick=reset;$('model').onchange=reset;$('scenario').onchange=reset;$('login').onchange=reset;
-document.querySelector('.tabs a[href="v5.html"]').setAttribute('aria-current','page');
-
-/* Shared order: ask the model → its answer → open that address on the right → invite. onPage also fires on reloads. */
+document.querySelector('.tabs a[href="b3.html"]').setAttribute('aria-current','page');
+const MODE='ask';let verified=false,starBusy=false,skipped=false;
+/* Star area (#sa), shared by every layout.
+   auto (GitHub already logged in): one unticked box; ticked → CodexBuddy stars as soon as the page is open, then only「✓ 已点 Star」.
+   ask (not logged in): after verification one line + 跳过 / 去点赞; 去点赞 → GitHub login page → starred automatically. */
+function renderStar(){const a=$('sa');if(!a)return;
+ if(window.__starred&&!starBusy){a.innerHTML='<p class="sa-done"><span class="ok">✓</span> 已点 Star</p>';return}
+ if(starBusy){a.innerHTML='<p class="sa-done"><span class="spin"></span> 正在右边点 Star</p>';return}
+ if(MODE==='auto'){const who=lg()==='gh'?' gh 命令行':'右边浏览器';a.innerHTML=`<label class="opt"><input type="checkbox" id="opt"${window.__opt?' checked':''}><span>顺手给 CodexBuddy 点个 Star<small>用${who}里登录的 GitHub 账号</small></span></label>`;
+  $('opt').onchange=e=>{window.__opt=e.target.checked;if(e.target.checked&&pageOk)go()};return}
+ if(skipped){a.innerHTML='<p class="sa-done"><span class="ok">✓</span> 装好了</p>';return}
+ if(!verified){a.innerHTML='';return}
+ a.innerHTML='<div class="sa-ask"><p>觉得好用，给 CodexBuddy 点个 Star？<small>需要先登录 GitHub</small></p><div class="row even"><button id="skip">跳过</button><button id="star">去点赞</button></div></div>';
+ $('skip').onclick=()=>{skipped=true;closePanel();renderStar();caption('跳过了点赞，也算装好。')};$('star').onclick=go}
+function go(){starBusy=true;renderStar();autoStar()}
+function onStarred(){starBusy=false;renderStar()}
+function onPage(ok){if(ok&&MODE==='auto'&&window.__opt&&!window.__starred&&!starBusy)go();UI.opened(ok);renderStar()}
+/* Shared order: ask the model → its answer → open that address on the right */
 async function flow(ui){ui.asking();const r=await ask();if(!r.ok){ui.failed(r);return}ui.answered(r);await sleep(500);ui.opening();await openPanel()}
-function onPage(ok){UI.opened(ok)}
+function lg(){return $('login').value}
 
 const RING='<circle class="track" cx="46" cy="46" r="42"/><circle class="arc" cx="46" cy="46" r="42"/>';let F;
 function facts(){return F.map(([s,t])=>`<li class="${s?'on':''}"><span class="mk">${s==='ok'?'<span class="ok">✓</span>':s==='run'?'<span class="spin" style="width:12px;height:12px"></span>':s==='bad'?'<span class="err">✕</span>':'·'}</span>${t}</li>`).join('')}
-function paint(ring,title,extra=''){$('main').innerHTML=`<div class="stage">${ring}<h2>${title}</h2><ul class="facts">${facts()}</ul>${extra}</div>`}
+function paint(ring,title,extra=''){$('ring').innerHTML=ring;$('t').textContent=title;$('facts').innerHTML=facts();$('x').innerHTML=extra}
 const UI={asking(){F=[['ok','模型：'+M().name],['run','问它 CodexBuddy 的 GitHub 地址'],['','在右边打开它给的地址']];paint(`<svg class="ring" viewBox="0 0 92 92">${RING}</svg>`,'正在验证 '+M().name);caption('整屏只回答一个问题：装好的模型能不能用。')},
- failed(r){F[1]=['bad',(r.answer?'它答：'+esc(r.answer)+'　':'')+r.reason];paint(`<svg class="ring bad" viewBox="0 0 92 92">${RING}<path class="cross" d="M33 33 l26 26 M59 33 l-26 26"/></svg>`,'没验证成功','<div class="row even" style="width:100%"><button id="change">换个模型</button><button id="retry">重试</button></div>');$('retry').onclick=()=>flow(UI);$('change').onclick=()=>{$('main').innerHTML=card('')+pile();caption('回到模型页，可以换模型或换 Key。')};caption('失败：红叉 + 一句原因 + 重试。')},
- answered(r){F[1]=['ok',`它答：${SHORT}（${r.secs} 秒）`];paint(`<svg class="ring" viewBox="0 0 92 92">${RING}</svg>`,'正在验证 '+M().name)},
- opening(){F[2]=['run','在右边打开 '+SHORT];$('main').querySelector('.facts').innerHTML=facts()},
- opened(ok){if(!F||F[1][0]!=='ok')return;F[2]=ok?['ok','已在右边打开 '+SHORT]:['bad','GitHub 没打开，可能是网络问题，不影响使用'];if(window.__shown){$('main').querySelector('.facts').innerHTML=facts();return}window.__shown=true;
-  paint(`<svg class="ring ok" viewBox="0 0 92 92">${RING}<path class="tick" d="M28 47 l12 12 l24 -26"/></svg>`,M().name+' 能用了',`<div class="invite" id="inv"><p>${inviteText()}</p><div class="row even"><button id="skip">跳过</button><button id="star">${starLabel()}</button></div></div>`);
-  $('skip').onclick=()=>{closePanel();$('inv').innerHTML='<p class="ok">✓ 装好了</p>';caption('跳过了点赞，也算装好。')};$('star').onclick=()=>{$('inv').innerHTML='<p>正在点 Star…</p>';autoStar()};caption('对勾画完后，邀请淡入。')}};
-function onStarred(){const i=$('inv');if(i)i.innerHTML='<p class="ok">✓ 点好了，谢谢你的 Star</p>'}
-function start(){window.__shown=false;F=null;flow(UI)}
+ failed(r){F[1]=['bad',(r.answer?'它答：'+esc(r.answer)+'　':'')+r.reason];paint(`<svg class="ring bad" viewBox="0 0 92 92">${RING}<path class="cross" d="M33 33 l26 26 M59 33 l-26 26"/></svg>`,'没验证成功','<div class="row even" style="width:100%;margin-top:4px"><button id="change">换个模型</button><button id="retry">重试</button></div>');$('retry').onclick=()=>flow(UI);$('change').onclick=()=>caption('会回到模型页换模型或换 Key（原型里不展开）。');caption('失败：红叉 + 一句原因 + 重试。')},
+ answered(r){F[1]=['ok',`它答：${SHORT}`];$('facts').innerHTML=facts()},
+ opening(){F[2]=['run','在右边打开 '+SHORT];$('facts').innerHTML=facts()},
+ opened(ok){if(!F||F[1][0]!=='ok')return;F[2]=ok?['ok','已在右边打开 '+SHORT]:['bad','GitHub 没打开，可能是网络问题，不影响使用'];if(verified){$('facts').innerHTML=facts();return}verified=true;
+  paint(`<svg class="ring ok" viewBox="0 0 92 92">${RING}<path class="tick" d="M28 47 l12 12 l24 -26"/></svg>`,M().name+' 能用了')}};
+function start(){F=null;$('main').innerHTML='<div class="stage"><div id="ring"></div><h2 id="t"></h2><ul class="facts" id="facts"></ul><div id="x" style="width:100%"></div><div id="sa"></div></div>';flow(UI)}
 
+const _start=start;start=function(){verified=false;starBusy=false;skipped=false;window.__opt=false;_start();renderStar()};
 reset();
 </script>
 </html>
