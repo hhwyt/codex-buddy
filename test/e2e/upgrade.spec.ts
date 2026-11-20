@@ -70,11 +70,11 @@ test('V-01 断网阻止界面和后台操作，联网重试后恢复使用', asy
   await finishOnboarding(run.page);
   run.config.setMode('jsdelivr', 'down'); run.config.setMode('github', 'down');
   run = await run.relaunch();
-  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('连上网后才能使用');
+  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('网络问题');
   const result = await run.page.evaluate(() => (window as any).buddy.invoke('codex:open', {}));
   expect(result.ok).toBe(false);
   run.config.setMode('jsdelivr', 'ok'); run.config.setMode('github', 'ok');
-  await run.page.getByRole('button', { name: '重新连接' }).click();
+  await run.page.getByRole('button', { name: '重试' }).click();
   await expect(run.page.getByTestId(TID.upgrade.root)).toBeHidden();
   await expect(run.page.getByTestId(TID.models.root)).toBeVisible();
 });

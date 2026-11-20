@@ -56,7 +56,7 @@ describe('简洁强制升级', () => {
   it('V-01 断网只允许重新连接或退出；校验中不提供继续入口', async () => {
     const fake = fakeApi();
     showUpgrade(fake.api, root(), null, { ...OPTIONS, status: 'offline' });
-    expect(text()).toContain('连上网后才能使用');
+    expect(text()).toContain('网络问题');
     click($(TID.upgrade.download)); await settle();
     expect(fake.called('update:check')).toHaveLength(1);
   });

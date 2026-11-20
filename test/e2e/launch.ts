@@ -106,7 +106,7 @@ export async function launch(opts: LaunchOptions = {}): Promise<Launched> {
   const child = app.process();
   const page = await app.firstWindow();
   await captureExternal(app);
-  await page.waitForLoadState('domcontentloaded');
+  await page.locator('#app').waitFor({ state: 'attached' });
   const quit = async () => {
     if (child.exitCode !== null || child.signalCode !== null) return;
     // A stalled Electron debugger must not leave a sandbox process behind during test cleanup.

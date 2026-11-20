@@ -209,7 +209,7 @@ async function main(): Promise<void> {
   const versionPoll = setInterval(checkVersion, VERSION_CHECK_INTERVAL_MS);
   win.on('focus', checkVersion);
   powerMonitor.on('resume', checkVersion);
-  app.on('before-quit', () => { clearInterval(poll); clearInterval(heartbeat); clearInterval(versionPoll); powerMonitor.removeListener('resume', checkVersion); void bridge.close(); });
+  app.on('before-quit', () => { rb.close(); services.handlers['switch:cancel']?.(); clearInterval(poll); clearInterval(heartbeat); clearInterval(versionPoll); powerMonitor.removeListener('resume', checkVersion); void bridge.close(); });
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();

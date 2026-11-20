@@ -169,3 +169,5 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .version-dialog .btn { border-radius: 10px; padding: 11px 18px; }
 .version-dialog .btn.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-ink); }
 .version-dialog progress { width: 100%; accent-color: var(--accent-fill); margin-top: 20px; height: 6px; }
+
+.version-gate { z-index: 900; }

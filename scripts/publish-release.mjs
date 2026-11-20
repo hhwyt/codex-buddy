@@ -60,13 +60,20 @@ export function publishRelease(root, directory = path.join(root, 'release')) {
     }
     gh(['release', 'create', tag, ...installers, '--repo', DISTRIBUTION_REPO, '--draft', '--target', 'main', '--title', `CodexBuddy ${version}`, '--notes', '联网版本校验、强制升级和安装包校验']);
   } else {
-    const temporary = fs.mkdtempSync(path.join(directory, '.verify-'));
-    try {
-      gh(['release', 'download', tag, '--repo', DISTRIBUTION_REPO, '--dir', temporary]);
-      for (const file of installers) {
-        if (sha256(file) !== sha256(path.join(temporary, path.basename(file)))) throw new Error('Published installer differs; choose a new version');
+    for (const file of installers) {
+      const asset = release.assets.find(item => item.name === path.basename(file));
+      if (!asset) {
+        if (!release.isDraft) throw new Error('Published release is missing an installer');
+        gh(['release', 'upload', tag, file, '--repo', DISTRIBUTION_REPO]);
+        continue;
       }
-    } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
+      if (asset.digest === `sha256:${sha256(file)}`) continue;
+      const temporary = fs.mkdtempSync(path.join(directory, '.verify-'));
+      try {
+        gh(['release', 'download', tag, '--repo', DISTRIBUTION_REPO, '--dir', temporary, '--pattern', path.basename(file)]);
+        if (sha256(file) !== sha256(path.join(temporary, path.basename(file)))) throw new Error('Published installer differs; choose a new version');
+      } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
+    }
   }
   gh(['release', 'edit', tag, '--repo', DISTRIBUTION_REPO, '--draft=false', '--latest']);
   publishMetadata([['remote/config.json', fs.readFileSync(configPath)], ['remote/config.json.sig', fs.readFileSync(signature)]], version);
