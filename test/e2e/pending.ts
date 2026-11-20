@@ -39,7 +39,7 @@ export function needs(n: Needs): void {
 
 /** Most specs start from the model page: onboarding + install + wallet */
 export const BASE_NEEDS: Needs = {
-  ui: { onboarding: ['TID.onboarding.start'], models: ['TID.models.card('] },
+  ui: { models: ['TID.models.card('] },
   ipc: ['install:run', 'wallet:get', 'switch:start'],
 };
 export const merge = (...all: Needs[]): Needs => ({

@@ -1,20 +1,26 @@
-// Walks every screen of the app once (onboarding, model page in both modes, settings, 社群, security panel, update
-// dialog) and hands each to a check. Used by the visual (W-04) and wording / color scans (UI-00..UI-02, H-03). Owner: A7.
+// Shared checks visit installation, both model modes, settings, community and the security panel.
 import { expect, type Page } from '@playwright/test';
 import { TID } from '../../ui/testids';
 import { finishOnboarding, nav } from './flows';
 import { launch, seedCodex, seedUserData, type Launched } from './launch';
 
-export type Screen = 'onboarding' | 'models' | 'clones' | 'settings' | 'community' | 'security';
-export const SCREENS: Screen[] = ['onboarding', 'models', 'clones', 'settings', 'community', 'security'];
+export type Screen = 'uninstalled' | 'install-failure' | 'models' | 'clones' | 'settings' | 'community' | 'security';
 
 export async function forEachScreen(check: (page: Page, screen: Screen, run: Launched) => Promise<void>, onLaunch?: (run: Launched) => void): Promise<void> {
+  const fresh = await launch({ env: { CODEXBUDDY_FAKE_INSTALL: 'fail-once' } });
+  onLaunch?.(fresh);
+  try {
+    await expect(fresh.page.getByTestId(TID.onboarding.start)).toBeVisible();
+    await check(fresh.page, 'uninstalled', fresh);
+    await fresh.page.getByTestId(TID.onboarding.start).click();
+    await expect(fresh.page.getByTestId(TID.onboarding.failure)).toBeVisible();
+    await check(fresh.page, 'install-failure', fresh);
+  } finally { await fresh.close(); }
   const run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
   onLaunch?.(run);
   try {
     const { page } = run;
-    await expect(page.getByTestId(TID.onboarding.root)).toBeVisible();
-    await check(page, 'onboarding', run);
+    await expect(page.getByTestId(TID.models.root)).toBeVisible();
     await finishOnboarding(page);
     await check(page, 'models', run);
     await page.getByTestId(TID.models.modeClone).click();

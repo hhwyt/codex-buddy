@@ -1,7 +1,7 @@
 // What every page gets. Owner: Base (frozen). A page renders into ctx.root and returns an optional cleanup.
 import type { BuddyApi } from '../api.js';
 
-export type Route = 'onboarding' | 'models' | 'settings' | 'community';
+export type Route = 'models' | 'settings' | 'community';
 
 export interface PageContext {
   api: BuddyApi;

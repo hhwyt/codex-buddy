@@ -7,13 +7,14 @@ import { CHANNELS, type ArgsOf, type Channel, type EventName, type IpcEvents, ty
 
 export type Handlers = { [C in Channel]?: (args: ArgsOf<C>) => Promise<ResultOf<C>> | ResultOf<C> };
 
-export function registerIpc(handlers: Handlers): void {
+export function registerIpc(handlers: Handlers, allows?: (channel: Channel) => Promise<boolean>): void {
   for (const channel of CHANNELS) {
     ipcMain.removeHandler(`buddy:${channel}`);
     ipcMain.handle(`buddy:${channel}`, async (_e, args) => {
       const fn = handlers[channel] as ((a: unknown) => unknown) | undefined;
-      if (!fn) return { ok: false, reason: '这个功能还没做好' };
       try {
+        if (allows && !(await allows(channel))) return { ok: false, kind: 'network', reason: '网络问题' };
+        if (!fn) return { ok: false, reason: '这个功能还没做好' };
         return await fn(args);
       } catch (e) {
         return { ok: false, reason: `出了意外：${hide(String((e as Error).message ?? e))}` };

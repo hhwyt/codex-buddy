@@ -59,6 +59,21 @@ export function realSandboxWin(base: Platform, deps: RealSandboxDeps): { platfor
       fs.mkdirp(paths.codexHome);
       launch(deps.alias, [`--user-data-dir=${userData}`], env);
     },
+    restartCodex: async opts => {
+      const stopped = await deps.shell.powershell(`$ErrorActionPreference = 'Stop'
+Get-CimInstance Win32_Process -Filter "Name='ChatGPT.exe'" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('${userData.replace(/'/g, "''")}') -and $_.CommandLine -notmatch '--type' } | ForEach-Object {
+  $process = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+  if ($process) { $null = $process.CloseMainWindow(); if (-not $process.WaitForExit(1500)) { & taskkill.exe /PID $process.Id /T /F | Out-Null; $process.WaitForExit(5000) | Out-Null } }
+}
+'OK'`);
+      if (stopped.code !== 0 || stopped.out.trim() !== 'OK') throw new Error('没能退出 ChatGPT');
+      await platform.openCodex(opts);
+      for (let i = 0; i < 20; i++) {
+        if (await isCodexRunning()) return;
+        await new Promise(r => setTimeout(r, 250));
+      }
+      throw new Error('没能重新打开 ChatGPT');
+    },
   };
 
   // The 汉化版 launcher = a clone launcher named「ChatGPT 汉化版」whose CODEX_HOME is the sandbox's .codex, kept in

@@ -53,7 +53,7 @@ test('G-01 去掉汉化版、删除分身、一键还原前后，数据目录的
   before = data();
   await clickClear(page.getByTestId(TID.settings.restore));
   await page.getByTestId(TID.dialog.confirm).click();
-  await expect(page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId(TID.models.root)).toBeVisible({ timeout: 30_000 });
   const after = data();
   expect(after.codex).toBe(initial.codex);
   expect(after.sessions).toBe(before.sessions);

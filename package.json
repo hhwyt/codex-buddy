@@ -7,7 +7,7 @@
   "private": true,
   "main": "dist/app.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p ui/tsconfig.json",
+    "build": "node -e \"for (const dir of ['dist', 'ui/build']) require('node:fs').rmSync(dir, { recursive: true, force: true })\" && tsc -p tsconfig.json && tsc -p ui/tsconfig.json",
     "start": "npm run build && electron .",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p ui/tsconfig.json --noEmit && tsc -p test/tsconfig.json",
     "lint": "npm run typecheck && node scripts/lint-scan.mjs",
@@ -75,6 +75,8 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
       "oneClick": true,
       "perMachine": false,
       "runAfterFinish": true,
@@ -94,6 +96,7 @@
         }
       ],
       "identity": "-",
+      "icon": "build/icon.icns",
       "category": "public.app-category.developer-tools"
     },
     "dmg": {

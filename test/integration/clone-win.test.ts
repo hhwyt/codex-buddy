@@ -147,7 +147,7 @@ describe('分身 Windows', () => {
     const record = path.join(root, 'opened.jsonl');
     const config = zhJson(info.appPath);
     // The runner as the launcher runs it, with the alias replaced by a fake opener that records how it was called
-    fs.writeFileSync(path.join(info.appPath, 'zh.json'), JSON.stringify({ ...config, cmd: fakeOpener(root, record), runningPattern: path.join(root, 'never-running') }));
+    fs.writeFileSync(path.join(info.appPath, 'zh.json'), JSON.stringify({ ...config, cmd: process.execPath, args: [fakeOpener(root, record), ...config.args], runningPattern: path.join(root, 'never-running') }));
     const exited = new Promise<number | null>(resolve => {
       spawn(process.execPath, [path.join(info.appPath, 'zh-runner.js'), path.join(info.appPath, 'zh.json')], { stdio: 'ignore' }).on('exit', resolve);
     });

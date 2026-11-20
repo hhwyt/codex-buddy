@@ -11,6 +11,7 @@ import type { CardView, Outcome, VendorKey, WalletView } from '../../electron/ma
 import type { BuddyApi } from '../api.js';
 import { confirmRemoveClone, customVendor, firstSuccess, keyFailed } from '../components/card-actions.js';
 import { CARD_HEAD, CARD_HEIGHT, CARD_PEEK, CARD_TUCK, CARD_WIDTH, cardFace, faceClass, isLight, type CardActions, type FrontState } from '../components/card.js';
+import { promptRestart } from '../components/restart.js';
 import { toast } from '../components/toast.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
@@ -35,19 +36,18 @@ const BROWSER_GAP = 24;
 /** The model page never scales below this to fit the window's height (then it scrolls) */
 const MIN_FIT_ZOOM = 0.7;
 
-export const renderModels: Page = async ({ api, root }) => {
+export const renderModels: Page = async ({ api, root, go }) => {
   const [view, state] = await Promise.all([api.invoke('wallet:get'), api.invoke('app:state')]);
-  return mountModels(api, root, view, { codexMissing: state?.codexInstalled === false });
+  return mountModels(api, root, view, { codexMissing: state?.codexInstalled === false, onCodexMissing: () => go('models') });
 };
 
-export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletView, opts: { codexMissing?: boolean } = {}): () => void {
+export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletView, opts: { codexMissing?: boolean; onCodexMissing?: () => void } = {}): () => void {
   let wallet = initial;
   /** Set once right after install: open Codex when the automatic first switch returns */
   let openCodexAfterSwitch = false;
   let order: VendorKey[] = initial.order.slice();
   let mode = initial.mode;
-  // M-16: Codex was deleted since last time → the top card offers 重新安装 right away
-  let front: FrontState | null = opts.codexMissing ? { kind: 'missing' } : null;
+  let front: FrontState | null = null;
   let switching = false;
   /** The switch:start now running; superseded = the user picked something else while it waited on them */
   let inflight: { vendor: VendorKey; done: Promise<void>; superseded: boolean } | null = null;
@@ -64,10 +64,8 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   const modeBar = h('div', { class: 'mode', role: 'tablist' },
     modeBtn('switch', '切换', TID.models.modeSwitch), modeBtn('clone', '分身', TID.models.modeClone));
   const stage = h('div', { class: 'stage' });
-  const hint = h('div', { class: 'reopen-hint', 'data-testid': TID.models.reopenHint }, '重新打开 Codex 生效');
-  hint.hidden = true;
   const add = h('button', { class: 'add sw-only', type: 'button', 'data-testid': TID.models.addVendor, onclick: () => { void addVendor(); } }, '＋ 其他厂商');
-  const page = h('div', { class: `models ${mode}`, 'data-testid': TID.models.root, 'data-mode': mode }, modeBar, stage, hint, add);
+  const page = h('div', { class: `models ${mode}`, 'data-testid': TID.models.root, 'data-mode': mode }, modeBar, stage, add);
   root.replaceChildren(page);
 
   const card = (v: VendorKey): CardView => wallet.cards.find(c => c.vendor === v)!;
@@ -128,7 +126,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     const el = els.get(v)!;
     const isFront = mode === 'switch' && i === 0;
     el.replaceChildren(...cardFace(c, {
-      front: isFront, inUse: wallet.active === v, state: isFront ? front : null, cloneState: mode === 'clone' ? cloneState(c) : null, actions: actionsFor(v),
+      front: isFront, inUse: !opts.codexMissing && wallet.active === v, state: isFront ? front : null, cloneState: mode === 'clone' ? cloneState(c) : null, actions: actionsFor(v),
     }));
     el.classList.toggle('whole', isFront);
     el.classList.toggle('cur', isFront && wallet.active === v);
@@ -184,6 +182,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   /** Zoom on .models so its content fits the page area; measured at full size against the stage's target height
    *  (it animates), never below MIN_FIT_ZOOM; a taller window gives full size back */
   function fitHeight(): void {
+    if (opts.codexMissing) return; // Keep the cards aligned with the shared 380px installation entry.
     const scroller = root.closest<HTMLElement>('.page') ?? root;
     if (!scroller.clientHeight) return; // not on screen (tests, hidden)
     page.style.zoom = '1';
@@ -237,15 +236,20 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     if (!switching) putBack();
   }
 
-  async function switchTo(v: VendorKey, before?: VendorKey[]): Promise<void> {
+  async function switchTo(v: VendorKey, before?: VendorKey[], previousChange = false): Promise<void> {
     if (isBusy()) return;
+    // Without Codex, selecting a card only changes its place. Installation belongs to the shared banner.
+    if (opts.codexMissing) {
+      layout();
+      await api.invoke('wallet:reorder', { order: order.slice() });
+      return;
+    }
     const interrupting = waitingOnUser();
     // the order to go back to is the one before the dropped switch
     if (before && !interrupting) revertTo = before;
     if (interrupting) { await dropPending(); if (switching) return; }
     if (order[0] !== v) order = [v, ...order.filter(k => k !== v)];
     switching = true;
-    hint.hidden = true;
     front = { kind: card(v).keyTail ? 'test' : 'login' };
     let finish!: () => void;
     const run = { vendor: v, done: new Promise<void>(resolve => { finish = resolve; }), superseded: false };
@@ -265,8 +269,10 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
       return;
     }
     finish();
-    if (r.ok) return succeed(v, r);
+    if (r.ok) return succeed(v, { ...r, restartRequired: r.restartRequired || previousChange });
+    if (previousChange) await promptRestart(api);
     const kind = typeof r.kind === 'string' ? r.kind : '';
+    if (kind === 'codex-missing') { putBack(); opts.onCodexMissing?.(); return; }
     if (kind === 'cancelled') { putBack(); toast('取消了，什么都没改'); return; }
     if (kind === 'key-failed') {
       putBack();
@@ -307,14 +313,14 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     await api.invoke('wallet:reorder', { order: order.slice() });
     const name = card(v).name;
     toast(typeof r.host === 'string' ? `已切换到 ${name} · 只连了 ${r.host}` : `已切换到 ${name}`);
-    if (r.running) hint.hidden = false;
     const w = await api.invoke('wallet:get');
     wallet = w;
     order = w.order.length ? w.order.slice() : order;
     syncCards();
     pendingWallet = null;
     layout();
-    if (r.firstTime) await firstSuccess(api, r.seconds ?? 0);
+    if (r.restartRequired) await promptRestart(api);
+    else if (r.firstTime) await firstSuccess(api, r.seconds ?? 0);
   }
 
   async function fixCodex(v: VendorKey, channel: 'codex:repair' | 'codex:reinstall'): Promise<void> {
@@ -326,7 +332,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     switching = false;
     if (!r.ok) { layout(); toast(r.reason ?? '没修好', { error: true }); return; }
     front = null;
-    await switchTo(v);
+    await switchTo(v, undefined, !!r.restartRequired);
   }
 
   async function pasteKey(v: VendorKey, key: string): Promise<void> {
@@ -334,7 +340,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     try { r = await api.invoke('key:paste', { vendor: v, key }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
     if (!r.ok) { toast(r.reason ?? '这个 Key 用不了', { error: true }); return; }
     front = null;
-    await switchTo(v);
+    await switchTo(v, undefined, !!r.restartRequired);
   }
 
   async function changeKey(v: VendorKey): Promise<void> {
@@ -346,7 +352,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     try { r = await api.invoke('key:replace', { vendor: v }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
     switching = false;
     front = null;
-    if (r.ok) { toast('换好了，新 Key 测通了'); await refresh(); return; }
+    if (r.ok) { toast('换好了，新 Key 测通了'); await refresh(); if (r.restartRequired) await promptRestart(api); return; }
     layout();
     toast(r.reason ? `没换成，还在用原来的 Key：${r.reason}` : '没换成，还在用原来的 Key', { error: true });
   }
@@ -365,7 +371,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     el.classList.add('drag');
     const move = (ev: PointerEvent) => {
       if (Math.abs(ev.clientY - startY) > 4) moved = true;
-      const y = y0 + ev.clientY - startY;
+      const y = y0 + (ev.clientY - startY) / zoom;
       place(el, -CARD_WIDTH / 2, y);
       const i = slotAt(y);
       const rest = order.filter(k => k !== v);

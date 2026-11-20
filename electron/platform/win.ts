@@ -60,13 +60,28 @@ export function createNodeWinShell(exes = { powershell: 'powershell.exe', taskki
   };
 }
 
-/** Get-AppxPackage OpenAI.Codex plus the pids of the running Codex app (not its system sandbox service) */
+/** Main desktop process only: clones have --user-data-dir; renderers have --type. */
+const MAIN_CODEX_PROCESS = `$_.ExecutablePath -and $_.Name -ieq 'ChatGPT.exe' -and $_.SessionId -eq [Diagnostics.Process]::GetCurrentProcess().SessionId -and $_.ExecutablePath.StartsWith($appDir, [StringComparison]::OrdinalIgnoreCase) -and $_.CommandLine -and $_.CommandLine -notmatch '--(user-data-dir|type)(=|\\s)'`;
 export const FIND_CODEX_PS = `$p = Get-AppxPackage -Name OpenAI.Codex | Sort-Object Version -Descending | Select-Object -First 1
 if ($p) {
   $appDir = Join-Path $p.InstallLocation 'app\\'
-  $running = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($appDir, [StringComparison]::OrdinalIgnoreCase) -and $_.Name -notlike 'codex-windows-sandbox-service*' } | ForEach-Object { $_.ProcessId })
+  $running = @(Get-CimInstance Win32_Process | Where-Object { ${MAIN_CODEX_PROCESS} } | ForEach-Object { $_.ProcessId })
   @{ version = "$($p.Version)"; location = $p.InstallLocation; fullName = $p.PackageFullName; family = $p.PackageFamilyName; running = $running } | ConvertTo-Json -Compress
 }`;
+export const STOP_CODEX_PS = `$ErrorActionPreference = 'Stop'
+$p = Get-AppxPackage -Name OpenAI.Codex | Sort-Object Version -Descending | Select-Object -First 1
+if (-not $p) { throw 'ChatGPT is not installed' }
+$appDir = Join-Path $p.InstallLocation 'app\\'
+Get-CimInstance Win32_Process | Where-Object { ${MAIN_CODEX_PROCESS} } | ForEach-Object {
+  $process = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+  if ($process) {
+    if ($process.Path -ine $_.ExecutablePath) { throw 'ChatGPT process identity changed' }
+    $null = $process.CloseMainWindow()
+    if (-not $process.WaitForExit(1500)) { & taskkill.exe /PID $process.Id /T /F | Out-Null; $process.WaitForExit(5000) | Out-Null }
+    if (-not $process.HasExited) { throw 'ChatGPT did not exit' }
+  }
+}
+'OK'`;
 export const UNINSTALL_CODEX_PS = `try { Remove-AppxPackage -Package $env:CODEX_PACKAGE -ErrorAction Stop; 'OK' } catch { 'ERROR:' + $_.Exception.Message }`;
 
 interface WinCodex { version: string; location: string; fullName: string; family: string; running: number[] }
@@ -165,18 +180,31 @@ export function createWinPlatform(paths: Paths = winPaths(), opts: WinOptions = 
     return codexRunner(winCli(codex.location), pid => { void shell.killTree(pid); })(args, runOpts);
   };
 
+  const openCodex: Platform['openCodex'] = async ({ zh }) => {
+    if (zh && fs.exists(paths.zhLauncherPath)) { shell.launch('explorer.exe', [paths.zhLauncherPath]); return; }
+    const codex = await getCodex();
+    if (!codex) throw new Error('还没装 Codex');
+    shell.launch('explorer.exe', [`shell:AppsFolder\\${codex.family}!App`]);
+  };
+
   return {
     os: 'win', paths, fs, runCodexPs1, installCodex, uninstallCodex, runCodex,
     findCodex: async (): Promise<CodexInstall | null> => {
       const codex = await getCodex();
       return codex && { version: codex.version, location: codex.location, cli: winCli(codex.location), running: codex.running.length > 0 };
     },
-    openCodex: async ({ zh }) => {
-      // The 汉化版 shortcut: exactly what a double-click does (its headless launcher must outlive CodexBuddy)
-      if (zh && fs.exists(paths.zhLauncherPath)) { shell.launch('explorer.exe', [paths.zhLauncherPath]); return; }
-      const codex = await getCodex();
-      if (!codex) throw new Error('还没装 Codex');
-      shell.launch('explorer.exe', [`shell:AppsFolder\\${codex.family}!App`]);
+    openCodex,
+    restartCodex: async opts => {
+      const stopped = await shell.powershell(STOP_CODEX_PS);
+      lastCodex = null;
+      if (stopped.code !== 0 || stopped.out.trim() !== 'OK') throw new Error('没能退出 ChatGPT，请先保存任务并退出后重试');
+      await openCodex(opts);
+      for (let i = 0; i < 20; i++) {
+        lastCodex = null;
+        if ((await getCodex())?.running.length) return;
+        await new Promise(r => setTimeout(r, 250));
+      }
+      throw new Error('没能重新打开 ChatGPT');
     },
     isCodexRunning: async () => ((await getCodex())?.running.length ?? 0) > 0,
     revealInFolder: async target => { shell.launch('explorer.exe', [`/select,${target}`]); },

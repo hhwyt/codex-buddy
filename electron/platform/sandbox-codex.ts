@@ -103,6 +103,9 @@ export function sandboxPlatform(base: Platform, seams: SandboxSeams): Platform {
       return { ok: true };
     },
     openCodex: async ({ zh }) => seams.open(zh && fs.exists(paths.zhLauncherPath) ? paths.zhLauncherPath : app),
+    restartCodex: async ({ zh }) => {
+      await seams.open(zh && fs.exists(paths.zhLauncherPath) ? paths.zhLauncherPath : app);
+    },
     revealInFolder: target => seams.reveal(target),
   };
 }

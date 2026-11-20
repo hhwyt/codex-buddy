@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodexBuddy 各页面</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  body { background:#fff; }
+  .item .win { box-shadow:0 8px 30px rgba(15,23,42,.10) !important; border:1px solid #eef0f3; }
+  .item .fit { overflow:visible; }
+  .grp { max-width:1500px; margin:0 auto; padding:10px 28px 30px; }
+  .grp h2 { font-size:22px; margin:28px 0 14px; padding-bottom:8px; border-bottom:1px solid #eef0f3; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(560px, 1fr)); gap:30px 34px; }
+  .item h3 { font-size:15px; font-weight:600; color:#334155; margin:0 0 10px; }
+  .item h3 .n { display:inline-block; min-width:24px; color:#0c8df6; }
+  header.top { max-width:1500px; margin:0 auto; padding:24px 28px 0; }
+</style>
+</head>
+<body>
+<header class="top"><h1>CodexBuddy 各页面</h1><nav class="toc" id="toc"></nav></header>
+<main id="root"></main>
+<script src="app.js"></script>
+<script>
+const GROUPS = [
+  ['引导', ['欢迎屏', '自动安装']],
+  ['模型', ['装好了，进模型页', '右侧浏览器自动打开，扫码', '自动配好', '第一次能用了', '打开 CodexBuddy 看一眼', '免费的被限速了', '换成 DeepSeek：登录', 'DeepSeek 余额不够：在右边充值', '有赠送额度：先用着', '用着用着余额用完了', '换 Key', 'Codex 更新后用不了了']],
+  ['安全', ['担心 Key 被偷']],
+  ['帮助', ['Codex 里报了一串英文错']],
+  ['设置', ['设置（默认英文原版）', '切页面，浏览器不动']],
+  ['卸载', ['卸载：先看清要删什么', '卸载中', '卸干净了']],
+  ['更新', ['弹出更新提示', '下载、重启']],
+];
+const LABEL = { '装好了，进模型页':'第一次进来：选一个模型', '右侧浏览器自动打开，扫码':'扫码登录（右侧浏览器）', '自动配好':'切换中（画中画里自动建 Key）', '打开 CodexBuddy 看一眼':'日常：正在用', 'Codex 更新后用不了了':'Codex 用不了', '担心 Key 被偷':'安全面板', 'Codex 里报了一串英文错':'报错解读 + 扫码问我' };
+const all = PARTS.flatMap((p) => p.scenes);
+let n = 0;
+document.getElementById('root').innerHTML = GROUPS.map(([g, ts], gi) => `<section class="grp" id="g${gi}"><h2>${g}</h2><div class="grid">${ts.map((t) => {
+  const s = all.find((x) => x.t === t); n++;
+  return `<div class="item"><h3><span class="n">${n}</span>${LABEL[t] || t}</h3><div class="fit">${s.w()}</div></div>`;
+}).join('')}</div></section>`).join('');
+document.getElementById('toc').innerHTML = GROUPS.map(([g], gi) => `<a href="#g${gi}">${g}</a>`).join('');
+function fit() {
+  document.querySelectorAll('.fit').forEach((f) => {
+    const w = f.firstElementChild, natural = w.offsetWidth, h = w.offsetHeight;
+    const s = Math.min(1, f.parentElement.clientWidth / natural);
+    w.style.transform = `scale(${s})`; f.style.width = natural * s + 'px'; f.style.height = h * s + 'px';
+  });
+}
+window.addEventListener('resize', fit); fit();
+document.querySelectorAll('.count').forEach((el) => el.textContent = el.dataset.to);
+setInterval(() => { document.querySelectorAll('.ring').forEach((r) => { const p = parseFloat(getComputedStyle(r).getPropertyValue('--p')) || 0; const b = r.querySelector('.pct'); if (b) b.textContent = Math.round(p) + '%'; }); }, 100);
+</script>
+</body>
+</html>

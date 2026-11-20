@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodexBuddy 线框</title>
+<style>
+  :root { --ink:#222; --sub:#666; --line:#cfcfcf; --soft:#f1f1f1; --card:#fff; --bg:#e6e6e6; --strong:#333; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); font:14px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color:var(--ink); }
+  .page { display:flex; gap:20px; padding:20px; align-items:flex-start; justify-content:center; }
+  /* window */
+  .win { width:980px; flex:none; border-radius:10px; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,.15); background:#fafafa; }
+  .titlebar { height:28px; background:#dcdcdc; display:flex; align-items:center; justify-content:center; position:relative; font-size:13px; color:#444; }
+  .titlebar .dots { position:absolute; left:10px; display:flex; gap:6px; }
+  .titlebar .dots i { width:11px; height:11px; border-radius:50%; background:#bbb; display:block; }
+  .frame { height:680px; position:relative; overflow:hidden; }
+  .center { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px; padding:0 60px; }
+  h1 { margin:0; font-size:40px; line-height:1.25; }
+  h2 { margin:0; font-size:24px; }
+  h3 { margin:0; font-size:17px; }
+  .sub { color:var(--sub); }
+  .small { font-size:12px; color:var(--sub); }
+  .btn { border:1px solid var(--strong); background:#fff; color:var(--ink); padding:9px 20px; border-radius:8px; font-size:14px; cursor:pointer; }
+  .btn.primary { background:var(--strong); color:#fff; }
+  .btn.big { padding:13px 40px; font-size:17px; }
+  .btn:disabled { opacity:.45; cursor:default; }
+  .link { background:none; border:0; color:var(--ink); text-decoration:underline; cursor:pointer; font-size:14px; padding:0; }
+  .row { display:flex; gap:10px; align-items:center; }
+  /* steps list */
+  .list { width:560px; border:1px solid var(--line); border-radius:10px; background:#fff; text-align:left; }
+  .list .it { display:flex; align-items:center; gap:12px; padding:12px 18px; border-top:1px solid var(--soft); }
+  .list .it:first-child { border-top:0; }
+  .mark { width:22px; height:22px; border-radius:50%; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:12px; flex:none; }
+  .mark.ok { background:var(--strong); border-color:var(--strong); color:#fff; }
+  .mark.run { border-color:var(--strong); border-right-color:transparent; animation:spin 1s linear infinite; }
+  .mark.bad { background:#fff; border-color:#000; color:#000; font-weight:700; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .it .note { font-size:12px; color:var(--sub); }
+  .notice { width:560px; border:1px dashed var(--strong); border-radius:8px; padding:10px 14px; text-align:left; background:#fff; }
+  /* manage */
+  .manage { padding:26px 34px; height:100%; display:flex; flex-direction:column; gap:16px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); padding-bottom:14px; }
+  .head .now { font-size:26px; font-weight:700; }
+  .tabs { display:inline-flex; border:1px solid var(--line); border-radius:8px; padding:3px; background:#fff; align-self:flex-start; }
+  .tabs button { border:0; background:none; padding:6px 16px; border-radius:6px; cursor:pointer; font-size:14px; color:var(--sub); }
+  .tabs button.on { background:var(--strong); color:#fff; }
+  .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; text-align:left; }
+  .card.cur { border:2px solid var(--strong); }
+  .card .foot { margin-top:auto; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .card.wide { grid-column:span 2; }
+  .tag { font-size:12px; border:1px solid var(--line); border-radius:10px; padding:0 8px; color:var(--sub); }
+  input, select { border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:13px; width:100%; }
+  input[type=checkbox] { width:auto; margin-top:3px; }
+  .fields { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:8px; }
+  /* overlay */
+  .mask { position:absolute; inset:0; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; }
+  .dialog { width:460px; background:#fff; border-radius:12px; padding:22px 24px; display:flex; flex-direction:column; gap:14px; text-align:left; }
+  .steps3 { display:flex; align-items:center; gap:8px; }
+  .steps3 .bar { flex:1; height:2px; background:var(--line); }
+  .steps3 .lab { font-size:12px; color:var(--sub); text-align:center; }
+  .steps3 .s { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .result { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--soft); }
+  .loginpage { width:640px; height:520px; background:#fff; border-radius:10px; display:flex; flex-direction:column; overflow:hidden; }
+  .loginpage .bar { height:32px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 12px; font-size:12px; color:var(--sub); }
+  .loginpage .body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:var(--sub); }
+  .qr { width:170px; height:170px; border:2px dashed var(--line); display:flex; align-items:center; justify-content:center; }
+  .toast { position:absolute; left:50%; bottom:22px; transform:translateX(-50%); background:#333; color:#fff; padding:8px 16px; border-radius:8px; font-size:13px; }
+  /* side panel */
+  .panel { width:260px; flex:none; background:#fff; border-radius:10px; padding:16px; font-size:13px; display:flex; flex-direction:column; gap:10px; }
+  .panel h4 { margin:6px 0 0; font-size:13px; }
+  .panel label { display:flex; gap:6px; align-items:flex-start; cursor:pointer; }
+  .panel .jump { display:flex; flex-wrap:wrap; gap:6px; }
+  .panel .jump button { font-size:12px; padding:3px 8px; border:1px solid var(--line); background:#fafafa; border-radius:6px; cursor:pointer; }
+  .panel .where { font-size:12px; color:var(--sub); border-top:1px solid var(--soft); padding-top:8px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="win">
+    <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>CodexBuddy</div>
+    <div class="frame" id="frame"></div>
+  </div>
+  <aside class="panel">
+    <b>原型开关（App 里没有这一栏）</b>
+    <span class="small">灰度线框只看结构和流程，颜色、字体到视觉稿再定</span>
+    <h4>场景</h4>
+    <label><input type="checkbox" id="o-codex"> 电脑上已经有 Codex</label>
+    <label><input type="checkbox" id="o-fix"> 安装时遇到小问题（自动修）</label>
+    <label><input type="checkbox" id="o-fail"> 安装失败</label>
+    <label><input type="checkbox" id="o-switchfail"> 切换失败（Key 不对）</label>
+    <label><input type="checkbox" id="o-ds"> DeepSeek 余额不够</label>
+    <label><input type="checkbox" id="o-open"> Codex 正开着</label>
+    <h4>直接跳到</h4>
+    <div class="jump">
+      <button data-go="welcome">欢迎</button>
+      <button data-go="login">扫码登录</button>
+      <button data-go="progress">安装中</button>
+      <button data-go="done">完成</button>
+      <button data-go="failed">故障屏</button>
+      <button data-go="manage:model">切换模型</button>
+      <button data-go="manage:edition">汉化版 / 英文原版</button>
+      <button data-go="manage:settings">常用设置</button>
+      <button data-go="manage:restore">还原</button>
+    </div>
+    <div class="where" id="where"></div>
+  </aside>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const opt = (k) => $('o-' + k).checked;
+const S = {
+  screen: 'welcome', tab: 'model',
+  current: '智谱免费', modelName: 'glm-4.5-flash', edition: '汉化版', ask: '要问',
+  steps: [], failAt: -1, fixing: false, overlay: null, toast: '', paidModel: 'GLM-4.6',
+};
+const STEP_NAMES = ['检测电脑', '获取免费 Key', '配置模型', '安装 Codex', '测试连通'];
+let timers = [];
+const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+
+function toast(msg) { S.toast = msg; render(); later(2200, () => { S.toast = ''; render(); }); }
+function go(screen, tab) { clearTimers(); S.overlay = null; S.screen = screen; if (tab) S.tab = tab; if (screen === 'progress') startInstall(0); render(); }
+
+/* ---------- install ---------- */
+function startInstall(from) {
+  if (from === 0) S.steps = STEP_NAMES.map(() => ({ st: 'wait', note: '' }));
+  S.fixing = false;
+  runStep(from);
+}
+function runStep(i) {
+  if (i >= STEP_NAMES.length) { later(500, () => { S.screen = 'done'; render(); }); return; }
+  const s = S.steps[i];
+  if (s.st === 'ok') return runStep(i + 1);
+  if (i === 3 && opt('codex')) { s.st = 'ok'; s.note = '已装好'; render(); return later(300, () => runStep(i + 1)); }
+  s.st = 'run'; s.note = i === 3 ? '下载 Codex 37%' : ''; render();
+  if (i === 3 && opt('fail')) { return later(1300, () => { s.st = 'bad'; s.note = ''; S.failAt = i; S.screen = 'failed'; render(); }); }
+  if (i === 3 && opt('fix')) { later(800, () => { S.fixing = true; render(); }); return later(2600, () => { S.fixing = false; s.st = 'ok'; s.note = ''; render(); runStep(i + 1); }); }
+  later(900, () => { s.st = 'ok'; s.note = ''; render(); runStep(i + 1); });
+}
+
+/* ---------- switch ---------- */
+function startSwitch(name, model, kind) {
+  clearTimers();
+  if (kind === 'deepseek-login') { S.overlay = { type: 'login', vendor: 'DeepSeek', next: () => startSwitch(name, model, 'deepseek') }; return render(); }
+  if (kind === 'openai-login') { S.overlay = { type: 'login', vendor: 'OpenAI', next: () => startSwitch(name, model, 'openai') }; return render(); }
+  const o = { type: 'switch', name, model, st: ['run', 'wait', 'wait'], result: null, detail: false, kind };
+  S.overlay = o; render();
+  later(700, () => { o.st = ['ok', 'run', 'wait']; render(); });
+  later(2200, () => {
+    const fail = (kind === 'other' && opt('switchfail')) || (kind === 'deepseek' && opt('ds'));
+    if (fail) {
+      o.st = ['ok', 'bad', 'wait'];
+      o.result = kind === 'deepseek'
+        ? { ok: false, why: 'DeepSeek 账户余额不够，充值后再试', charge: true }
+        : { ok: false, why: '厂商说 Key 不对，检查一下 Key 有没有填错' };
+    } else {
+      o.st = ['ok', 'ok', 'ok']; o.result = { ok: true };
+      S.current = name; S.modelName = model;
+    }
+    render();
+  });
+}
+
+/* ---------- views ---------- */
+function vWelcome() {
+  return `<div class="center">
+    <h1>一键装好 Codex<br>免费用 AI</h1>
+    <p class="sub">你只要用微信扫一下码，其余的自动完成。</p>
+    <button class="btn primary big" onclick="go('login')">开始</button>
+  </div>`;
+}
+function vLogin() {
+  return `<div class="center" style="flex-direction:row; gap:40px; text-align:left">
+    <div style="width:300px; display:flex; flex-direction:column; gap:10px">
+      <h2>用微信扫码登录智谱</h2>
+      <p class="sub">第一次用智谱，扫码后要填手机号、收一次验证码。登录好就不用管了，后面会自动往下走。</p>
+      <button class="link" onclick="go('welcome')">返回</button>
+    </div>
+    <div class="loginpage" style="width:420px; height:460px">
+      <div class="bar"><span>bigmodel.cn（智谱官方登录页，嵌在 App 里）</span></div>
+      <div class="body"><div class="qr">真二维码</div><span>微信扫码登录 / 注册</span>
+        <button class="btn" onclick="go('progress')">原型：假装扫码登录成功</button>
+      </div>
+    </div>
+  </div>`;
+}
+function stepRow(name, s) {
+  const m = s.st === 'ok' ? '<span class="mark ok">✓</span>' : s.st === 'run' ? '<span class="mark run"></span>' : s.st === 'bad' ? '<span class="mark bad">✗</span>' : '<span class="mark"></span>';
+  return `<div class="it">${m}<div><div${s.st === 'wait' ? ' class="sub"' : ''}>${name}</div>${s.note ? `<div class="note">${s.note}</div>` : ''}</div></div>`;
+}
+function vProgress() {
+  return `<div class="center">
+    <h2>正在自动安装，不用管它</h2>
+    <div class="list">${STEP_NAMES.map((n, i) => stepRow(n, S.steps[i])).join('')}</div>
+    ${S.fixing ? '<div class="notice"><span class="mark run" style="display:inline-block; vertical-align:middle; margin-right:8px"></span>正在帮你修：这个版本的 Codex 不认模型菜单文件，改用默认菜单</div>' : ''}
+  </div>`;
+}
+function vFailed() {
+  const rows = STEP_NAMES.map((n, i) => S.steps[i] && S.steps[i].st !== 'wait' ? stepRow(n, S.steps[i]) : '').join('');
+  return `<div class="center">
+    <h2>遇到了一点问题</h2>
+    <div class="list">${rows}</div>
+    <div class="list" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px">
+      <b>这一步没走通</b>
+      <span class="sub">下载 Codex 时网断了。连上网后点「再试一次」，已经做完的步骤不会重做。</span>
+      <div class="row"><button class="btn primary" onclick="retry()">再试一次</button><button class="btn" onclick="toast('日志已复制，发给我们就行（里面没有你的 Key）')">复制日志</button></div>
+    </div>
+  </div>`;
+}
+function retry() { $('o-fail').checked = false; clearTimers(); S.screen = 'progress'; S.steps[S.failAt].st = 'wait'; runStep(S.failAt); render(); }
+function vDone() {
+  return `<div class="center">
+    <p class="sub" style="font-size:18px">装好了，从零到能用</p>
+    <div style="font-size:84px; font-weight:700; line-height:1">48 <span style="font-size:24px">秒</span></div>
+    <p class="sub">用的是智谱免费模型 glm-4.5-flash</p>
+    <button class="btn primary big" onclick="toast('（原型）这里会打开 Codex')">打开 Codex</button>
+    <button class="link" onclick="go('manage','model')">以后想换模型、换语言，点这里</button>
+    <p class="small">关注 <b>黄金金不AI</b>，看入门教程</p>
+  </div>`;
+}
+function card({ name, desc, cur, foot, wide }) {
+  return `<div class="card${cur ? ' cur' : ''}${wide ? ' wide' : ''}"><h3>${name}</h3><span class="sub">${desc}</span><div class="foot">${foot}</div></div>`;
+}
+function useBtn(name, label, call) {
+  return S.current === name ? '<button class="btn" disabled>✓ 正在用</button>' : `<button class="btn" onclick="${call}">${label}</button>`;
+}
+function vModel() {
+  return `<div class="grid">
+    ${card({ name: '智谱免费', desc: '不花钱。用得太频繁会被限速，等一会儿就恢复。', cur: S.current === '智谱免费', foot: useBtn('智谱免费', '用这个', "startSwitch('智谱免费','glm-4.5-flash','zhipu')") })}
+    ${card({ name: '智谱付费', desc: '更强、不限速，按用量扣你自己的钱。', cur: S.current === '智谱付费',
+      foot: `<select style="width:110px" onchange="S.paidModel=this.value"><option>GLM-4.6</option><option>GLM-5</option></select>${useBtn('智谱付费', '用这个（按用量付费）', "startSwitch('智谱付费',S.paidModel.toLowerCase(),'zhipu')")}<button class="link" onclick="toast('（原型）已在浏览器打开智谱充值页')">去充值</button>` })}
+    ${card({ name: 'DeepSeek', desc: '登录 DeepSeek 后自动配好，按用量扣你自己的钱。', cur: S.current === 'DeepSeek',
+      foot: `${useBtn('DeepSeek', '登录并使用（按用量付费）', "startSwitch('DeepSeek','deepseek-chat','deepseek-login')")}<button class="link" onclick="toast('（原型）已在浏览器打开 DeepSeek 充值页')">去充值</button>` })}
+    ${card({ name: 'OpenAI 官方账号', desc: '用你自己的 ChatGPT 账号登录，要能打开 OpenAI 的网站。', cur: S.current === 'OpenAI 官方账号', foot: useBtn('OpenAI 官方账号', '登录并使用', "startSwitch('OpenAI 官方账号','gpt-5','openai-login')") })}
+    ${card({ name: '其他厂商', wide: true, cur: S.current === '其他厂商', desc: '任何兼容 OpenAI 接口的厂商：填它给你的地址、Key、模型名。',
+      foot: `<div class="fields" style="flex:1"><input placeholder="地址 https://…/v1"><input placeholder="Key"><input placeholder="模型名"></div><button class="btn" onclick="startSwitch('其他厂商','demo-model','other')">测试并保存</button>` })}
+  </div>`;
+}
+function vEdition() {
+  const c = (name, desc) => `<div class="card${S.edition === name ? ' cur' : ''}" style="cursor:pointer" onclick="setEdition('${name}')"><h3>${name} ${S.edition === name ? '<span class="tag">正在用</span>' : ''}</h3><span class="sub">${desc}</span></div>`;
+  return `<div class="grid" style="grid-template-columns:1fr 1fr">${c('汉化版', '界面中文')}${c('英文原版', '界面英文，和官方一模一样')}</div>`;
+}
+function setEdition(name) { if (S.edition === name) return; S.edition = name; S.overlay = { type: 'info', title: `切换好了，现在是${name}`, body: opt('open') ? 'Codex 开着的话，关掉重新打开一次就生效。' : '' }; render(); }
+function vSettings() {
+  return `<div class="card" style="flex-direction:row; align-items:center; justify-content:space-between">
+    <div><h3>AI 改文件前要不要问我</h3><span class="sub">选「要问」，AI 每改一个文件都先等你点同意。</span></div>
+    <div class="tabs">${['要问', '不用问'].map((v) => `<button class="${S.ask === v ? 'on' : ''}" onclick="S.ask='${v}'; toast('✓ 已保存：${v === '要问' ? '改文件前要问' : '改文件前不用问'}')">${v}</button>`).join('')}</div>
+  </div>`;
+}
+function vRestore() {
+  return `<div class="card" style="gap:10px">
+    <h3>还原到安装前的样子</h3>
+    <span class="sub">· Codex 的配置放回安装前的样子</span>
+    <span class="sub">· 去掉汉化版的设置</span>
+    <span class="sub">· 如果 Codex 是这次才装的，也一起卸载</span>
+    <span>✓ 你在 Codex 里的聊天记录不会删</span>
+    <div><button class="btn" onclick="S.overlay={type:'confirm'}; render()">一键还原</button></div>
+  </div>`;
+}
+function vManage() {
+  const tabs = [['model', '切换模型'], ['edition', '汉化版 / 英文原版'], ['settings', '常用设置'], ['restore', '还原']];
+  const body = { model: vModel, edition: vEdition, settings: vSettings, restore: vRestore }[S.tab]();
+  return `<div class="manage">
+    <div class="head"><div><div class="now">正在用：${S.current}</div><div class="small">模型 ${S.modelName} · ${S.edition}</div></div>
+      <button class="btn primary" onclick="toast('（原型）这里会打开 Codex')">打开 Codex</button></div>
+    <div class="tabs">${tabs.map(([k, l]) => `<button class="${S.tab === k ? 'on' : ''}" onclick="S.tab='${k}'; render()">${l}</button>`).join('')}</div>
+    ${body}
+  </div>`;
+}
+
+/* ---------- overlays ---------- */
+function mk(st, label) {
+  const m = st === 'ok' ? '<span class="mark ok">✓</span>' : st === 'run' ? '<span class="mark run"></span>' : st === 'bad' ? '<span class="mark bad">✗</span>' : '<span class="mark"></span>';
+  return `<div class="s">${m}<span class="lab">${label}</span></div>`;
+}
+function vOverlay() {
+  const o = S.overlay; if (!o) return '';
+  if (o.type === 'login') {
+    const isDs = o.vendor === 'DeepSeek';
+    return `<div class="mask"><div class="loginpage">
+      <div class="bar"><span>${isDs ? 'platform.deepseek.com（DeepSeek 官方登录页）' : 'auth.openai.com（OpenAI 官方登录页）'}</span><button class="link" onclick="S.overlay=null; render()">关掉</button></div>
+      <div class="body">${isDs ? '<div class="qr">真二维码</div><span>微信扫码或手机号登录</span>' : '<span>用 ChatGPT 账号登录</span>'}
+        <button class="btn" onclick="S.overlay.next()">原型：假装登录成功</button>
+        <span class="small">关掉这个窗口 = 回到管理页，什么都没改</span></div>
+    </div></div>`;
+  }
+  if (o.type === 'switch') {
+    let res = '';
+    if (o.result && o.result.ok) res = `<div class="result"><b>切换好了，正在用：${o.name}</b>${opt('open') ? '<div class="sub">Codex 开着的话，关掉重新打开一次就生效。</div>' : ''}</div>
+      <div class="row" style="justify-content:flex-end"><button class="btn primary" onclick="S.overlay=null; render()">好的</button></div>`;
+    else if (o.result) res = `<div class="result"><b>没切换成功，原来的配置没动</b><div class="sub">${o.result.why}</div></div>
+      <div class="row" style="justify-content:flex-end">${o.result.charge ? `<button class="btn" onclick="toast('（原型）已在浏览器打开 DeepSeek 充值页')">去充值</button>` : `<button class="btn" onclick="toast('日志已复制，发给我们就行（里面没有你的 Key）')">复制日志</button>`}<button class="btn primary" onclick="S.overlay=null; render()">好的</button></div>`;
+    const detail = o.detail ? `<div class="small">· 备份当前配置<br>· 用新 Key 发一句话测试<br>· 写入 Codex 配置</div>` : '';
+    return `<div class="mask"><div class="dialog">
+      <h3>切换到：${o.name}</h3>
+      <div class="steps3">${mk(o.st[0], '备份')}<div class="bar"></div>${mk(o.st[1], '测试连通')}<div class="bar"></div>${mk(o.st[2], '保存')}</div>
+      <button class="link small" style="align-self:flex-start; font-size:12px" onclick="S.overlay.detail=!S.overlay.detail; render()">看明细 ${o.detail ? '▾' : '▸'}</button>${detail}
+      ${res}
+    </div></div>`;
+  }
+  if (o.type === 'info') return `<div class="mask"><div class="dialog"><div class="result"><b>${o.title}</b>${o.body ? `<div class="sub">${o.body}</div>` : ''}</div><div class="row" style="justify-content:flex-end"><button class="btn primary" onclick="S.overlay=null; render()">好的</button></div></div></div>`;
+  if (o.type === 'confirm') return `<div class="mask"><div class="dialog">
+      <h3>确定还原吗</h3>
+      <span class="sub">会把 Codex 的配置放回安装前的样子，去掉汉化版的设置；Codex 是这次才装的，也一起卸载。聊天记录不会删。</span>
+      <div class="row" style="justify-content:flex-end"><button class="btn" onclick="S.overlay=null; render()">先不了</button><button class="btn primary" onclick="doRestore()">确定还原</button></div>
+    </div></div>`;
+  if (o.type === 'restoring') return `<div class="mask"><div class="dialog">
+      <h3>${o.done ? '还原好了' : '正在还原'}</h3>
+      <div class="list" style="width:auto">${o.rows.map((r) => stepRow(r.n, r)).join('')}</div>
+      ${o.done ? `<span class="sub">这台电脑已经回到安装前的样子。</span><div class="row" style="justify-content:flex-end"><button class="btn primary" onclick="resetAll()">好的</button></div>` : ''}
+    </div></div>`;
+  return '';
+}
+function doRestore() {
+  const rows = ['放回原来的配置', '去掉汉化版的设置', opt('codex') ? '保留你原来的 Codex' : '卸载这次装的 Codex'].map((n) => ({ n, st: 'wait', note: '' }));
+  S.overlay = { type: 'restoring', rows, done: false }; render();
+  rows.forEach((r, i) => { later(i * 700 + 100, () => { r.st = 'run'; render(); }); later(i * 700 + 650, () => { r.st = 'ok'; render(); }); });
+  later(rows.length * 700 + 200, () => { S.overlay.done = true; render(); });
+}
+function resetAll() { Object.assign(S, { current: '智谱免费', modelName: 'glm-4.5-flash', edition: '汉化版', ask: '要问' }); go('welcome'); }
+
+/* ---------- render ---------- */
+const NAMES = { welcome: '欢迎', login: '扫码登录', progress: '安装中', done: '完成', failed: '故障屏', manage: '管理页' };
+function render() {
+  const v = { welcome: vWelcome, login: vLogin, progress: vProgress, done: vDone, failed: vFailed, manage: vManage }[S.screen]();
+  $('frame').innerHTML = v + vOverlay() + (S.toast ? `<div class="toast">${S.toast}</div>` : '');
+  $('where').textContent = '现在在：' + NAMES[S.screen] + (S.screen === 'manage' ? ' · ' + { model: '切换模型', edition: '汉化版 / 英文原版', settings: '常用设置', restore: '还原' }[S.tab] : '');
+  try { location.hash = S.screen === 'manage' ? 'manage:' + S.tab : S.screen; } catch (e) {}
+}
+function jump(s, t) {
+  if (s === 'failed') { S.steps = STEP_NAMES.map((n, i) => ({ st: i < 3 ? 'ok' : i === 3 ? 'bad' : 'wait', note: '' })); S.failAt = 3; clearTimers(); S.overlay = null; S.screen = 'failed'; return render(); }
+  go(s, t);
+}
+document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => jump(...b.dataset.go.split(':')));
+const [hs, ht] = (location.hash || '#welcome').slice(1).split(':');
+jump(NAMES[hs] ? hs : 'welcome', ht);
+</script>
+</body>
+</html>

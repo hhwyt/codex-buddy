@@ -15,6 +15,7 @@
 //   6. External links   = never leave the machine in sandbox mode; captureExternal() stubs shell.openExternal and
 //      shell.showItemInFolder in the main process and records the calls.
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -25,7 +26,7 @@ import type { WalletView, AppStateView } from '../../electron/main/ipc-contract'
 
 export const REPO = path.join(__dirname, '..', '..');
 export const FAKES = path.join(REPO, 'test', 'fakes');
-export const VENDOR_IDS = ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'] as const;
+export const VENDOR_IDS = ['zhipu', 'deepseek', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'] as const;
 export type VendorId = (typeof VENDOR_IDS)[number];
 
 // Playwright transpiles imported .mjs files to CommonJS, which breaks import.meta in the fakes; a native dynamic
@@ -101,10 +102,24 @@ export async function launch(opts: LaunchOptions = {}): Promise<Launched> {
   const config = opts.config ?? await (await loadFake<typeof ConfigFake>('config-server.mjs')).startConfigServer();
   const env = appEnv(sandbox, vendors, config, opts.env ?? {}, opts.endpoints);
   const app = await electron.launch(packaged ? { executablePath: packaged, args: [], env } : { args: [REPO], env });
+  const child = app.process();
   const page = await app.firstWindow();
   await captureExternal(app);
   await page.waitForLoadState('domcontentloaded');
-  const quit = async () => { await app.close().catch(() => undefined); };
+  const quit = async () => {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    // A stalled Electron debugger must not leave a sandbox process behind during test cleanup.
+    const timer = setTimeout(() => {
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      console.warn(`Sandbox cleanup: terminating Electron PID ${child.pid}`);
+      try {
+        if (process.platform === 'win32') execFileSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true });
+        else child.kill('SIGKILL');
+      } catch { /* it exited while cleanup was stopping it */ }
+    }, 10_000);
+    try { await app.close(); } catch { /* the sandbox process may already have exited */ }
+    finally { clearTimeout(timer); }
+  };
   const run: Launched = {
     app, page, sandbox, vendors, config, home: path.join(sandbox, 'home'),
     async external() {

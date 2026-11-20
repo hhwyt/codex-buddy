@@ -3,6 +3,7 @@
 import type { BuddyApi } from '../api.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
+import { promptRestart } from './restart.js';
 import { dialog } from './dialog.js';
 
 const FOLLOW = '关注小红书 黄金金不AI 看教程';
@@ -44,7 +45,7 @@ export function customVendor(api: BuddyApi, root: HTMLElement = document.body): 
       submit.textContent = '正在添加';
       let r;
       try { r = await api.invoke('custom:add', args); } catch { r = { ok: false }; }
-      if (r.ok) { close(true); return; }
+      if (r.ok) { close(true); if (r.restartRequired) await promptRestart(api); return; }
       submit.disabled = false;
       submit.textContent = '添加';
       err.textContent = r.reason ?? '没连通，检查一下再试';

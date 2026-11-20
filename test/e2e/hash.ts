@@ -56,9 +56,13 @@ export function realProtectedPaths(home = os.homedir()): string[] {
 export const strictHashes = () => !!process.env.CI || process.env.CODEXBUDDY_X01_STRICT === '1';
 // Also Codex's own start-up files (seen 2026-11-13 when the site owner's Codex started on hwy-pc mid-run): .tmp/,
 // vendor_imports/, .sandbox/, .codex-provisioning-*.guard. The Store Codex's package data (hwy-pc, idle, 2026-11-13) also
-// rewrites GrShaderCache/ and ShaderCache/ on its own
-const VOLATILE = /(^|\/)(\.sandbox|vendor_imports|sessions|archived_sessions|log|logs|shell_snapshots|tmp|\.tmp|cache|Cache|Code Cache|GPUCache|DawnCache|Crashpad|Session Storage|Local Storage|IndexedDB|blob_storage|Network|Shared Dictionary|WebStorage|Service Worker|plugins\/cache|thread-writer-locks|sentry|GraphiteDawnCache|GrShaderCache|ShaderCache|GPUPersistentCache|DawnGraphiteCache|DawnWebGPUCache|Default\/DawnWebGPUCache|Default\/DawnGraphiteCache)(\/|$)|(^|\/)(history\.jsonl|[^/]*\.sqlite[^/]*|[^/]*\.log|LOCK|Cookies[^/]*|Preferences|TransportSecurity|Trust Tokens[^/]*|Reporting and NEL[^/]*|DIPS[^/]*|models_cache\.json|\.codex-provisioning-[^/]*\.guard|\.codex-global-state\.json[^/]*|[^/]*-(wal|shm|journal))$/;
-export const volatile = (rel: string) => !strictHashes() && VOLATILE.test(rel);
+// rewrites GrShaderCache/ and ShaderCache/ on its own. The active desktop also refreshes Chromium network
+// state and its generated codex-app-tools runtime; these are not user configuration.
+const VOLATILE = /(^|\/)(\.sandbox|vendor_imports|sessions|archived_sessions|log|logs|shell_snapshots|tmp|\.tmp|cache|Cache|Code Cache|GPUCache|DawnCache|Crashpad|Session Storage|Local Storage|IndexedDB|blob_storage|Network|Shared Dictionary|WebStorage|Service Worker|plugins\/cache|thread-writer-locks|sentry|GraphiteDawnCache|GrShaderCache|ShaderCache|GPUPersistentCache|DawnGraphiteCache|DawnWebGPUCache|executor-plugins\/codex-app-tools|Network Persistent State|Network Action Predictor|Default\/DawnWebGPUCache|Default\/DawnGraphiteCache)(\/|$)|(^|\/)(history\.jsonl|[^/]*\.sqlite[^/]*|[^/]*\.log|LOCK|Cookies[^/]*|Preferences|TransportSecurity|Trust Tokens[^/]*|Reporting and NEL[^/]*|DIPS[^/]*|models_cache\.json|\.codex-provisioning-[^/]*\.guard|\.codex-global-state\.json[^/]*|[^/]*-(wal|shm|journal))$/;
+// Active Codex chats generate visualization files and update the embedded browser's History database independently
+// of CodexBuddy. They remain protected by the byte-for-byte check in CI / strict mode.
+const ACTIVE_CHAT_FILES = /^(visualizations(\/|$)|session_index\.jsonl$|sqlite\/codex\.db$|Default\/Partitions\/codex-browser-app\/(History|Top Sites)(-journal|-wal|-shm)?$)/;
+export const volatile = (rel: string) => !strictHashes() && (VOLATILE.test(rel) || ACTIVE_CHAT_FILES.test(rel));
 
 export const hashAll = (paths: string[]): Record<string, string> => Object.fromEntries(paths.map(p => [p, hashTree(p, volatile)]));
 

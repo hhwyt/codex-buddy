@@ -175,20 +175,21 @@ describe('汉化（L）', () => {
     expect($(TID.settings.zhTrash)).toBeNull(); // only there while the launcher exists
   });
 
-  it('L-05 Codex 正开着时才问要不要重新打开', async () => {
-    const fake = fakeApi({ 'zh:set': { ok: true, needsReopen: true } });
+  it('L-05 语言保存后确认重启，稍后不退出，确认调用重启', async () => {
+    const fake = fakeApi({ 'zh:set': { ok: true, restartRequired: true } });
     await mount(fake);
     click($(TID.settings.zhCard));
     await settle(80);
-    expect(msg()).toContain('Codex 开着，要重新打开才变成中文');
-    click(button('先不了'));
-    expect(msg()).toBe('');
-    expect(fake.called('codex:open')).toHaveLength(0);
+    expect($(TID.restart.root)!.textContent).toContain('现在重启 ChatGPT？');
+    click($(TID.restart.later));
+    await settle();
+    expect(fake.called('codex:restart')).toHaveLength(0);
     click($(TID.settings.enCard));
     await settle(80);
-    expect(msg()).toContain('重新打开才变成英文');
-    click(button('重新打开'));
-    expect(fake.called('codex:open')).toHaveLength(1);
+    click($(TID.restart.now));
+    await settle();
+    expect(fake.called('codex:restart')).toHaveLength(1);
+    expect(fake.called('codex:open')).toHaveLength(0);
   });
 
   it('L-05 Codex 没开着时不问', async () => {
@@ -290,7 +291,7 @@ describe('一键还原（T-03）', () => {
     click($(TID.dialog.confirm));
     await settle();
     expect(fake.called('restore:run')).toHaveLength(1);
-    expect(go).toHaveBeenCalledWith('onboarding');
+    expect(go).toHaveBeenCalledWith('models');
   });
 
   it('T-03 还原失败：提示原因，不跳页', async () => {

@@ -69,8 +69,11 @@ describe('签名脚本', () => {
     const out = path.join(dir, 'keys', 'k.pem');
     const r = run(GEN, ['--out', out]);
     expect(r.status).toBe(0);
-    expect(fs.statSync(out).mode & 0o777).toBe(0o600);
-    expect(fs.statSync(path.dirname(out)).mode & 0o777).toBe(0o700);
+    // POSIX permission bits are not implemented by Windows chmod. Signing and overwrite protection run on both.
+    if (process.platform !== 'win32') {
+      expect(fs.statSync(out).mode & 0o777).toBe(0o600);
+      expect(fs.statSync(path.dirname(out)).mode & 0o777).toBe(0o700);
+    }
     const printed = /-----BEGIN PUBLIC KEY-----[\s\S]+?-----END PUBLIC KEY-----/.exec(r.stdout)![0];
     expect(r.stdout).toMatch(/fingerprint: ([0-9a-f]{2}:){31}[0-9a-f]{2}/);
     expect(r.stdout).not.toContain('PRIVATE KEY');

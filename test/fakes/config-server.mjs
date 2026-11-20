@@ -18,8 +18,16 @@ export function startConfigServer(opts = {}) {
     mode: /** @type {Record<'jsdelivr'|'github', string>} */ ({ jsdelivr: 'ok', github: 'ok' }),
     hits: /** @type {string[]} */ ([]),
     hangs: /** @type {http.ServerResponse[]} */ ([]),
+    networkMode: /** @type {'ok'|'down'|'slow'|'redirect'} */ ('ok'),
   };
   const server = http.createServer((req, res) => {
+    if (req.url === '/network-check') {
+      if (state.networkMode === 'slow') { state.hangs.push(res); return; }
+      if (state.networkMode === 'down') { res.writeHead(503); return res.end('offline'); }
+      if (state.networkMode === 'redirect') { res.writeHead(302, { location: '/portal' }); return res.end(); }
+      res.writeHead(200, { 'cache-control': 'no-store' });
+      return res.end('online');
+    }
     const source = req.url?.startsWith('/jsdelivr/') ? 'jsdelivr' : req.url?.startsWith('/github/') ? 'github' : null;
     if (!source) { res.writeHead(404); return res.end(); }
     state.hits.push(source);
@@ -44,6 +52,7 @@ export function startConfigServer(opts = {}) {
         jsdelivrUrl: `${url}/jsdelivr/remote/config.json`,
         githubUrl: `${url}/github/remote/config.json`,
         setMode: (/** @type {'jsdelivr'|'github'} */ source, /** @type {string} */ mode) => { state.mode[source] = mode; },
+        setNetworkMode: (/** @type {'ok'|'down'|'slow'|'redirect'} */ mode) => { state.networkMode = mode; },
         setConfig: (/** @type {unknown} */ config) => { state.body = JSON.stringify(config); },
         close: () => new Promise(r => { for (const h of state.hangs) h.destroy(); server.closeAllConnections?.(); server.close(() => r(undefined)); }),
       });

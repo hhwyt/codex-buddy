@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>CodexBuddy</title>
+  <rect x="64" y="64" width="896" height="896" rx="192" fill="#ffffff"/>
+  <g transform="translate(512 512) scale(.77) translate(-627 -630)" fill="#005bee">
+    <path d="M 1011.3 450.8
+      A 424 424 0 1 0 1011.3 809.2
+      L 875 722
+      C 842 837 743 920 627 920
+      C 476 920 354 798 354 647
+      C 354 612 365 576 385 548
+      L 412 404
+      Q 415 384 433 397
+      L 544 468
+      L 702 468
+      L 813 397
+      Q 831 384 834 404
+      L 860 548 Z"/>
+    <circle cx="520" cy="640" r="38"/>
+    <circle cx="728" cy="640" r="38"/>
+  </g>
+</svg>

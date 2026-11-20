@@ -463,8 +463,8 @@ describe('汉化', () => {
     const b = build();
     await installed_(b);
     events = [];
-    expect(await b.h['zh:set']({ on: true })).toEqual({ ok: true, needsReopen: false });
-    expect(events.map(e => (e.payload as { id: string }).id)).toEqual(['check', 'check', 'add', 'add', 'done']);
+    expect(await b.h['zh:set']({ on: true })).toMatchObject({ ok: true, needsReopen: false });
+    expect(events.filter(e => e.event === 'step').map(e => (e.payload as { id: string }).id)).toEqual(['check', 'check', 'add', 'add', 'done']);
     const s = await b.h['app:state'](undefined as never);
     expect(s.zh).toMatchObject({ on: true, launcherExists: true, supported: true, hidden: false });
     fs.writeFileSync(path.join(root, 'fake-codex-running'), '');
@@ -478,7 +478,7 @@ describe('汉化', () => {
     await b.h['zh:set']({ on: false });
     expect(fs.existsSync(b.paths.zhLauncherPath)).toBe(true);
     await b.h['zh:set']({ on: true });
-    expect(await b.h['zh:remove'](undefined as never)).toEqual({ ok: true });
+    expect(await b.h['zh:remove'](undefined as never)).toMatchObject({ ok: true });
     expect(fs.existsSync(b.paths.zhLauncherPath)).toBe(false);
     expect((await b.h['app:state'](undefined as never)).zh.on).toBe(false);
     await b.h['zh:remove'](undefined as never);
@@ -808,5 +808,76 @@ describe('security, community, update, restore', () => {
     fs.mkdirSync(paths.buddyDir, { recursive: true });
     fs.writeFileSync(path.join(paths.buddyDir, 'state.json'), '{bad');
     expect((await build().h['wallet:get'](undefined as never)).active).toBeNull();
+  });
+});
+
+describe('配置生效与重启确认', () => {
+  test('M-21 只有成功且有变化、应用运行时才要求重启；待重启状态跨进程保存', async () => {
+    const b = build();
+    await installed_(b);
+    fs.writeFileSync(path.join(root, 'fake-codex-running'), '1');
+    const result = await b.h['switch:start']({ vendor: 'deepseek' });
+    expect(result.restartRequired).toBe(true);
+    expect(b.svc.state().restartRequired).toBe(true);
+    expect(opened).toEqual([]);
+    expect((await build().h['app:state'](undefined as never)).restartRequired).toBe(true);
+    expect((await b.h['switch:start']({ vendor: 'deepseek' })).restartRequired).not.toBe(true);
+    keyOutcome.kimi = { ok: false, reason: 'failed' };
+    expect((await b.h['switch:start']({ vendor: 'kimi' })).ok).toBe(false);
+    expect(b.svc.state().restartRequired).toBe(true);
+  });
+
+  test('M-21 应用未运行时保存配置无需重启', async () => {
+    const b = build();
+    await installed_(b);
+    expect((await b.h['switch:start']({ vendor: 'deepseek' })).restartRequired).toBe(false);
+    expect(b.svc.state().restartRequired).toBe(false);
+  });
+
+  test('M-21 重启成功才清除待重启状态，不改聊天与配置；并发请求合并', async () => {
+    const b = build();
+    await installed_(b);
+    fs.writeFileSync(path.join(root, 'fake-codex-running'), '1');
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    const before = configOf(b.paths.codexHome);
+    fs.writeFileSync(path.join(b.paths.codexHome, 'session.json'), 'keep-chat');
+    let finish!: () => void;
+    const restart = vi.spyOn(b.platform, 'restartCodex').mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    const first = b.h['codex:restart'](undefined as never);
+    const second = b.h['codex:restart'](undefined as never);
+    expect(restart).toHaveBeenCalledTimes(1);
+    expect(b.svc.state().restartRequired).toBe(true);
+    finish();
+    expect(await first).toEqual({ ok: true });
+    expect(await second).toEqual({ ok: true });
+    expect(b.svc.state().restartRequired).toBe(false);
+    expect(configOf(b.paths.codexHome)).toBe(before);
+    expect(fs.readFileSync(path.join(b.paths.codexHome, 'session.json'), 'utf8')).toBe('keep-chat');
+    expect(events).toContainEqual({ event: 'restartRequired', payload: false });
+  });
+
+  test('M-21 重启失败保留待重启状态，再试一次可以恢复', async () => {
+    const b = build();
+    await installed_(b);
+    fs.writeFileSync(path.join(root, 'fake-codex-running'), '1');
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    const restart = vi.spyOn(b.platform, 'restartCodex').mockRejectedValueOnce(new Error('private path')).mockResolvedValue(undefined);
+    const failed = await b.h['codex:restart'](undefined as never);
+    expect(failed.ok).toBe(false);
+    expect(failed.reason).not.toContain('private path');
+    expect(b.svc.state().restartRequired).toBe(true);
+    expect(await b.h['codex:restart'](undefined as never)).toEqual({ ok: true });
+    expect(restart).toHaveBeenCalledTimes(2);
+    expect(b.svc.state().restartRequired).toBe(false);
+  });
+
+  test('L-05 语言变化也要求确认，无变化不重复弹窗；应用退出后清理提示', async () => {
+    const b = build();
+    await installed_(b);
+    fs.writeFileSync(path.join(root, 'fake-codex-running'), '1');
+    expect((await b.h['zh:set']({ on: true })).restartRequired).toBe(true);
+    expect((await b.h['zh:set']({ on: true })).restartRequired).not.toBe(true);
+    fs.unlinkSync(path.join(root, 'fake-codex-running'));
+    expect((await b.h['app:state'](undefined as never)).restartRequired).toBe(false);
   });
 });

@@ -47,12 +47,13 @@ export interface BuddyState {
   lastRemote: RemoteConfig | null;
   /** Highest remote minVersion ever accepted (encrypted): never lowered, kept through 一键还原, enforced offline */
   minVersionFloor: string | null;
+  restartRequired: boolean;
 }
 
 export const emptyState = (): BuddyState => ({
   order: [], active: null, mode: 'switch', keys: {}, openaiAuth: null, models: {}, zh: false, onboarded: false,
   startedAt: null, firstSuccess: false, original: null, dismissed: null, custom: [], rateLimited: [], lastRemote: null,
-  minVersionFloor: null,
+  minVersionFloor: null, restartRequired: false,
 });
 
 export interface ServiceDeps {
@@ -279,6 +280,7 @@ export function createServices(d: ServiceDeps) {
       if (!('key' in k) || typeof k.key !== 'string') return k;
       apiKey = k.key;
     }
+    if (signal?.aborted) return { ok: false, kind: 'cancelled', reason: '取消了，配置没有更改' };
     const models = modelsOf(p);
     const dir = scratch();
     try {
@@ -458,13 +460,17 @@ export function createServices(d: ServiceDeps) {
   };
 
   // ---------- handlers ----------
+  let restarting: Promise<Outcome> | null = null;
   const handlers: Handlers = {
     'app:state': async () => {
       await remoteSoon();
       const codex = await platform.findCodex();
+      const codexRunning = await platform.isCodexRunning();
+      if (st.restartRequired && !codexRunning) { st.restartRequired = false; save(); d.emit('restartRequired', false); }
       return {
         version: d.version, os: d.os, configured: st.onboarded, codexInstalled: !!codex,
-        codexRunning: await platform.isCodexRunning(),
+        codexRunning,
+        restartRequired: st.restartRequired,
         zh: { on: st.zh, launcherExists: await d.zh.exists(), supported: await d.zh.supported().catch(() => false), hidden: remote.switches.hideZh },
         community: { qrUrl: await communityQr() },
         upgradeRequired: upgradeRequired(),
@@ -513,6 +519,21 @@ export function createServices(d: ServiceDeps) {
       return r;
     },
     'codex:open': async () => { await platform.openCodex({ zh: st.zh }); return { ok: true }; },
+    'codex:restart': () => {
+      if (restarting) return restarting;
+      restarting = (async () => {
+        try {
+          await platform.restartCodex({ zh: st.zh });
+          st.restartRequired = false;
+          save();
+          d.emit('restartRequired', false);
+          return { ok: true };
+        } catch {
+          return { ok: false, reason: '没能重启 ChatGPT。配置已保存，重启后生效。' };
+        }
+      })().finally(() => { restarting = null; });
+      return restarting;
+    },
     // M-15: steps already in place are ticked without redoing them; then the vendor in use is written again
     'codex:repair': async () => {
       if (!st.active) return { ok: false, reason: '还没有选模型' };
@@ -643,10 +664,32 @@ export function createServices(d: ServiceDeps) {
     },
 
     'restore:plan': async () => ({ lines: describeRestore((await restoreSteps()).map(s => (s.kind === 'remove-clone' ? { ...s, vendor: cloneName(s.vendor) } : s))) }),
-    'restore:run': () => runRestore(),
+    'restore:run': async () => {
+      const result = await runRestore();
+      if (result.ok) d.emit('restartRequired', false);
+      return result;
+    },
 
     'shell:open-external': async ({ url }) => { if (/^https:\/\//.test(url)) await d.openExternal(url); },
   };
+
+  // Compare only configuration the main desktop app reads; never prompt for wallet order or a clone's own files.
+  const configuration = () => JSON.stringify([st.zh, ...['config.toml', 'auth.json', CATALOG_FILE].map(file => fs.readText(path.join(paths.codexHome, file)))]);
+  const configChannels = ['switch:start', 'key:replace', 'key:paste', 'custom:add', 'codex:repair', 'zh:set', 'zh:remove'] as const;
+  const tracked = handlers as Record<typeof configChannels[number], (args: never) => Outcome | Promise<Outcome>>;
+  for (const channel of configChannels) {
+    const handler = tracked[channel];
+    tracked[channel] = async (args: never) => {
+      const before = configuration();
+      const result = await handler(args);
+      if (!result.ok || before === configuration()) return result;
+      const restartRequired = await platform.isCodexRunning();
+      st.restartRequired = restartRequired;
+      save();
+      d.emit('restartRequired', restartRequired);
+      return { ...result, restartRequired };
+    };
+  }
 
   /** Startup: the update prompt (U-01), bridge URLs, model polling */
   const startup = async () => {

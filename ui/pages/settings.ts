@@ -1,6 +1,7 @@
 // settings page. Owner: A6. T-01..T-03, L-01..L-07: 汉化两张预览图（照 ui-design/language-final.html）、版本和检查更新、一键还原
 import { dialog } from '../components/dialog.js';
 import { toast } from '../components/toast.js';
+import { promptRestart } from '../components/restart.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
 import type { BuddyApi } from '../api.js';
@@ -124,14 +125,15 @@ export const renderSettings: Page = async ({ api, root, go }) => {
     mark(to);
     if (to === 'zh') launcher = true;
     showTrash();
-    if (res.needsReopen) { // L-05: only while Codex is open
-      say(`Codex 开着，要重新打开才变成${to === 'zh' ? '中文' : '英文'} `, btn('重新打开', openCodex, true), btn('先不了', () => say()));
+    if (res.restartRequired) {
+      say();
     } else if (to === 'zh') {
       say(ok(), ' 好了：从「ChatGPT 汉化版」打开就是中文 ', btn('打开看看', openCodex, true));
     } else {
       say(ok(), ' 已切回英文原版；分身也变回英文。「ChatGPT 汉化版」图标还留着，想去掉点它右下角的垃圾桶');
     }
     setBusy(false);
+    if (res.restartRequired) await promptRestart(api);
   }
 
   async function removeZh(): Promise<void> { // L-04: removes the launcher only
@@ -183,7 +185,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
     const yes = await dialog({ title: '一键还原', lines, confirm: '一键还原', cancel: '先不了', danger: true });
     if (!yes) return;
     const res = await api.invoke('restore:run');
-    if (res.ok) go('onboarding');
+    if (res.ok) go('models');
     else toast(res.reason ?? '没还原成功，再试一次', { error: true });
   }
 

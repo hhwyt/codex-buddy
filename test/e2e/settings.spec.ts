@@ -37,8 +37,7 @@ const langMsg = () => run.page.getByTestId(TID.settings.langMsg);
 
 test('L-01 默认英文原版，安装时不问', async () => {
   run = await launch({ seed: s => seedCodex(s) });
-  await run.page.getByTestId(TID.onboarding.start).click();
-  await expect(run.page.getByTestId(TID.models.root)).toBeVisible({ timeout: 30_000 });
+  await finishOnboarding(run.page);
   await expect(run.page.getByTestId(TID.dialog.root)).toHaveCount(0); // nothing asked during install
   expect(await zhOn()).toBe(false);
   expect(fs.existsSync(zhLauncher())).toBe(false);
@@ -124,10 +123,9 @@ test('L-05 只有 Codex 正开着时才问要不要重新打开', async () => {
   await expect(langMsg()).not.toContainText('重新打开');
   setCodexRunning(run.sandbox, true);
   await run.page.getByTestId(TID.settings.enCard).click();
-  // language-final.html asks on the line under the previews: 重新打开 / 先不了
-  await expect(langMsg()).toContainText('重新打开', { timeout: 10_000 });
-  await langMsg().getByRole('button', { name: '先不了' }).click();
-  await expect(langMsg()).not.toContainText('重新打开');
+  await expect(run.page.getByTestId(TID.restart.root)).toContainText('现在重启 ChatGPT？');
+  await run.page.getByTestId(TID.restart.later).click();
+  await expect(run.page.getByTestId(TID.restart.notice)).toContainText('重启 ChatGPT 后生效');
   expect(fs.existsSync(path.join(run.sandbox, 'fake-codex-running'))).toBe(true); // never closes Codex itself
 });
 
@@ -234,7 +232,7 @@ test('T-04 还原后配置恢复原样，原来就有的 Codex 不卸，聊天�
   await toSettings();
   await clickClear(run.page.getByTestId(TID.settings.restore));
   await run.page.getByTestId(TID.dialog.confirm).click();
-  await expect(run.page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
+  await expect(run.page.getByTestId(TID.models.root)).toBeVisible({ timeout: 30_000 });
   expect(configToml(run.sandbox)).toBe(original);
   expect(fs.existsSync(chatgptApp())).toBe(true);
   expect(hashTree(path.join(codexHome(run.sandbox), 'sessions'))).toBe(sessions);
@@ -249,10 +247,13 @@ test('T-04 还原时卸掉这次装的 Codex', async () => {
   run = await launch({ seed: s => seedUserData(s) });
   await finishOnboarding(run.page);
   expect(fs.existsSync(chatgptApp())).toBe(true);
+  // Installation starts the first vendor login. Cancel it before opening the restore controls.
+  await expect(run.page.getByTestId(TID.browser.close)).toBeVisible();
+  await run.page.getByTestId(TID.browser.close).click();
   await toSettings();
   await clickClear(run.page.getByTestId(TID.settings.restore));
   await run.page.getByTestId(TID.dialog.confirm).click();
-  await expect(run.page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
+  await expect(run.page.getByTestId(TID.models.root)).toBeVisible({ timeout: 30_000 });
   expect(fs.existsSync(chatgptApp())).toBe(false);
   expect(readText(path.join(codexHome(run.sandbox), 'history.jsonl'))).not.toBeNull();
 });

@@ -5,7 +5,7 @@
 // (Windows: the Store package, platform/sandbox-real-win.ts; Mac: a copy of ChatGPT.app inside the sandbox,
 // platform/sandbox-real-mac.ts, where open / reveal / external links really happen); CODEXBUDDY_LOGIN_WINDOWS=1 opens
 // the six login pages at start and keeps <sandbox>/login-status.json up to date (which vendor is logged in).
-import { app, safeStorage, session, shell, type BrowserWindow } from 'electron';
+import { app, net, safeStorage, session, shell, type BrowserWindow } from 'electron';
 import * as nfs from 'node:fs';
 import * as path from 'node:path';
 import { parseEndpoints, withEndpoints } from './core/endpoints';
@@ -14,7 +14,8 @@ import { validateRemote } from './core/remote';
 import { REMOTE_CONFIG_PUBLIC_KEY } from './core/remote-key';
 import { startBridge } from './main/bridge-server';
 import { BROWSER_PARTITION, browserHandlers, createRightBrowser, electronViewHost, openLoginWindows } from './main/browser';
-import { debugSwitchesIn, debuggable } from './main/hardening';
+import { debugSwitchesIn, debuggable, removeTestEnvironment } from './main/hardening';
+import { checkInternet, NetworkGate, NETWORK_POLL_MS } from './main/network-gate';
 import { aesCipher, loadDataKey } from './main/cipher';
 import { registerIpc, sendEvent } from './main/ipc';
 import type { ConnectionView } from './main/ipc-contract';
@@ -35,12 +36,13 @@ import type { Clone, Platform, ZhLauncher } from './platform/types';
 import { loginWindowTargets, vendorsWith } from './vendors';
 
 const os: 'mac' | 'win' = process.platform === 'win32' ? 'win' : 'mac';
-const sandbox = sandboxRoot();
 let win: BrowserWindow | null = null;
 
 // Release builds: no debugging switch on our own command line, no DevTools (main/hardening.ts)
 const packageMeta = JSON.parse(nfs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8')) as { codexbuddyDebuggable?: unknown };
 const allowDebug = debuggable(app.isPackaged, packageMeta);
+removeTestEnvironment(process.env, allowDebug);
+const sandbox = sandboxRoot();
 if (!allowDebug && debugSwitchesIn(s => app.commandLine.hasSwitch(s)).length) app.exit(1);
 if (!allowDebug) app.on('web-contents-created', (_e, wc) => { wc.on('devtools-opened', () => wc.closeDevTools()); });
 
@@ -93,8 +95,12 @@ async function main(): Promise<void> {
   const providers = PROVIDERS.map(p => withEndpoints(p, endpoints));
   const vendors = vendorsWith(endpoints);
   const upstreams: Record<string, string> = {};
+  let network: NetworkGate;
   // Codex's traffic to the vendors goes through the whitelist and shows under 「CodexBuddy 连过的」 (S-04, S-05)
-  const bridge = await startBridge(upstreams, { fetch: ((url: string, init?: RequestInit) => guardedFetch(url, init)) as typeof fetch });
+  const bridge = await startBridge(upstreams, { fetch: (async (url: string, init?: RequestInit) => {
+    if (network?.state !== 'online' || !net.isOnline()) throw new Error('网络问题');
+    return guardedFetch(url, init);
+  }) as typeof fetch });
   const keyFile = path.join(platform.paths.buddyDir, 'data-key.bin');
   // A key file written before 11-16 (wrapped by the real keychain) cannot be opened under use-mock-keychain on Mac:
   // it is replaced and the old state set aside. Windows (DPAPI, no prompt) still unwraps it once
@@ -158,14 +164,27 @@ async function main(): Promise<void> {
     runInstaller: async file => { if (sandbox) record('open', file); else { await open(file); if (os === 'win') app.quit(); } },
   });
 
-  registerIpc({ ...services.handlers, ...browserHandlers(rb) });
+  let started = false;
+  network = new NetworkGate(
+    () => checkInternet(guardedFetch as typeof fetch, testMode ? endpoints.remoteConfig.map(url => new URL('/network-check', url).href) : undefined),
+    state => {
+      sendEvent(win, 'network', state);
+      if (state === 'offline') { rb.close(); services.handlers['switch:cancel']?.(); }
+      if (state === 'online' && !started) { started = true; void services.startup().catch(() => undefined); }
+    },
+    () => net.isOnline(),
+  );
+  registerIpc({ ...services.handlers, ...browserHandlers(rb),
+    'network:check': async () => ({ ok: await network.check() }),
+    'network:offline': () => network.block(),
+    'app:quit': () => app.quit(),
+  }, channel => network.allows(channel));
   // A vendor added under 「其他厂商」 (M-19) is allowed once its base URL is in use
   installNetGuard(() => [...defaultAllowedHosts(providers), ...Object.values(endpoints.vendors).map(u => new URL(u!).host), ...Object.values(upstreams).map(u => new URL(u).host)],
     () => sendEvent(win, 'connections', connectionViews()));
 
   win = createMainWindow(os, { offscreen: testMode, devTools: allowDebug });
   win.on('closed', () => { win = null; });
-  win.webContents.once('did-finish-load', () => { void services.startup().catch(() => undefined); });
   if (sandbox && !testMode && process.env.CODEXBUDDY_LOGIN_WINDOWS === '1') {
     const targets = loginWindowTargets(vendors);
     const status = targets.map(t => ({ vendor: t.vendor, name: t.name, url: t.url, loggedIn: false }));
@@ -178,8 +197,9 @@ async function main(): Promise<void> {
     });
     write();
   }
-  const poll = setInterval(() => services.pollModel(), 2000);
-  app.on('before-quit', () => { clearInterval(poll); void bridge.close(); });
+  const poll = setInterval(() => { if (network.state === 'online') services.pollModel(); }, 2000);
+  const heartbeat = setInterval(() => { if (network.state === 'online') void network.check(); }, NETWORK_POLL_MS);
+  app.on('before-quit', () => { clearInterval(poll); clearInterval(heartbeat); void bridge.close(); });
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();

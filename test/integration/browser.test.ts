@@ -36,6 +36,7 @@ vi.mock('electron', async () => {
     getURL() { return this.url; }
     reload() { this.reloads++; }
     async executeJavaScript(s: string) { return `ran:${s}`; }
+    isDestroyed() { return this.closed; }
     close() { this.closed = true; }
   }
   class WebContentsView {

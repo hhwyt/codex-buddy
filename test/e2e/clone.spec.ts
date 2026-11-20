@@ -107,7 +107,13 @@ test('C-05 分身的名字和图标是厂商自己的', async () => {
     const iconFile = path.join(app, 'Contents', 'Resources', icon!.endsWith('.icns') ? icon! : `${icon}.icns`);
     expect(fs.existsSync(iconFile)).toBe(true);
   }
-  await expect(run.page.getByTestId(TID.models.card('deepseek'))).toHaveScreenshot('clone-card-deepseek.png', { maxDiffPixelRatio: 0.02 });
+  const card = run.page.getByTestId(TID.models.card('deepseek'));
+  const view = (await wallet(run.page)).cards.find(c => c.vendor === 'deepseek')!;
+  await expect(card.locator('.num')).toContainText(view.keyTail!);
+  await expect(card.getByTestId(TID.models.cardModel('deepseek'))).toHaveText(view.model!);
+  await expect(card).toHaveScreenshot('clone-card-deepseek.png', {
+    maxDiffPixelRatio: 0.02, mask: [card.locator('.num')], maskColor: '#4d6bfe',
+  });
 });
 
 test('C-06 分身的模型菜单里只有它这一家的模型', async () => {
@@ -181,7 +187,7 @@ test('C-10 一键还原时分身 App 一起去掉，数据目录留着', async (
   await nav.settings(run.page);
   await clickClear(run.page.getByTestId(TID.settings.restore));
   await run.page.getByTestId(TID.dialog.confirm).click();
-  await expect(run.page.getByTestId(TID.onboarding.root)).toBeVisible({ timeout: 30_000 });
+  await expect(run.page.getByTestId(TID.models.root)).toBeVisible({ timeout: 30_000 });
   expect(cloneEntry('Kimi')).toBeNull();
   expect(hashTree(path.join(cloneHome(run.sandbox, 'kimi'), 'sessions'))).toBe(data);
 });

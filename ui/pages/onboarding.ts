@@ -1,15 +1,11 @@
-// Onboarding (no left column). Owner: A11.
-// 欢迎：只有一个「开始安装」（站主 2026-11-15 去掉了标题）→ 进度一行一行打勾 → 直接进模型页（没有完成屏）O-01
-// 已装的那一行由主进程直接发 done「已装好」O-02；能自己修的小问题显示「正在帮你修：…」O-08
-// 失败 → 故障屏：「再试一次」从失败处接着做 O-03、「复制日志」先预览且 Key 打码 O-04、「进群发给我们」→ 社群页 O-05
-// 已经配过模型 → 跳过引导 O-06：app.ts 按 app:state.configured 直接进模型页，不进这里
+// Installation drawer: real progress, retry at the failed step, and masked logs.
 import type { StepView } from '../../electron/main/ipc-contract.js';
 import { dialog } from '../components/dialog.js';
 import { createProgress } from '../components/progress.js';
 import { toast } from '../components/toast.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
-import type { Page } from './types.js';
+import type { PageContext } from './types.js';
 
 /** Step ids starting with this are「正在帮你修」lines, not progress rows (O-08) */
 export const FIX_STEP_PREFIX = 'fix';
@@ -28,9 +24,12 @@ export function maskKeys(text: string): string {
     .replace(/((?:api[_-]?key|token|secret)["']?\s*[:=]\s*["']?)[A-Za-z0-9._-]{8,}/gi, '$1••••');
 }
 
-export const renderOnboarding: Page = ({ api, root, go }) => {
-  const view = h('div', { class: 'onb', 'data-testid': TID.onboarding.root });
-  root.replaceChildren(view);
+export function renderOnboarding({ api, root, go }: PageContext): () => void {
+  const view = h('div', { class: 'onb' });
+  const drawer = h('section', { class: 'install-drawer', role: 'dialog', 'aria-modal': 'true', 'aria-label': '安装 Codex', tabindex: '-1', 'data-testid': TID.onboarding.root },
+    h('h2', { class: 'onb-head' }, '安装 Codex'), view);
+  root.replaceChildren(h('div', { class: 'install-scrim' }, drawer));
+  drawer.focus();
   const progress = createProgress(document.documentElement.classList.contains('os-mac') ? MAC_STEPS : []);
   const fixing = h('p', { class: 'onb-fixing', 'data-testid': TID.onboarding.fixing, hidden: true });
   let running = false;
@@ -47,11 +46,7 @@ export const renderOnboarding: Page = ({ api, root, go }) => {
   };
   const off = api.on('step', onStep);
 
-  const welcome = () => view.replaceChildren(
-    h('button', { class: 'btn primary onb-start', type: 'button', 'data-testid': TID.onboarding.start, onclick: () => void run() }, '开始安装'));
-
-  // ui-design/app install v5: the ring with the overall percent, the title, then the step list, all centered
-  const installing = () => view.replaceChildren(h('div', { class: 'onb-steps' }, progress.ring, h('h2', { class: 'onb-head' }, '正在安装 Codex'), progress.el, fixing));
+  const installing = () => view.replaceChildren(h('div', { class: 'onb-steps', role: 'status' }, progress.el, fixing));
 
   const failure = (reason: string) => view.replaceChildren(
     h('div', { class: 'onb-failure', 'data-testid': TID.onboarding.failure },
@@ -103,6 +98,6 @@ export const renderOnboarding: Page = ({ api, root, go }) => {
     }
   }
 
-  welcome();
+  void run();
   return () => { alive = false; off(); };
-};
+}

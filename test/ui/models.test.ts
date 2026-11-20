@@ -466,30 +466,20 @@ describe('叠卡', () => {
     expect(api.callsOf('switch:start').length).toBe(1);
   });
 
-  it('M-16 进来时 Codex 已经被删了：最上面那张直接给「重新安装」', async () => {
-    api = fakeApi(walletOf());
+  it('M-16 没装 Codex 时卡片仍可选和排序，不提供安装按钮或启动切换', async () => {
+    api = fakeApi(walletOf({ active: 'deepseek' }));
     api.handle('app:state', () => ({ codexInstalled: false }));
     cleanup = (await renderModels({ api, root, go: () => {} })) as () => void;
     await settle();
-    expect(q(TID.models.reinstall)).toBeTruthy();
+    expect(q(TID.models.reinstall)).toBeNull();
+    expect(root.textContent).not.toContain('✓ 能用');
     expect(card('deepseek').classList.contains('whole')).toBe(true);
-  });
-
-  it('M-16 Codex 被删了 →「重新安装」', async () => {
-    await mount();
-    let n = 0;
-    api.handle('switch:start', () => (++n === 1 ? { ok: false, kind: 'codex-missing' } : { ok: true }));
-    api.handle('codex:reinstall', () => { throw new Error('装不上'); });
     tap(card('kimi'));
     await settle();
-    expect(text('kimi')).toContain('Codex 被删了');
-    click(TID.models.reinstall);
-    await settle();
-    expect(toastText()).toBe('装不上');
-    api.handle('codex:reinstall', () => ({ ok: true }));
-    click(TID.models.reinstall);
-    await settle();
-    expect(api.callsOf('switch:start').length).toBe(2);
+    expect(rowOf('kimi')).toBe(0);
+    expect(api.callsOf('wallet:reorder').at(-1)?.order[0]).toBe('kimi');
+    expect(api.callsOf('switch:start')).toHaveLength(0);
+    expect(root.textContent).not.toContain('安装');
   });
 
   it('M-17 换 Key：点卡号旁的「换」，测通才替换', async () => {
@@ -624,16 +614,18 @@ describe('叠卡', () => {
     expect(q(TID.firstSuccess.root)).toBeNull();
   });
 
-  it('M-21 Codex 开着时切换：多提示一句「重新打开 Codex 生效」，不替用户关 Codex', async () => {
+  it('M-21 保存变化后询问重启，点稍后不退出应用', async () => {
     await mount();
-    expect(q(TID.models.reopenHint)!.hidden).toBe(true);
-    api.handle('switch:start', () => ({ ok: true, running: true, host: 'api.moonshot.cn' }));
+    api.handle('switch:start', () => ({ ok: true, restartRequired: true, host: 'api.moonshot.cn' }));
     tap(card('kimi'));
     await settle();
-    expect(q(TID.models.reopenHint)!.hidden).toBe(false);
-    expect(q(TID.models.reopenHint)!.textContent).toBe('重新打开 Codex 生效');
+    expect(q(TID.restart.root)!.textContent).toContain('现在重启 ChatGPT？');
     expect(toastText()).toBe('已切换到 Kimi · 只连了 api.moonshot.cn');
-    expect(api.calls.map(c => c.channel)).not.toContain('codex:open');
+    expect(api.callsOf('codex:restart')).toHaveLength(0);
+    click(TID.restart.later);
+    await settle();
+    expect(q(TID.restart.root)).toBeNull();
+    expect(api.callsOf('codex:restart')).toHaveLength(0);
   });
 
   it('M-23 卡片顺序和正在用的那张按主进程给的来', async () => {

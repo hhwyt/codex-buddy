@@ -100,7 +100,7 @@ function alertRow(c: CardView, o: FaceOptions): HTMLElement | null {
     case 'broken':
       return row('Codex 用不了', btn('一键修复', TID.models.repair, a.repair, 'act strong'));
     case 'missing':
-      return row('Codex 被删了', btn('重新安装', TID.models.reinstall, a.reinstall, 'act strong'));
+      return null;
     case 'trial':
       return row('还有额度，用完再充', btn('先用着', TID.models.tryLater, a.tryLater, 'act strong'));
     case 'paste': {
