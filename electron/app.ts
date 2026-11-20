@@ -19,7 +19,7 @@ import { checkInternet, NetworkGate, NETWORK_POLL_MS } from './main/network-gate
 import { aesCipher, loadDataKey } from './main/cipher';
 import { registerIpc, sendEvent } from './main/ipc';
 import type { ConnectionView } from './main/ipc-contract';
-import { connections, defaultAllowedHosts, guardedFetch, installNetGuard, readBytes } from './main/net';
+import { connections, defaultAllowedHosts, guardedFetch, githubInstallerUrl, installNetGuard, readBytes } from './main/net';
 import { createServices, VERSION_CHECK_INTERVAL_MS } from './main/services';
 import { createMainWindow } from './main/window';
 import { pickPlatform } from './platform';
@@ -135,7 +135,8 @@ async function main(): Promise<void> {
     },
     fetchBytes: async (url, onProgress) => {
       // With progress it is an app download (forced upgrade, ~90 MB): allow a slow line half an hour
-      const r = await guardedFetch(url, { signal: AbortSignal.timeout(onProgress ? 30 * 60_000 : 60_000) });
+      const downloadUrl = onProgress && !sandbox ? await githubInstallerUrl(url) : url;
+      const r = await guardedFetch(downloadUrl, { signal: AbortSignal.timeout(onProgress ? 30 * 60_000 : 60_000), headers: onProgress ? { Accept: 'application/octet-stream' } : undefined });
       if (!r.ok) throw new Error(String(r.status));
       return { type: r.headers.get('content-type') ?? 'image/png', data: await readBytes(r, onProgress) };
     },

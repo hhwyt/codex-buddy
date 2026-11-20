@@ -17,7 +17,7 @@ import { PROVIDERS } from '../../electron/core/providers';
 import type { ConnectionRecord } from '../../electron/core/whitelist';
 import { BROWSER_PARTITION } from '../../electron/main/browser';
 import {
-  checkRequest, connections, defaultAllowedHosts, guardedFetch, hostAllowed, installNetGuard, readBytes, record, resetConnections,
+  checkRequest, connections, defaultAllowedHosts, guardedFetch, hostAllowed, installNetGuard, readBytes, record, resetConnections, githubInstallerUrl,
 } from '../../electron/main/net';
 
 const allowed = defaultAllowedHosts(PROVIDERS);
@@ -121,4 +121,17 @@ describe('readBytes（强制升级下载安装包）', () => {
     expect(seen).toEqual([0, 0]);
     expect([...(await readBytes(new Response(new Uint8Array([9, 8]))))]).toEqual([9, 8]);
   });
+});
+
+
+test('V-04 GitHub release lookup pins the installer name and URL; foreign or missing assets are rejected', async () => {
+  const url = 'https://github.com/hhwyt/codex-buddy-releases/releases/download/v0.2.1/CodexBuddy-Setup-0.2.1.exe';
+  const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ assets: [{ id: 123, name: 'CodexBuddy-Setup-0.2.1.exe', browser_download_url: url }] })));
+  try {
+    await expect(githubInstallerUrl(url)).resolves.toBe('https://api.github.com/repos/hhwyt/codex-buddy-releases/releases/assets/123');
+    expect(spy.mock.calls[0][0]).toBe('https://api.github.com/repos/hhwyt/codex-buddy-releases/releases/tags/v0.2.1');
+    await expect(githubInstallerUrl('https://example.com/installer.exe')).rejects.toThrow();
+    spy.mockResolvedValue(new Response(JSON.stringify({ assets: [{ id: 123, name: 'CodexBuddy-Setup-0.2.1.exe', browser_download_url: 'https://example.com/installer.exe' }] })));
+    await expect(githubInstallerUrl(url)).rejects.toThrow('Installer unavailable');
+  } finally { spy.mockRestore(); }
 });

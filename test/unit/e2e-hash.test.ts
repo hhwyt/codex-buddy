@@ -20,7 +20,7 @@ afterEach(() => { vi.unstubAllEnvs(); fs.rmSync(root, { recursive: true, force: 
 
 test('X-01 开发机网络缓存和工具运行时变化不误报，配置与凭据仍逐字节检查', () => {
   const runtime = ['Default/Network Persistent State', 'Default/Network Action Predictor', 'executor-plugins/codex-app-tools/server.mjs',
-    'visualizations/chat/review.diff', 'session_index.jsonl', 'sqlite/codex.db', 'Default/Partitions/codex-browser-app/History', 'Default/Partitions/codex-browser-app/Top Sites'];
+    'Local State', 'WasmTtsEngine/20261110.1/bindings_main.wasm', 'component_crx_cache/metadata.json', 'visualizations/chat/review.diff', 'session_index.jsonl', 'sqlite/codex.db', 'Default/Partitions/codex-browser-app/History', 'Default/Partitions/codex-browser-app/Top Sites'];
   for (const rel of runtime) write(rel, 'runtime');
   write('config.toml', 'model = "glm-5"');
   write('auth.json', '{"token":"fixture"}');
@@ -36,7 +36,7 @@ test('X-01 开发机网络缓存和工具运行时变化不误报，配置与凭
 
 test('X-01 CI 严格模式也检查运行时文件的字节变化', () => {
   vi.stubEnv('CI', '1');
-  for (const file of ['Default/Network Persistent State', 'visualizations/chat/review.diff', 'session_index.jsonl', 'sqlite/codex.db', 'Default/Partitions/codex-browser-app/History', 'Default/Partitions/codex-browser-app/Top Sites']) {
+  for (const file of ['Default/Network Persistent State', 'Local State', 'WasmTtsEngine/20261110.1/bindings_main.wasm', 'component_crx_cache/metadata.json', 'visualizations/chat/review.diff', 'session_index.jsonl', 'sqlite/codex.db', 'Default/Partitions/codex-browser-app/History', 'Default/Partitions/codex-browser-app/Top Sites']) {
     write(file, 'runtime');
     const before = fingerprint();
     write(file, 'changed runtime');

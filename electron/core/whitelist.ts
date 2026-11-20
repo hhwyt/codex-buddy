@@ -2,7 +2,7 @@
 // The right-side browser is NOT filtered (official pages would break); it is only logged, in its own list.
 import type { ProviderInfo } from './types';
 
-export const BASE_HOSTS = ['hhwyt.xyz', 'hhwyt.github.io', 'github.com', 'objects.githubusercontent.com', 'raw.githubusercontent.com', 'cdn.jsdelivr.net', 'storeedgefd.dsx.mp.microsoft.com'];
+export const BASE_HOSTS = ['hhwyt.xyz', 'hhwyt.github.io', 'github.com', 'api.github.com', 'release-assets.githubusercontent.com', 'objects.githubusercontent.com', 'raw.githubusercontent.com', 'cdn.jsdelivr.net', 'storeedgefd.dsx.mp.microsoft.com'];
 
 export interface ConnectionRecord {
   host: string;

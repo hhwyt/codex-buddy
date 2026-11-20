@@ -88,3 +88,16 @@ export async function readBytes(r: Response, onProgress?: (received: number, tot
   for (let c = await reader.read(); !c.done; c = await reader.read()) { parts.push(c.value); received += c.value.length; onProgress(received, total); }
   return new Uint8Array(Buffer.concat(parts));
 }
+
+/** Resolve a fixed GitHub release link without depending on the github.com download frontend. */
+export async function githubInstallerUrl(url: string): Promise<string> {
+  const source = new URL(url);
+  const match = /^\/hhwyt\/codex-buddy-releases\/releases\/download\/(v\d+\.\d+\.\d+)\/([^/]+)$/.exec(source.pathname);
+  if (source.protocol !== 'https:' || source.hostname !== 'github.com' || !match) throw new Error('Invalid release URL');
+  const response = await guardedFetch(`https://api.github.com/repos/hhwyt/codex-buddy-releases/releases/tags/${match[1]}`, { signal: AbortSignal.timeout(10_000), cache: 'no-store' });
+  if (!response.ok) throw new Error('Release unavailable');
+  const release = await response.json() as { assets?: { id: number; name: string; browser_download_url: string }[] };
+  const asset = release.assets?.find(item => item.name === decodeURIComponent(match[2]) && item.browser_download_url === url);
+  if (!asset || !Number.isSafeInteger(asset.id) || asset.id <= 0) throw new Error('Installer unavailable');
+  return `https://api.github.com/repos/hhwyt/codex-buddy-releases/releases/assets/${asset.id}`;
+}
