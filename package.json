@@ -1,6 +1,6 @@
 {
   "name": "codex-buddy",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CodexBuddy：一键装好 Codex，免费用 AI",
   "author": "hhwyt",
   "license": "AGPL-3.0-only",
@@ -87,9 +87,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "CodexBuddy",
       "artifactName": "CodexBuddy-Setup-${version}.exe",
-      "deleteAppDataOnUninstall": false,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "deleteAppDataOnUninstall": false
     },
     "mac": {
       "target": [
