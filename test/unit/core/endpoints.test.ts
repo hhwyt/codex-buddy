@@ -3,9 +3,9 @@ import { parseEndpoints, REMOTE_CONFIG_URLS, withEndpoints } from '../../../elec
 import { providerOf } from '../../../electron/core/providers';
 
 describe('endpoints', () => {
-  test('defaults: jsDelivr first, then GitHub', () => {
+  test('defaults: GitHub Pages first, then CDN and GitHub', () => {
     expect(parseEndpoints(undefined).remoteConfig).toEqual(REMOTE_CONFIG_URLS);
-    expect(REMOTE_CONFIG_URLS[0]).toContain('cdn.jsdelivr.net');
+    expect(REMOTE_CONFIG_URLS[0]).toBe('https://hhwyt.xyz/codex-buddy-releases/remote/config.json');
     expect(parseEndpoints('not json').vendors).toEqual({});
   });
   test('overrides point a vendor at the fake server', () => {

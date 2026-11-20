@@ -73,7 +73,7 @@ export function publishRelease(root, directory = path.join(root, 'release')) {
   const prefix = `repos/${DISTRIBUTION_REPO}`;
   try { api(`${prefix}/pages`); } catch { api(`${prefix}/pages`, { build_type: 'legacy', source: { branch: 'main', path: '/' } }); }
   console.log(`Published https://github.com/${DISTRIBUTION_REPO}/releases/tag/${tag}`);
-  console.log('Version endpoint: https://hhwyt.github.io/codex-buddy-releases/remote/config.json');
+  console.log('Version endpoint: https://hhwyt.xyz/codex-buddy-releases/remote/config.json');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -65,11 +65,11 @@ describe('remote', () => {
     expect(asked.sort()).toEqual([REMOTE_CONFIG_URLS[0], `${REMOTE_CONFIG_URLS[0]}.sig`]);
   });
   test('jsDelivr 不通再读 GitHub', async () => {
-    const f: Fetcher = async url => { if (url.includes('jsdelivr') || url.includes('.github.io/')) throw new Error('down'); return signed(() => newer)(url, 1); };
+    const f: Fetcher = async url => { if (url.includes('jsdelivr') || url.includes('.github.io/') || url.includes('hhwyt.xyz/')) throw new Error('down'); return signed(() => newer)(url, 1); };
     expect((await load(f)).source).toBe('github');
   });
   test('jsDelivr 返回坏文件也换 GitHub', async () => {
-    expect((await load(signed(url => ((url.includes('jsdelivr') || url.includes('.github.io/')) ? '<html>' : newer)))).source).toBe('github');
+    expect((await load(signed(url => ((url.includes('jsdelivr') || url.includes('.github.io/') || url.includes('hhwyt.xyz/')) ? '<html>' : newer)))).source).toBe('github');
   });
   test('都读不到：用上次的，再没有就用自带的', async () => {
     const f: Fetcher = async () => { throw new Error('offline'); };
@@ -92,7 +92,7 @@ describe('remote', () => {
       expect(await load(f as Fetcher, last)).toEqual({ config: last, source: 'cache' });
     });
     test('jsDelivr 的签名对不上，GitHub 的对得上：用 GitHub 的', async () => {
-      const f: Fetcher = async url => ((url.includes('jsdelivr') || url.includes('.github.io/')) && url.endsWith('.sig') ? testSign('x') : signed(() => newer)(url, 1));
+      const f: Fetcher = async url => ((url.includes('jsdelivr') || url.includes('.github.io/') || url.includes('hhwyt.xyz/')) && url.endsWith('.sig') ? testSign('x') : signed(() => newer)(url, 1));
       expect((await load(f)).source).toBe('github');
     });
     test('verifySignature：签名末尾的换行不碍事，坏公钥不抛错', () => {
@@ -118,7 +118,7 @@ describe('remote', () => {
     });
   });
   test('H-03 远程地址只有 jsDelivr 和 GitHub', () => {
-    for (const u of REMOTE_CONFIG_URLS) expect(new URL(u).hostname).toMatch(/^(hhwyt\.github\.io|cdn\.jsdelivr\.net|raw\.githubusercontent\.com)$/);
+    for (const u of REMOTE_CONFIG_URLS) expect(new URL(u).hostname).toMatch(/^(hhwyt\.xyz|hhwyt\.github\.io|cdn\.jsdelivr\.net|raw\.githubusercontent\.com)$/);
   });
   test('M-24 菜单优先用远程清单，没有就用内置', () => {
     const kimi = providerOf('kimi');

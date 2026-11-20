@@ -103,17 +103,13 @@ test('M-05 拖了但没到最上层只调整顺序，不切换也不改配置', 
   expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/kimi/login'));
 });
 
-test('M-06 测试连通时再点别的卡不响应（等扫码时点别的卡会换过去，见 M-09）', async () => {
+test('M-06 切换保存配置，不等待厂商的聊天接口响应', async () => {
   await ready();
-  setCodexScenario(run.sandbox, 'timeout'); // the connectivity test hangs: the switch stays in its background step
-  await card('zhipu').click({ position: { x: 60, y: 45 } });
-  await inWebContents(run.app, '/zhipu/login', 'true');
-  await fakeScan(run.app, 'zhipu');
-  await expect(card('zhipu')).toContainText('测试连通', { timeout: 30_000 });
-  await card('kimi').click({ force: true, position: { x: 60, y: 45 } });
-  await run.page.waitForTimeout(500);
-  expect(await uiFront()).toBe('zhipu');
-  expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/kimi/login'));
+  run.vendors.setScenario('timeout', 'zhipu');
+  setCodexScenario(run.sandbox, 'timeout');
+  await switchTo(run, 'zhipu');
+  expect(tomlValue(configToml(run.sandbox), 'model_provider')).toContain('zhipu');
+  await expect(card('zhipu')).toContainText('能用');
 });
 
 test('M-07 测试连通没通过卡退回原位且配置逐字节没变', async () => {
@@ -173,15 +169,15 @@ test('M-10 建 Key 失败弹窗写原因，再试一次', async () => {
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('zhipu');
 });
 
-test('M-11 智谱免费模型不提充值，Codex 里换成付费模型先测通，余额不够转充值', async () => {
+test('M-11 Codex 里选择付费模型后同步名称，不自动发消息或打开充值页', async () => {
   await ready();
   await switchTo(run, 'zhipu');
   await expect(run.page.getByTestId(TID.models.recharge('zhipu'))).toHaveCount(0);
-  await expect(card('zhipu')).not.toContainText('增强');
   run.vendors.setScenario('balance', 'zhipu');
   setCodexScenario(run.sandbox, 'balance');
   codexPicksModel('glm-4.6');
-  await expect.poll(() => webContentsUrls(run.app), { timeout: 30_000 }).toContainEqual(expect.stringContaining('/zhipu/recharge'));
+  await expect(run.page.getByTestId(TID.models.cardModel('zhipu'))).toContainText(/glm-4\.6/i);
+  expect(await webContentsUrls(run.app)).not.toContainEqual(expect.stringContaining('/zhipu/recharge'));
 });
 
 test('M-12 付费卡有赠送额度时先用着，充值页在画中画里放着', async () => {
@@ -196,47 +192,38 @@ test('M-12 付费卡有赠送额度时先用着，充值页在画中画里放着
   expect((await wallet(run.page)).active).toBe('deepseek');
 });
 
-test('M-13 余额不够，充值页放大，充完再试一次', async () => {
+test('M-13 保存付费厂商配置后，用户可主动打开充值页', async () => {
   await ready();
-  const events = await browserEvents();
   run.vendors.setScenario('balance', 'kimi');
   setCodexScenario(run.sandbox, 'balance');
-  await card('kimi').click({ position: { x: 60, y: 45 } });
-  await fakeScan(run.app, 'kimi').catch(() => undefined);
-  await expect.poll(async () => (await events()).some(e => e.mode === 'expanded' && e.url.includes('/kimi/recharge')), { timeout: 30_000 }).toBe(true);
-  run.vendors.setScenario('ok', 'kimi');
-  setCodexScenario(run.sandbox, 'ok');
-  await run.page.getByTestId(TID.browser.close).click(); // paid, the user closes the recharge page
-  await card('kimi').getByRole('button', { name: '再试一次' }).click();
-  await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe('kimi');
+  await switchTo(run, 'kimi');
+  await run.page.getByTestId(TID.models.recharge('kimi')).click();
+  await expect.poll(() => webContentsUrls(run.app)).toContainEqual(expect.stringContaining('/kimi/recharge'));
+  expect((await wallet(run.page)).active).toBe('kimi');
 });
 
-test('M-14 免费模型被限速，卡上提示并给出换个模型', async () => {
+test('M-14 切换不探测聊天接口，不把厂商的限速响应当成配置失败', async () => {
   await ready();
   run.vendors.setScenario('429', 'zhipu');
   setCodexScenario(run.sandbox, '429');
-  await card('zhipu').click({ position: { x: 60, y: 45 } });
-  await fakeScan(run.app, 'zhipu').catch(() => undefined);
-  await expect(run.page.getByTestId(TID.models.rateLimitSwap('zhipu'))).toBeVisible({ timeout: 30_000 });
-  await expect(card('zhipu')).toContainText('限速');
-  await run.page.getByTestId(TID.models.rateLimitSwap('zhipu')).click();
+  await switchTo(run, 'zhipu');
+  await expect(run.page.getByTestId(TID.models.rateLimitSwap('zhipu'))).toHaveCount(0);
+  expect((await wallet(run.page)).active).toBe('zhipu');
 });
 
-test('M-15 Codex 用不了时一键修复，已经做过的步骤跳过', async () => {
+test('M-15 一键修复重写配置，跳过已安装步骤并保留聊天记录', async () => {
   await ready();
   await switchTo(run, 'deepseek');
-  setCodexScenario(run.sandbox, 'broken');
-  await card('kimi').click({ position: { x: 60, y: 45 } });
-  await fakeScan(run.app, 'kimi').catch(() => undefined);
-  await expect(run.page.getByTestId(TID.models.repair)).toBeVisible({ timeout: 30_000 });
-  setCodexScenario(run.sandbox, 'ok');
+  const config = path.join(codexHome(run.sandbox), 'config.toml');
+  fs.writeFileSync(config, 'model = "missing-model"\n');
   await recordSteps(run.page);
-  await run.page.getByTestId(TID.models.repair).click();
-  await expect.poll(async () => (await steps(run.page)).some(s => s.flow === 'repair' && s.state === 'done'), { timeout: 30_000 }).toBe(true);
+  const result = await run.page.evaluate(() => window.buddy!.invoke('codex:repair'));
+  expect(result.ok).toBe(true);
   const repair = (await steps(run.page)).filter(s => s.flow === 'repair');
-  // Steps already in place (Codex installed) are skipped: they finish without being redone
+  expect(repair).toContainEqual(expect.objectContaining({ id: 'check', state: 'done', text: 'Codex 已装好，跳过' }));
   expect(repair.some(s => s.state === 'fail')).toBe(false);
-  await expect(run.page.getByTestId(TID.models.repair)).toHaveCount(0);
+  expect(tomlValue(configToml(run.sandbox), 'model_provider')).toContain('deepseek');
+  expect(readText(path.join(codexHome(run.sandbox), 'sessions', '2026', '11', '01', 'rollout-user.jsonl'))).toBe('{"type":"message","text":"我的聊天记录"}\n');
 });
 
 test('M-16 Codex 被删了显示重新安装', async () => {
@@ -278,7 +265,7 @@ test('M-18 去充值只在付费卡正面，右侧浏览器打开官方充值页
   expect(paid).toBe(false);
 });
 
-test('M-19 其他厂商：填写后测试连通并加一张卡', async () => {
+test('M-19 其他厂商：填写后保存配置并加一张卡', async () => {
   await ready();
   await run.page.getByTestId(TID.models.addVendor).click();
   await run.page.getByTestId(TID.models.customName).fill('自建');
@@ -287,9 +274,10 @@ test('M-19 其他厂商：填写后测试连通并加一张卡', async () => {
   await run.page.getByTestId(TID.models.customKey).fill('sk-e2e-custom-0000000000001234');
   await run.page.getByTestId(TID.models.customSubmit).click();
   await expect.poll(async () => (await wallet(run.page)).cards.some(c => c.vendor.startsWith('custom-') && c.name === '自建'), { timeout: 30_000 }).toBe(true);
-  // The connectivity test ran Codex against the new provider (the fake Codex logs each run; it makes no HTTP calls)
   const id = (await wallet(run.page)).cards.find(c => c.name === '自建')!.vendor;
-  await expect.poll(() => readText(path.join(run.sandbox, 'fake-codex.log')) ?? '', { timeout: 30_000 }).toContain(`"provider":"${id}"`);
+  expect(tomlValue(configToml(run.sandbox), 'model_provider')).toBe(id);
+  expect(tomlValue(configToml(run.sandbox), 'model')).toBe('deepseek-flash');
+  expect(authKey()).toBe('sk-e2e-custom-0000000000001234');
   await expect.poll(async () => (await wallet(run.page)).active, { timeout: 30_000 }).toBe(id);
 });
 

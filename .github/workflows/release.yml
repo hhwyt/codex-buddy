@@ -31,7 +31,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     permissions:
-      contents: read
+      contents: write
       id-token: write
       attestations: write
     steps:
@@ -57,10 +57,13 @@ jobs:
           subject-path: |
             release/*.exe
             release/*.dmg
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-${{ matrix.os }}
-          path: |
-            release/*.exe
-            release/*.dmg
-          if-no-files-found: ignore
+      - name: Store installers in private draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="build-$(git rev-parse HEAD)"
+          gh release view "$tag" || gh release create "$tag" --draft --target "$(git rev-parse HEAD)" --title "$tag" --notes "Installer verification"
+          for file in release/*.exe release/*.dmg; do
+            if [ -f "$file" ]; then gh release upload "$tag" "$file"; fi
+          done

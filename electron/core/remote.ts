@@ -84,7 +84,7 @@ export async function loadRemote(urls: string[], fetch: Fetcher, lastGood: Remot
     try {
       const [text, sig] = await Promise.all([fetch(urls[i], REMOTE_TIMEOUT_MS), fetch(`${urls[i]}.sig`, REMOTE_TIMEOUT_MS)]);
       const config = verifySignature(text, sig, publicKeyPem) ? validateRemote(text) : null;
-      if (config) return { config, source: urls[i].includes('.github.io/') ? 'pages' : urls[i].includes('jsdelivr') ? 'jsdelivr' : 'github' };
+      if (config) return { config, source: (urls[i].includes('.github.io/') || urls[i].includes('hhwyt.xyz/')) ? 'pages' : urls[i].includes('jsdelivr') ? 'jsdelivr' : 'github' };
     } catch { /* next one */ }
   }
   return lastGood ? { config: lastGood, source: 'cache' } : { config: bundled, source: 'bundled' };

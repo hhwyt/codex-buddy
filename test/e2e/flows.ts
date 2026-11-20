@@ -13,8 +13,10 @@ export const nav = {
 /** Finishes onboarding (fake install) and lands on the model page */
 export async function finishOnboarding(page: Page): Promise<void> {
   const models = page.getByTestId(TID.models.root);
-  if (await models.isVisible().catch(() => false)) return;
-  await page.getByTestId(TID.onboarding.start).click();
+  const start = page.getByTestId(TID.onboarding.start);
+  await expect.poll(async () => await models.isVisible() || await start.isVisible(), { timeout: 30_000 }).toBe(true);
+  if (await models.isVisible()) return;
+  await start.click();
   await expect(models).toBeVisible({ timeout: 30_000 });
 }
 
