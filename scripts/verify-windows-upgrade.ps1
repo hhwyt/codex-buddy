@@ -8,6 +8,10 @@ $directories = [ordered]@{
   browser = "$userRoot\AppData\Roaming\codex-buddy"
   codexApp = "$userRoot\AppData\Roaming\Codex"
 }
+foreach ($package in Get-ChildItem "$userRoot\AppData\Local\Packages" -Directory -Filter 'OpenAI.Codex_*' -ErrorAction SilentlyContinue) {
+  $desktopData = Join-Path $package.FullName 'LocalCache\Roaming\Codex'
+  if (Test-Path $desktopData) { $directories.storeCodexApp = $desktopData; break }
+}
 function Digest([string]$text) {
   $hash = [Security.Cryptography.SHA256]::Create()
   try { return ([BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($text)))).Replace('-','').ToLowerInvariant() }
@@ -27,10 +31,10 @@ function Selection {
   $file = Join-Path $directories.buddy 'state.json'
   if (-not (Test-Path $file)) { return $null }
   $state = [IO.File]::ReadAllText($file) | ConvertFrom-Json
-  return [ordered]@{ keys=(Digest ($state.keys | ConvertTo-Json -Depth 20 -Compress)); active=$state.active; order=$state.order; zh=$state.zh; custom=$state.custom }
+  return [ordered]@{ keys=(Digest ($state.keys | ConvertTo-Json -Depth 20 -Compress)); active=$state.active; order=$state.order; zh=$state.zh; custom=$state.custom; mode=$state.mode }
 }
 try {
-  if (Get-Process CodexBuddy,ChatGPT -ErrorAction SilentlyContinue) { throw 'Close Windows CodexBuddy and ChatGPT before taking stable data snapshots.' }
+  if (Get-Process CodexBuddy,ChatGPT,chatgpt-desktop -ErrorAction SilentlyContinue) { throw 'Close Windows CodexBuddy and ChatGPT before taking stable data snapshots.' }
   if ($Action -eq 'backup') {
     $BackupRoot = Join-Path $userRoot ('codexbuddy-upgrade-backups\'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
     New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
@@ -52,12 +56,25 @@ try {
   } else {
     $snapshot = [IO.File]::ReadAllText((Join-Path $BackupRoot 'snapshot.json')) | ConvertFrom-Json
     $checked = 0
+    $chatFiles = 0
+    $desktopFiles = 0
     # Chat sessions/history and authentication are user data. Logs and runtime caches may legitimately change.
     foreach ($file in @($snapshot.manifests.codex)) {
       if ($file.path -notmatch '^(sessions|archived_sessions)\\|^(history\.jsonl|auth\.json|state_\d+\.sqlite.*)$') { continue }
       $current = Join-Path $directories.codex $file.path
       if (-not (Test-Path -LiteralPath $current) -or (Get-FileHash -LiteralPath $current -Algorithm SHA256).Hash -ne $file.sha256) { throw "Protected user file changed: $($file.path)" }
       $checked++
+      if ($file.path -match '^(sessions|archived_sessions)\\|^history\.jsonl$' -and $file.size -gt 0) { $chatFiles++ }
+    }
+    if ($chatFiles -eq 0) { throw 'No nonempty chat files were present in the upgrade baseline' }
+    foreach ($name in @('codexApp','storeCodexApp')) {
+      if (-not $directories.Contains($name)) { continue }
+      foreach ($file in @($snapshot.manifests.$name)) {
+        if (-not $file) { continue }
+        $current = Join-Path $directories[$name] $file.path
+        if (-not (Test-Path -LiteralPath $current) -or (Get-FileHash -LiteralPath $current -Algorithm SHA256).Hash -ne $file.sha256) { throw "Desktop data changed: $name/$($file.path)" }
+        $desktopFiles++
+      }
     }
     $selection = Selection
     if ((Digest ($snapshot.selection | ConvertTo-Json -Depth 20 -Compress)) -ne (Digest ($selection | ConvertTo-Json -Depth 20 -Compress))) { throw 'Saved model selection or encrypted API keys changed' }
@@ -70,7 +87,7 @@ try {
     # A bridge gets a fresh loopback port after a program restart; the provider, model and all other values must match.
     $pattern = 'http://127\.0\.0\.1:\d+'
     if (($before -replace $pattern,'http://127.0.0.1:PORT') -ne ($after -replace $pattern,'http://127.0.0.1:PORT')) { throw 'Codex configuration changed beyond the ephemeral bridge port' }
-    [ordered]@{ok=$true; phase='verify'; backup=$BackupRoot; protectedFiles=$checked; selectionUnchanged=$true; configPreserved=$true; dataKeyPreserved=$true} | ConvertTo-Json | Set-Content -Encoding UTF8 $resultFile
+    [ordered]@{ok=$true; phase='verify'; backup=$BackupRoot; protectedFiles=$checked; chatFiles=$chatFiles; desktopFiles=$desktopFiles; selectionUnchanged=$true; configPreserved=$true; dataKeyPreserved=$true} | ConvertTo-Json | Set-Content -Encoding UTF8 $resultFile
   }
 } catch {
   [ordered]@{ok=$false; phase=$Action; backup=$BackupRoot; error=$_.Exception.Message} | ConvertTo-Json | Set-Content -Encoding UTF8 $resultFile
