@@ -300,7 +300,7 @@ describe('winPaths', () => {
     try {
       const p = winPaths('/h');
       expect(p.codexHome).toBe(path.join('/h', '.codex'));
-      expect(p.cloneHome('deepseek')).toBe(path.join('/h', '.codex-deepseek'));
+      expect(p.cloneHome('deepseek')).toBe(path.join('/h', '.codex-codexbuddy-deepseek'));
       expect(p.buddyDir).toBe(path.join('/h', 'AppData', 'Local', 'CodexBuddy'));
       expect(p.appsDir).toBe(path.join(p.buddyDir, 'apps'));
       expect(p.zhLauncherPath).toBe(path.join('/h', 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'ChatGPT 汉化版.lnk'));

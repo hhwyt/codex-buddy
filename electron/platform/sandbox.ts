@@ -22,7 +22,7 @@ export function sandboxPaths(root: string, os: 'mac' | 'win' = process.platform 
   return {
     home,
     codexHome,
-    cloneHome: slug => path.join(home, `.codex-${slug}`),
+    cloneHome: slug => path.join(home, `.codex-codexbuddy-${slug}`),
     appsDir,
     buddyDir: os === 'mac' ? path.join(appSupport, 'CodexBuddy') : path.join(home, 'AppData', 'Local', 'CodexBuddy'),
     codexAppDataDirs,

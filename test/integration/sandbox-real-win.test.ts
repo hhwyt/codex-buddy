@@ -104,6 +104,6 @@ describe('真实厂商实测模式（Windows）', () => {
   test('C-01 分身：数据目录在沙盒的 AppData 里', async () => {
     const { clone, appData } = build();
     const info = await clone.make({ slug: 'kimi', displayName: 'Kimi', iconPng: '', zh: false });
-    expect(JSON.parse(fs.readFileSync(path.join(info.appPath, 'clone.json'), 'utf8')).userData).toBe(path.join(appData, 'Codex (Kimi)'));
+    expect(JSON.parse(fs.readFileSync(path.join(info.appPath, 'clone.json'), 'utf8')).userData).toBe(path.join(appData, 'Codex (CodexBuddy Kimi)'));
   });
 });

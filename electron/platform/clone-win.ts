@@ -1,6 +1,6 @@
 // 分身 on Windows. Owner: A9. Plan in docs/spikes.md (d): no copy of the Store package; a launcher (.lnk with its own
-// System.AppUserModel.ID = CodexBuddy.<Slug>, name and .ico) that starts Codex with CODEX_HOME=%USERPROFILE%\.codex-<slug>
-// and --user-data-dir=%APPDATA%\Codex (<Name>).
+// System.AppUserModel.ID = CodexBuddy.<Slug>, name and .ico) that starts Codex with its own CODEX_HOME and
+// --user-data-dir (platform/clone-home.ts: %USERPROFILE%\.codex-codexbuddy-<slug>, %APPDATA%\Codex (CodexBuddy <Name>)).
 // Codex is started through the package's app execution alias (%LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe):
 // it runs app\ChatGPT.exe with package identity, keeps the caller's environment (CODEX_HOME) and passes the arguments.
 // app\Codex.exe is only a stub, and activation by AppUserModelID drops the environment. Spike d on hwy-pc (2026-11-13):
@@ -8,11 +8,12 @@
 // 汉化 (L-07): the launcher runs the same zh-runner.js as the Mac launchers (CodexBuddy's own Electron in node mode),
 // which opens Codex with a 127.0.0.1 debug port and turns enable_i18n on; without CodexBuddy it opens Codex plainly.
 // Layout: <appsDir>\<slug>\{launch.vbs, zh-runner.js, zh.json, icon.ico, clone.json}; shortcuts <Name>.lnk on the desktop
-// and in the Start menu. remove(): guardedRemove the shortcuts and the launcher folder only; ~/.codex-<slug> and the data
+// and in the Start menu. remove(): guardedRemove the shortcuts and the launcher folder only; the clone's Codex home and the data
 // dir stay (C-07).
 import * as path from 'node:path';
 import { guardedRemove } from '../core/guard';
 import { runCommand, type CommandRunner } from './clone-mac';
+import { cloneUserData, nodeBornAt, ownsCloneHome, prepareCloneHome, type BornAt } from './clone-home';
 import type { Clone, CloneInfo, Platform } from './types';
 import { writeZhRunner } from './zh-mac';
 
@@ -46,6 +47,8 @@ export interface WinCloneDeps {
   alias?: string;
   /** The program that runs zh-runner.js in node mode: CodexBuddy's own Electron (process.execPath) */
   nodeRunner?: string;
+  /** Folder creation times (K-02); defaults to the file system's */
+  bornAt?: BornAt;
 }
 
 export interface WinCloneMeta {
@@ -121,19 +124,20 @@ export function createWinClone(platform: Platform, deps: WinCloneDeps = {}): Clo
   const nodeRunner = deps.nodeRunner ?? process.execPath;
   const roots = () => paths.protectedRoots();
   const dirOf = (slug: string) => path.join(paths.appsDir, slug);
+  const owns = (home: string) => ownsCloneHome(fs, home, paths.buddyDir, deps.bornAt ?? nodeBornAt);
   const lnksOf = (name: string) => [path.join(paths.desktopDir, `${name}.lnk`), path.join(paths.startMenuDir, `${name}.lnk`)];
 
-  const scan = (): Array<CloneInfo & { meta: WinCloneMeta }> =>
+  const scan = (): Array<CloneInfo & { meta: WinCloneMeta; ownsHome: boolean }> =>
     fs.list(paths.appsDir)
       .map(slug => {
         try {
           const meta = JSON.parse(fs.readText(path.join(dirOf(slug), 'clone.json')) ?? '') as WinCloneMeta;
-          return meta.slug === slug ? { slug, appPath: dirOf(slug), codexHome: meta.codexHome, meta } : null;
+          return meta.slug === slug ? { slug, appPath: dirOf(slug), codexHome: meta.codexHome, ownsHome: owns(meta.codexHome), meta } : null;
         } catch {
           return null;
         }
       })
-      .filter((c): c is CloneInfo & { meta: WinCloneMeta } => !!c);
+      .filter((c): c is CloneInfo & { meta: WinCloneMeta; ownsHome: boolean } => !!c);
 
   function write(meta: WinCloneMeta, version: string): void {
     const dir = dirOf(meta.slug);
@@ -157,17 +161,16 @@ export function createWinClone(platform: Platform, deps: WinCloneDeps = {}): Clo
   }
 
   return {
-    list: async () => scan().map(({ slug, appPath, codexHome }) => ({ slug, appPath, codexHome })),
+    list: async () => scan().map(({ slug, appPath, codexHome, ownsHome }) => ({ slug, appPath, codexHome, ownsHome })),
 
     async make(spec) {
       const installed = await codex();
       if (!installed) throw new Error('没找到 Codex');
-      const codexHome = paths.cloneHome(spec.slug);
-      const userData = path.join(appData, `Codex (${spec.displayName})`);
-      // C-08: keep ~/.codex-<slug> and the data dir as they are
-      fs.mkdirp(codexHome);
-      fs.mkdirp(userData);
       const old = scan().find(c => c.slug === spec.slug);
+      // C-08: this vendor's earlier clone keeps its folders; a folder CodexBuddy did not make is never taken over (K-01)
+      const codexHome = old?.ownsHome ? old.codexHome : paths.cloneHome(spec.slug);
+      const userData = old?.ownsHome ? old.meta.userData : cloneUserData(appData, spec.displayName);
+      prepareCloneHome(fs, { codexHome, userData }, spec.slug);
       if (old && old.meta.name !== spec.displayName) for (const lnk of lnksOf(old.meta.name)) guardedRemove(fs, lnk, roots());
       const dir = dirOf(spec.slug);
       fs.mkdirp(dir);

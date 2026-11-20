@@ -1,14 +1,15 @@
 // 分身 on Mac. Owner: A9. Port of ~/.claude/skills/codex-deepseek-fork/scripts/install.sh:
 //   cp -c (APFS clone) ChatGPT.app → <appsDir>/<Name>.app; Info.plist CFBundleName/DisplayName/Identifier
 //   (local.codexbuddy.<slug>) and icon from the vendor logo (sips + iconutil); main executable replaced by a launcher
-//   that sets CODEX_HOME=~/.codex-<slug>, CODEX_ELECTRON_USER_DATA_PATH + --user-data-dir
-//   (~/Library/Application Support/Codex (<Name>)), CODEX_SPARKLE_ENABLED=false, --use-mock-keychain; then
+//   that sets CODEX_HOME, CODEX_ELECTRON_USER_DATA_PATH + --user-data-dir (platform/clone-home.ts:
+//   ~/.codex-codexbuddy-<slug>, ~/Library/Application Support/Codex (CodexBuddy <Name>)), CODEX_SPARKLE_ENABLED=false, --use-mock-keychain; then
 //   codesign --force --deep -s - (ad-hoc, no hardened runtime). Key comes from CodexBuddy itself, no third-party switcher.
 // The original app is only read (cp -c), never written. remove(): guardedRemove the .app only (C-07).
 // Tests run against sandbox paths with a fake .app; OS commands go through an injectable runner.
 import { execFile } from 'node:child_process';
 import * as path from 'node:path';
 import { guardedRemove } from '../core/guard';
+import { cloneUserData, nodeBornAt, ownsCloneHome, prepareCloneHome, type BornAt } from './clone-home';
 import type { Clone, CloneInfo, CloneSpec, Platform } from './types';
 
 /** Runs one OS command, resolves stdout, rejects on a non-zero exit */
@@ -24,6 +25,8 @@ export interface MacCloneDeps {
   run?: CommandRunner;
   /** The Codex app to clone; defaults to platform.findCodex() */
   sourceApp?: () => Promise<string | null>;
+  /** Folder creation times (K-02); defaults to the file system's */
+  bornAt?: BornAt;
 }
 
 export const CLONE_LAUNCHER = 'codexbuddy-launcher';
@@ -75,17 +78,18 @@ export function createMacClone(platform: Platform, deps: MacCloneDeps = {}): Clo
   const roots = () => paths.protectedRoots();
   const launcherOf = (app: string) => path.join(app, 'Contents', 'MacOS', CLONE_LAUNCHER);
   const plistOf = (app: string) => path.join(app, 'Contents', 'Info.plist');
+  const owns = (home: string) => ownsCloneHome(fs, home, paths.buddyDir, deps.bornAt ?? nodeBornAt);
 
-  const scan = (): Array<CloneInfo & { meta: MacCloneMeta }> =>
+  const scan = (): Array<CloneInfo & { meta: MacCloneMeta; ownsHome: boolean }> =>
     fs.list(paths.appsDir)
       .filter(entry => entry.endsWith('.app'))
       .map(entry => {
         const appPath = path.join(paths.appsDir, entry);
         const meta = parseLauncher(fs.readText(launcherOf(appPath)));
         // A launcher that runs the main CODEX_HOME is Codex itself (the real-Codex sandbox copy), not a 分身
-        return meta && meta.codexHome !== paths.codexHome && { slug: meta.slug, appPath, codexHome: meta.codexHome, meta };
+        return meta && meta.codexHome !== paths.codexHome && { slug: meta.slug, appPath, codexHome: meta.codexHome, ownsHome: owns(meta.codexHome), meta };
       })
-      .filter((c): c is CloneInfo & { meta: MacCloneMeta } => !!c);
+      .filter((c): c is CloneInfo & { meta: MacCloneMeta; ownsHome: boolean } => !!c);
 
   const plistSet = (plist: string, key: string, value: string) => run('plutil', ['-replace', key, '-string', value, plist]);
   const plistDelete = (plist: string, key: string) => run('plutil', ['-remove', key, plist]).catch(() => '');
@@ -127,16 +131,17 @@ export function createMacClone(platform: Platform, deps: MacCloneDeps = {}): Clo
   }
 
   return {
-    list: async () => scan().map(({ slug, appPath, codexHome }) => ({ slug, appPath, codexHome })),
+    list: async () => scan().map(({ slug, appPath, codexHome, ownsHome }) => ({ slug, appPath, codexHome, ownsHome })),
 
     async make(spec) {
       const source = await sourceApp();
       if (!source || !fs.exists(source)) throw new Error('没找到 Codex');
-      const codexHome = paths.cloneHome(spec.slug);
-      const userData = path.join(paths.home, 'Library', 'Application Support', `Codex (${spec.displayName})`);
-      // C-08: an existing ~/.codex-<slug> and data dir are kept as they are, so old chats come back
-      fs.mkdirp(codexHome);
-      fs.mkdirp(userData);
+      // C-08: this vendor's earlier clone keeps its folders, so old chats come back; a folder CodexBuddy did not make is
+      // never taken over (K-01)
+      const earlier = scan().find(c => c.slug === spec.slug && c.ownsHome);
+      const codexHome = earlier?.codexHome ?? paths.cloneHome(spec.slug);
+      const userData = earlier?.meta.userData ?? cloneUserData(path.join(paths.home, 'Library', 'Application Support'), spec.displayName);
+      prepareCloneHome(fs, { codexHome, userData }, spec.slug);
       // Rebuild from a fresh copy: drop this vendor's old clone app (entry point only)
       for (const old of scan().filter(c => c.slug === spec.slug)) guardedRemove(fs, old.appPath, roots());
       const app = targetApp(spec, source);

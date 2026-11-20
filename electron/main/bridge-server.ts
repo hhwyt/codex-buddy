@@ -1,5 +1,5 @@
 // Local bridge: Responses API in (from Codex), Chat Completions out (to the vendor). Owner: A8.
-// Listens on 127.0.0.1 only, random port; one route per vendor: http://127.0.0.1:<port>/<vendor>/v1/responses.
+// Listens on 127.0.0.1 only (opts.port, random when 0 or missing); one route per vendor: http://127.0.0.1:<port>/<vendor>/v1/responses.
 // The vendor key comes from auth.json via Codex's Authorization header and is passed through, never logged.
 // Translation logic lives in core/bridge (pure, unit tested); this file is only the HTTP plumbing (R-01).
 // Vendor errors (401 / 402 / 404 Model not available / 429) go back to Codex with the same status and body, so
@@ -20,7 +20,13 @@ export interface BridgeServer {
 export interface BridgeOptions {
   /** Injected for tests; defaults to the global fetch */
   fetch?: typeof fetch;
+  /** Port to listen on; 0 or missing = any free port. Rejects with EADDRINUSE when taken */
+  port?: number;
+  /** Answered on GET /__codexbuddy/health (the standalone bridge service tells its version, main/bridge-daemon.ts) */
+  health?: () => unknown;
 }
+
+export const HEALTH_PATH = '/__codexbuddy/health';
 
 type Obj = Record<string, unknown>;
 
@@ -39,15 +45,18 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 }
 
 /**
- * @param upstreams vendor id → that vendor's Chat Completions base URL (ending at /v1). Read on every request, so
- *        adding a vendor to the same object later works without a restart.
+ * @param upstreams vendor id → that vendor's Chat Completions base URL (ending at /v1), or a function returning that
+ *        map. Read on every request, so adding a vendor later works without a restart.
  */
-export async function startBridge(upstreams: Record<string, string>, opts: BridgeOptions = {}): Promise<BridgeServer> {
+export async function startBridge(upstreams: Record<string, string> | (() => Record<string, string>), opts: BridgeOptions = {}): Promise<BridgeServer> {
   const doFetch = opts.fetch ?? fetch;
+  const upstreamOf = (vendor: string) => (typeof upstreams === 'function' ? upstreams() : upstreams)[vendor];
 
   async function handle(req: http.IncomingMessage, res: http.ServerResponse) {
-    const match = /^\/([^/]+)\/v1\/responses\/?$/.exec(new URL(req.url ?? '/', 'http://127.0.0.1').pathname);
-    const upstream = match ? upstreams[decodeURIComponent(match[1])] : undefined;
+    const pathname = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    if (opts.health && req.method === 'GET' && pathname === HEALTH_PATH) return sendJson(res, 200, opts.health());
+    const match = /^\/([^/]+)\/v1\/responses\/?$/.exec(pathname);
+    const upstream = match ? upstreamOf(decodeURIComponent(match[1])) : undefined;
     if (!match || req.method !== 'POST' || !upstream) return sendJson(res, 404, { error: { message: 'Not found' } });
     let body: Obj;
     try {
@@ -117,7 +126,10 @@ export async function startBridge(upstreams: Record<string, string>, opts: Bridg
   const server = http.createServer((req, res) => {
     handle(req, res).catch(() => { if (!res.headersSent) sendJson(res, 500, { error: { message: 'Bridge error' } }); else res.end(); });
   });
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(opts.port ?? 0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+  });
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   return {
     url,

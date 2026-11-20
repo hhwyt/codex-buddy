@@ -6,6 +6,7 @@
 // platform/sandbox-real-mac.ts, where open / reveal / external links really happen); CODEXBUDDY_LOGIN_WINDOWS=1 opens
 // the six login pages at start and keeps <sandbox>/login-status.json up to date (which vendor is logged in).
 import { app, net, powerMonitor, safeStorage, session, shell, type BrowserWindow } from 'electron';
+import { spawn } from 'node:child_process';
 import * as nfs from 'node:fs';
 import * as path from 'node:path';
 import { parseEndpoints, withEndpoints } from './core/endpoints';
@@ -13,6 +14,9 @@ import { PROVIDERS } from './core/providers';
 import { validateRemote } from './core/remote';
 import { REMOTE_CONFIG_PUBLIC_KEY } from './core/remote-key';
 import { startBridge } from './main/bridge-server';
+import { readUpstreams } from './main/bridge-daemon';
+import { BRIDGE_FLAG, ensureBridge, macAutostart, noAutostart, registerUpstream, removeBridge, stopBridge, winAutostart, type Autostart, type LaunchSpec } from './main/bridge-service';
+import { GH_CANDIDATES, ghStar } from './main/star-verify';
 import { BROWSER_PARTITION, browserHandlers, createRightBrowser, electronViewHost, openLoginWindows } from './main/browser';
 import { debugSwitchesIn, debuggable, removeTestEnvironment } from './main/hardening';
 import { checkInternet, NetworkGate, NETWORK_POLL_MS } from './main/network-gate';
@@ -96,11 +100,21 @@ async function main(): Promise<void> {
   const vendors = vendorsWith(endpoints);
   const upstreams: Record<string, string> = {};
   let network: NetworkGate;
-  // Codex's traffic to the vendors goes through the whitelist and shows under 「CodexBuddy 连过的」 (S-04, S-05)
-  const bridge = await startBridge(upstreams, { fetch: (async (url: string, init?: RequestInit) => {
-    if (network?.state !== 'online' || !net.isOnline() || !(await services.versionAllowed())) throw new Error('网络问题');
-    return guardedFetch(url, init);
-  }) as typeof fetch });
+  // Chat-only vendors go through the bridge service, a process of its own that keeps running after CodexBuddy quits
+  // (D-01). It is started here and at login; tests and sandboxes use a free port and never touch the login items
+  const buddyDir = platform.paths.buddyDir;
+  const launch: LaunchSpec = { exe: process.execPath, appPath: app.isPackaged ? null : app.getAppPath(), daemon: BRIDGE_DAEMON, buddyDir };
+  const autostart: Autostart = sandbox ? noAutostart : os === 'mac' ? macAutostart(platform.paths.home, launch) : winAutostart(runCommand, launch);
+  const kill = (pid: number) => { try { process.kill(pid); } catch { /* already gone */ } };
+  let bridgeUrl: string;
+  try {
+    bridgeUrl = await ensureBridge({ buddyDir, version: app.getVersion(), spawn: () => spawnBridgeDaemon(buddyDir, sandbox ? 0 : undefined), kill });
+    void autostart.install().catch(() => undefined);
+  } catch {
+    // The service would not start (blocked by security software…): bridge inside CodexBuddy as before, so the switch
+    // still works while CodexBuddy is open
+    bridgeUrl = (await startBridge(() => readUpstreams(buddyDir), { fetch: guardedFetch as typeof fetch })).url;
+  }
   const keyFile = path.join(platform.paths.buddyDir, 'data-key.bin');
   // A key file written before 11-16 (wrapped by the real keychain) cannot be opened under use-mock-keychain on Mac:
   // it is replaced and the old state set aside. Windows (DPAPI, no prompt) still unwraps it once
@@ -123,8 +137,9 @@ async function main(): Promise<void> {
   const services = createServices({
     platform, clone, zh, providers, vendors, browser: rb, cipher,
     bridge: {
-      baseUrlFor: (vendor, upstream) => { upstreams[vendor] = upstream; return bridge.baseUrlFor(vendor); },
-      isBridgeUrl: url => url.startsWith(bridge.url),
+      baseUrlFor: (vendor, upstream) => { upstreams[vendor] = upstream; registerUpstream(buddyDir, vendor, upstream); return `${bridgeUrl}/${encodeURIComponent(vendor)}/v1`; },
+      isBridgeUrl: url => url.startsWith(bridgeUrl),
+      remove: () => removeBridge({ buddyDir, autostart, kill }),
     },
     fetchText: async (url, timeoutMs) => {
       const address = new URL(url);
@@ -164,7 +179,18 @@ async function main(): Promise<void> {
       if (!nfs.existsSync(out) && nfs.existsSync(packed)) { nfs.mkdirSync(path.dirname(out), { recursive: true }); nfs.writeFileSync(out, nfs.readFileSync(packed)); }
       return out;
     },
-    runInstaller: async file => { if (sandbox) record('open', file); else { await open(file); if (os === 'win') app.quit(); } },
+    // A-05: the user's own gh (never in a sandbox)
+    // Real-Codex sandbox runs on Mac are used by a person: they may star through gh (CODEXBUDDY_REAL_GH=1)
+    ...(!sandbox || (realCodex && process.env.CODEXBUDDY_REAL_GH === '1') ? { ghStar: () => ghStar(runCommand, GH_CANDIDATES[os]) } : {}),
+    forceStarVerify: !!sandbox && process.env.CODEXBUDDY_STAR_VERIFY === '1',
+    runInstaller: async file => {
+      if (sandbox) { record('open', file); return; }
+      // The installer cannot replace CodexBuddy.exe while the bridge service (the same program) runs; the new version
+      // starts it again
+      if (os === 'win') await stopBridge({ buddyDir, kill });
+      await open(file);
+      if (os === 'win') app.quit();
+    },
   });
 
   let started = false;
@@ -210,10 +236,20 @@ async function main(): Promise<void> {
   const versionPoll = setInterval(checkVersion, VERSION_CHECK_INTERVAL_MS);
   win.on('focus', checkVersion);
   powerMonitor.on('resume', checkVersion);
-  app.on('before-quit', () => { rb.close(); services.handlers['switch:cancel']?.(); clearInterval(poll); clearInterval(heartbeat); clearInterval(versionPoll); powerMonitor.removeListener('resume', checkVersion); void bridge.close(); });
+  app.on('before-quit', () => { rb.close(); services.handlers['switch:cancel']?.(); clearInterval(poll); clearInterval(heartbeat); clearInterval(versionPoll); powerMonitor.removeListener('resume', checkVersion); });
 }
 
-if (!app.requestSingleInstanceLock()) app.quit();
+/** dist/main/bridge-daemon.js, run in node mode of this same program (inside app.asar when packaged) */
+const BRIDGE_DAEMON = path.join(__dirname, 'main', 'bridge-daemon.js');
+function spawnBridgeDaemon(buddyDir: string, port?: number): void {
+  spawn(process.execPath, [BRIDGE_DAEMON, '--buddy-dir', buddyDir, ...(port === undefined ? [] : ['--port', String(port)])], {
+    detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+  }).unref();
+}
+
+// The Windows login item (bridge-service.ts runValue): start the bridge service and quit, no window
+if (process.argv.includes(BRIDGE_FLAG)) { spawnBridgeDaemon(pickPlatform().paths.buddyDir); app.exit(0); }
+else if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   app.whenReady().then(main).catch(e => { console.error(String(e)); app.quit(); });

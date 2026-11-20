@@ -19,7 +19,7 @@ export function macPaths(home = os.homedir()): Paths {
   const codexAppDataDirs = [path.join(appSupport, 'Codex')];
   return {
     home, codexHome,
-    cloneHome: slug => path.join(home, `.codex-${slug}`),
+    cloneHome: slug => path.join(home, `.codex-codexbuddy-${slug}`),
     appsDir: '/Applications',
     buddyDir: path.join(appSupport, 'CodexBuddy'),
     codexAppDataDirs,

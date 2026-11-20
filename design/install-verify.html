@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>安装加验证</title>
+<style>
+:root{--accent:#0c8df6;--fill:#0a77d1;--ink:#0d0d0d;--ink-2:#5d5d5d;--ink-3:#8f8f8f;--line:#ededed;--side:#f9f9f9;--green:#00a240;--red:#e02e2a;--scrim:rgba(0,0,0,.32);--shadow:rgba(0,0,0,.12);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;letter-spacing:-.01em;color:var(--ink);background:#fff}
+*{box-sizing:border-box}body{margin:0;padding:28px 36px 40px;-webkit-font-smoothing:antialiased}
+button,select{font:inherit;letter-spacing:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 16px;font-size:14px;font-weight:550}button:hover{background:#f5f6f7}
+button.primary{background:var(--fill);border-color:var(--fill);color:#fff}button.primary:hover{background:#0968b8}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pre{max-width:1180px;margin:0 auto}.pre h1{font-size:22px;margin:0 0 6px}.pre p{margin:0;color:var(--ink-2);font-size:13px;line-height:1.8}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 12px}.tabs a{border:1px solid var(--line);border-radius:99px;padding:7px 14px;font-size:13px;color:var(--ink);text-decoration:none}.tabs a[aria-current=page]{border-color:var(--accent);color:var(--fill)}
+.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--ink-2)}.controls select{padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:#fff}.controls button{padding:6px 12px;font-size:13px}
+.frame{max-width:1180px;min-width:1000px;height:660px;margin:0 auto;border:1px solid #dfe2e7;border-radius:14px;box-shadow:0 16px 55px #1823320d;position:relative;overflow:hidden;display:flex;background:#fff}
+.side{width:200px;flex:none;background:var(--side);border-right:1px solid var(--line);padding:46px 10px 12px}
+.brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;padding:8px 10px 18px}.brand i{width:24px;height:24px;border-radius:7px;background:#005bee;display:inline-block}
+.nav{padding:8px 10px;border-radius:8px;font-size:14px}.nav.on{background:rgba(0,0,0,.06)}
+.main{flex:1;min-width:0;position:relative;padding:56px 28px;display:flex;flex-direction:column;align-items:center}
+.banner{width:380px;border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px;font-size:14px;margin-bottom:18px}.banner span{flex:1}
+.mcard{width:380px;height:230px;border-radius:18px;padding:18px 20px;color:#fff;display:flex;flex-direction:column;box-shadow:0 22px 50px var(--shadow)}
+.mcard .top{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600}.mcard .st{margin-left:auto;font-size:13px}
+.logo{width:34px;height:34px;border-radius:9px;background:#fff;color:var(--ink);display:grid;place-items:center;font-weight:700}
+.under{width:380px;height:40px;border-radius:0 0 18px 18px;margin-top:-10px;opacity:.5;background:#1c1c1e}
+.scrim{position:absolute;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:5;animation:fade .15s}
+.dlg{background:#fff;border-radius:18px;padding:26px;width:400px;max-width:calc(100% - 24px);box-shadow:0 12px 40px var(--shadow);animation:up .18s ease-out;transition:width .3s}
+.dlg.wide{width:880px;display:grid;grid-template-columns:360px 1fr;gap:22px;padding:22px}
+.dlg h2{margin:0 0 16px;font-size:20px;letter-spacing:-.4px;display:flex;align-items:center;gap:10px}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;font-size:14px}
+.steps li{display:flex;gap:10px;align-items:flex-start;color:var(--ink)}.steps li.wait{color:var(--ink-3)}.steps li.fail{color:var(--red)}
+.steps .mk{width:18px;height:20px;display:grid;place-items:center;flex:none}
+.steps small{display:block;color:var(--ink-2);font-size:12px;margin-top:2px;word-break:break-all}.steps li.fail small{color:var(--red)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;display:inline-block;flex:none}
+.ok{color:var(--green)}.err{color:var(--red)}
+.ring{width:96px;height:96px;margin:0 auto 18px;position:relative;display:grid;place-items:center}.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}.ring circle{fill:none;stroke-width:5}.ring .t{stroke:var(--line)}.ring .b{stroke:var(--ink);transition:stroke-dashoffset .4s}.ring b{font-size:19px;position:relative}.ring.done .b{stroke:var(--green)}
+.qa{margin:6px 0 0;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--side);font-size:12px;line-height:1.6;color:var(--ink-2)}.qa a{color:var(--fill)}
+.extra{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);font-size:14px;display:flex;flex-direction:column;gap:10px}.extra:empty{display:none}
+.opt{display:flex;gap:10px;align-items:center;cursor:pointer}.opt input{margin:0;width:16px;height:16px;accent-color:var(--fill)}
+.line{display:flex;gap:8px;align-items:center;margin:0}
+.reason{color:var(--red);margin:14px 0 0;font-size:14px}
+.row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.done-big{text-align:center}.done-big .tick{width:54px;height:54px;border-radius:16px;border:1px solid var(--line);display:grid;place-items:center;margin:0 auto 14px;color:var(--fill);font-size:26px}.done-big h2{justify-content:center}.done-big p{color:var(--ink-2);margin:0 0 4px;font-size:14px}
+.done-big .extra{text-align:left}
+/* GitHub page (fake) */
+.gh{font-size:13px;color:#1f2328;line-height:1.6;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-height:380px}
+.gh .bar{height:36px;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--line);background:var(--side);font-size:12px;color:var(--ink-2)}.gh .bar span{flex:1;border:1px solid var(--line);border-radius:99px;background:#fff;padding:2px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gh .top{padding:12px 16px;border-bottom:1px solid #d1d9e0;background:#f6f8fa;display:flex;align-items:center;gap:10px}.gh .top .sg{margin-left:auto;font-size:12px;color:#59636e}
+.gh .repo{padding:14px 16px 0;font-size:15px}.gh .acts{display:flex;gap:8px;padding:10px 16px 12px;border-bottom:1px solid #d1d9e0}
+.gh .acts button{padding:3px 10px;font-size:12px;font-weight:500;border-radius:6px;border:1px solid #d1d9e0;background:#f6f8fa}.gh .acts .on{color:#9a6700}
+.gh .readme{margin:14px 16px;border:1px solid #d1d9e0;border-radius:6px;padding:14px}
+.gh .login{margin:30px auto;width:280px;border:1px solid #d1d9e0;border-radius:6px;padding:16px;background:#f6f8fa;text-align:center}.gh .login .in{height:28px;border:1px solid #d1d9e0;border-radius:6px;background:#fff;margin-bottom:8px}.gh .login button{width:100%;background:#1f883d;border-color:#1f883d;color:#fff;padding:6px;font-size:13px}.gh .login p{font-size:12px;color:#59636e;margin:8px 0 0}
+.gh .msg{padding:40px 20px;text-align:center;color:var(--ink-2)}
+.bpanel{width:440px;flex:none;border-left:1px solid var(--line);background:#fff;display:flex;flex-direction:column;animation:bin .4s cubic-bezier(.2,.8,.2,1);z-index:6;padding:10px}.bpanel .gh{flex:1;border:0}
+.caption{max-width:1180px;margin:12px auto 0;font-size:13px;color:var(--ink-2);min-height:22px}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes fade{from{opacity:0}}@keyframes up{from{opacity:0;transform:translateY(8px)}}@keyframes bin{from{margin-right:-440px}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important}.spin{animation-duration:2s!important}}
+</style>
+<div class="pre">
+<h1>安装加验证：一个弹窗走完</h1>
+<p>点「开始安装」后只有一个弹窗：下载 Codex、装进应用程序、检查 Codex，第 4 步「测试 Codex」。五版的区别在 GitHub 页面和「给 CodexBuddy 点个 Star」放哪。都能点，上面可以换场景。</p>
+<nav class="tabs" id="tabs"></nav>
+<div class="controls">
+<label>第一张卡 <select id="model"><option value="DeepSeek">DeepSeek</option><option value="智谱">智谱（免费）</option></select></label>
+<label>模拟结果 <select id="scenario"><option value="ok">一路成功</option><option value="dl">下载失败一次，再试成功</option><option value="key">测试失败一次：Key 不对，重试成功</option><option value="net">测试失败一次：连不上，重试成功</option></select></label>
+<label>用户的 GitHub <select id="gh"><option value="cli">命令行 gh 登录过</option><option value="in">内置浏览器登录过</option><option value="out">都没登录</option><option value="starred">之前点过 Star</option></select></label>
+<button id="replay">重新体验</button>
+</div>
+</div>
+<section class="frame" id="frame">
+<aside class="side"><div class="brand"><i></i>CodexBuddy</div><div class="nav on">模型</div><div class="nav">设置</div><div class="nav">社群</div></aside>
+<main class="main" id="main"></main>
+</section>
+<p class="caption" id="caption" role="status"></p>
+<script>
+const $=id=>document.getElementById(id);
+const V={
+ 1:{name:'第 1 版 · 四步 + 勾选框在下面',desc:'四步清单；「给 CodexBuddy 点个 Star」一开始就在弹窗底部，可以随时勾。gh 登录过就直接点好；都没登录，弹窗里多一行「登录 GitHub」，点了右边才出现 GitHub 登录页。最后在同一个弹窗里「打开 ChatGPT」。'},
+ 2:{name:'第 2 版 · GitHub 页面在弹窗里（选定）',desc:'四步；第 4 步「测试 Codex」下面一行「尝试打开本项目的 GitHub Repo」：让 DeepSeek 答出项目地址，再把它答的地址在弹窗右半边打开，弹窗变宽。勾选框在左边，勾上就在这个页面上点。'},
+ 3:{name:'第 3 版 · 圆环 + 四步，完成屏',desc:'沿用现在安装抽屉的圆环和步骤，改成居中弹窗。四步做完，同一个弹窗换成完成屏：✓ 装好了、能用的模型、勾选框、「打开 ChatGPT」。'},
+ 4:{name:'第 4 版 · 第 4 步显示问答',desc:'第 4 步下面显示问了什么、模型回答了什么，回答里的 GitHub 地址可以点（用电脑自己的浏览器打开）。勾选框在下面。'},
+ 5:{name:'第 5 版 · 最简',desc:'只有四步和一个按钮。全部完成后才出现勾选框；gh 登录过就直接点，否则用电脑自己的浏览器打开项目页面，让用户自己点 Star。'},
+};
+let ver=Number((location.hash.match(/v(\d)/)||[])[1])||1;
+const REPO='https://github.com/hhwyt/codex-buddy',SHORT='github.com/hhwyt/codex-buddy';
+let timers=[],S;
+const later=(f,ms)=>timers.push(setTimeout(f,ms));
+const sleep=ms=>new Promise(r=>later(r,ms));
+const cap=t=>$('caption').textContent=t;
+const M=()=>$('model').value;
+const sc=()=>$('scenario').value,gh=()=>$('gh').value;
+function tabs(){$('tabs').innerHTML=Object.entries(V).map(([k,v])=>`<a href="#v${k}"${+k===ver?' aria-current="page"':''}>${v.name}</a>`).join('')}
+window.onhashchange=()=>{ver=Number((location.hash.match(/v(\d)/)||[])[1])||1;reset()};
+function home(){const face=M()==='DeepSeek'?'#4d6bfe':'#1c1c1e';
+ $('main').innerHTML=`${S.installed?'':`<div class="banner"><span>这台电脑还没装 Codex</span><button class="primary" id="go">开始安装</button></div>`}<div class="mcard" style="background:${face}"><div class="top"><span class="logo">${M()[0]}</span>${M()}<span class="st">${S.installed?'✓ 能用':''}</span></div></div><div class="under"></div>`;
+ if(!S.installed)$('go').onclick=()=>{cap('');open()}}
+/* ---------- state ---------- */
+function fresh(){return{installed:false,steps:{dl:'wait',cp:'wait',ck:'wait',test:'wait',repo:'wait'},pct:0,reason:'',failed:null,tries:{dl:0,test:0},want:false,star:'idle',login:gh()==='in'||gh()==='cli',starred:gh()==='starred',panel:false,page:'',done:false,answer:''}}
+const STEPS=()=>[['dl','下载 Codex'],['cp','装进应用程序'],['ck','检查 Codex'],['test','测试 Codex']];
+const MK={wait:'<span class="mk"><span class="dot"></span></span>',run:'<span class="mk"><span class="spin"></span></span>',done:'<span class="mk ok">✓</span>',fail:'<span class="mk err">✕</span>'};
+function sub(id){const st=S.steps[id];
+ if(id==='test'&&ver===2&&st!=='wait'&&st!=='fail')return '尝试打开本项目的 GitHub Repo';
+ if(id==='dl'&&st==='run')return `${S.pct}%`;
+ if(id==='test'&&st==='done'&&ver!==4)return `${M()} 能用了`;
+ if(id==='test'&&ver===4&&(st==='run'||st==='done'))return '';
+ if(st==='fail')return S.reason;return ''}
+/* ---------- dialog ---------- */
+function open(){S.dialog=true;draw();run()}
+function draw(){if(!S.dialog){home();return}
+ home();const all=STEPS().every(([id])=>S.steps[id]==='done'),anyFail=STEPS().some(([id])=>S.steps[id]==='fail');
+ const title=anyFail?'<span class="err">✕</span>没装好':all?'<span class="ok">✓</span>装好了':'<span class="spin"></span>正在安装';
+ const scrim=document.createElement('div');scrim.className='scrim';
+ if(ver===3&&all){scrim.innerHTML=`<section class="dlg done-big" role="dialog"><div class="tick">✓</div><h2>装好了</h2><p>${M()} 能用了</p><div class="extra" id="extra"></div><div class="row" style="justify-content:center">${finalBtns()}</div></section>`}
+ else{
+  const ring=ver===3?ringHtml():'';
+  const list=`<ul class="steps">${STEPS().map(([id,t])=>`<li class="${S.steps[id]==='wait'?'wait':S.steps[id]==='fail'?'fail':''}">${MK[S.steps[id]]}<span>${t}${sub(id)?`<small>${sub(id)}</small>`:''}${ver===4&&id==='test'?qa():''}</span></li>`).join('')}</ul>`;
+  const tail=anyFail?`<p class="reason">${S.failed==='dl'?'下载没成功，检查一下网络再试。':S.reason}</p><div class="row"><button id="later">稍后再试</button><button class="primary" id="retry">${S.failed==='dl'?'再试一次':'重试'}</button></div>`:all?`<p style="margin:16px 0 0;font-size:12px;color:var(--ink-3)">如果 ChatGPT 已在运行，会先退出再打开，正在进行的任务会中断。</p><div class="row" style="margin-top:10px">${finalBtns()}</div>`:'';
+  const left=`<div><h2>${title}</h2>${ring}${list}<div class="extra" id="extra"></div>${tail}</div>`;
+  const wide=ver===2&&(S.steps.repo==='run'||S.steps.repo==='done'||S.steps.repo==='fail');
+  scrim.innerHTML=`<section class="dlg${wide?' wide':''}" role="dialog">${left}${wide?`<div>${ghPage()}</div>`:''}</section>`}
+ $('main').append(scrim);
+ if($('retry'))$('retry').onclick=()=>run(S.failed);
+ if($('later'))$('later').onclick=()=>{S.dialog=false;S=Object.assign(fresh(),{});draw();cap('关了弹窗，回到模型页，提示条还在。')};
+ bindFinal();extra();bindGh()}
+function finalBtns(){return '<button id="close">稍后</button><button class="primary" id="openc">打开 ChatGPT</button>'}
+function bindFinal(){if($('close'))$('close').onclick=()=>finish('关掉弹窗，配置已保存，下次打开 ChatGPT 就是新模型。');if($('openc'))$('openc').onclick=()=>finish('打开 ChatGPT（已在运行会先退出再打开）。')}
+function finish(t){S.dialog=false;S.installed=true;S.panel=false;$('bp')?.remove();draw();cap(t)}
+function ringHtml(){const ids=STEPS().map(s=>s[0]),n=ids.filter(i=>S.steps[i]==='done').length+(S.steps.dl==='run'?S.pct/100:0),p=Math.round(n/ids.length*100),C=2*Math.PI*44;
+ return `<div class="ring${p===100?' done':''}"><svg viewBox="0 0 96 96"><circle class="t" cx="48" cy="48" r="44"/><circle class="b" cx="48" cy="48" r="44" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-p/100)}"/></svg><b>${p}%</b></div>`}
+function qa(){const st=S.steps.test;if(st==='wait')return '';
+ return `<div class="qa">问：CodexBuddy 的 GitHub 地址是什么？只回答网址。<br>答：${st==='run'?'<span class="spin" style="width:10px;height:10px;vertical-align:-1px"></span>':st==='done'?`<a href="#" id="qalink">${REPO}</a>`:'—'}</div>`}
+/* ---------- star area ---------- */
+function extra(){const e=$('extra');if(!e)return;const all=STEPS().every(([id])=>S.steps[id]==='done');
+ if(ver===5&&!all){e.innerHTML='';return}
+ if(S.star==='done'){e.innerHTML='<p class="line"><span class="ok">✓</span> 已点 Star</p>';return}
+ if(S.star==='busy'){e.innerHTML=`<p class="line"><span class="spin"></span> ${ver===2?'正在页面上点 Star':'正在点 Star'}</p>`;return}
+ let h=`<label class="opt"><input type="checkbox" id="opt"${S.want?' checked':''}><span>给 CodexBuddy 点个 Star</span></label>`;
+ if(S.star==='needlogin'&&ver!==2)h+=`<p class="line" style="color:var(--ink-2)">要先登录 GitHub <button id="ghlogin" style="margin-left:auto;padding:5px 12px;font-size:13px">登录 GitHub</button></p>`;
+ if(S.star==='needlogin'&&ver===2)h+='<p class="line" style="color:var(--ink-2)">在右边登录 GitHub，登录后自动点好</p>';
+ if(S.star==='opened')h='<p class="line"><span class="ok">✓</span> 已在浏览器打开项目页面，在页面上点 Star 就好</p>';
+ e.innerHTML=h;
+ if($('opt'))$('opt').onchange=ev=>{S.want=ev.target.checked;if(!S.want){S.star='idle';extra();return}tryStar()};
+ if($('ghlogin'))$('ghlogin').onclick=()=>{openPanel();cap('右边出现 GitHub 登录页，账号密码只在 GitHub 页面里填。')};
+ if($('qalink'))$('qalink').onclick=ev=>{ev.preventDefault();cap('用电脑自己的浏览器打开 '+REPO)}}
+async function tryStar(){
+ const all=STEPS().every(([id])=>S.steps[id]==='done');
+ if(ver===2&&S.steps.repo!=='done'){cap('勾上了，页面打开后自动点。');return}
+ if(S.starred){S.star='done';extra();cap('之前点过 Star，不重复点。');return}
+ if(gh()==='cli'){S.star='busy';extra();await sleep(900);S.starred=true;S.star='done';extra();if(ver===2)redrawPage();cap('用 gh 命令行点好了（用的是你自己的 GitHub 账号）。');return}
+ if(ver===5){S.star='opened';extra();cap('gh 没登录：用电脑自己的浏览器打开项目页面，用户自己点 Star。');return}
+ if(!S.login){S.star='needlogin';extra();if(ver===2)redrawPage();cap(ver===2?'右半边先显示 GitHub 登录页。':'没登录 GitHub：多一行「登录 GitHub」，点了右边才出现登录页。');return}
+ S.star='busy';extra();await sleep(1000);S.starred=true;S.star='done';extra();if(ver===2)redrawPage();cap('在内置浏览器里用你自己的 GitHub 账号点好了。')}
+/* ---------- GitHub page ---------- */
+function ghPage(){const st=S.steps.repo;
+ if(st==='run')return `<div class="gh"><div class="bar"><span>${REPO}</span></div><div class="msg"><span class="spin"></span><br><br>正在打开 ${SHORT}</div></div>`;
+ if(S.star==='needlogin')return `<div class="gh"><div class="bar"><span>https://github.com/login</span></div><div class="login"><b>登录 GitHub</b><br><br><div class="in"></div><div class="in"></div><button id="blogin">登录（模拟）</button><p>账号密码只在 GitHub 页面里填，CodexBuddy 看不到。</p></div></div>`;
+ return `<div class="gh"><div class="bar"><span>${REPO}</span></div><div class="top"><b>GitHub</b><span class="sg">${S.login?'已登录':'Sign in'}</span></div><div class="repo">hhwyt / <b>codex-buddy</b></div><div class="acts"><button>Watch</button><button>Fork</button><button class="${S.starred?'on':''}">${S.starred?'★ Starred':'☆ Star'}</button></div><div class="readme"><b>CodexBuddy</b><br>一键装好 Codex，免费用智谱模型；装好后可以换模型、换中文、一键还原。</div></div>`}
+function redrawPage(){draw()}
+function bindGh(){if($('blogin'))$('blogin').onclick=async()=>{S.login=true;S.star='busy';$('bp')?.remove();S.panel=false;draw();await sleep(900);S.starred=true;S.star='done';draw();cap('登录好了，自动点了 Star。')}}
+function openPanel(){if($('bp'))return;S.panel=true;const p=document.createElement('aside');p.className='bpanel';p.id='bp';const f=$('frame');
+ const render=()=>{p.innerHTML=S.star==='needlogin'?ghPageLogin():ghPage();const b=p.querySelector('#blogin');if(b)b.onclick=async()=>{S.login=true;S.star='busy';draw();render();await sleep(900);S.starred=true;S.star='done';draw();render();cap('登录好了，自动点了 Star。右边可以关掉。')}};
+ render();f.append(p)}
+function ghPageLogin(){return `<div class="gh"><div class="bar"><span>https://github.com/login</span><button id="bx" style="padding:0 6px;border:0;background:none" onclick="document.getElementById('bp').remove()">✕</button></div><div class="login"><b>登录 GitHub</b><br><br><div class="in"></div><div class="in"></div><button id="blogin">登录（模拟）</button><p>账号密码只在 GitHub 页面里填，CodexBuddy 看不到。</p></div></div>`}
+/* ---------- the run ---------- */
+async function run(from){S.reason='';S.failed=null;const order=STEPS().map(s=>s[0]);let i=from?order.indexOf(from):0;
+ for(;i<order.length;i++){const id=order[i];S.steps[id]='run';draw();
+  if(id==='dl'){for(S.pct=0;S.pct<100;S.pct+=20){draw();await sleep(350);if(S.pct===40&&sc()==='dl'&&S.tries.dl++===0){S.steps.dl='fail';S.failed='dl';S.reason='下载没成功';draw();cap('失败：原因 + 再试一次，从下载接着装。');return}}}
+  else if(id==='test'){await sleep(1600);if((sc()==='key'||sc()==='net')&&S.tries.test++===0){S.steps.test='fail';S.failed='test';S.reason=sc()==='key'?`${M()} 说 Key 不对。`:`连不上 ${M()}，可能是网络问题。`;draw();cap('第 4 步失败：一句原因 + 重试，前三步不用重来。');return}
+   if(ver===2){S.steps.repo='run';draw();await sleep(1100);S.steps.repo='done'}}
+  else await sleep(id==='cp'?900:700);
+  S.steps[id]='done';draw();
+  if(id==='test'&&ver===2&&S.want)tryStar()}
+ cap(ver===2?'全部完成：页面就在弹窗里，勾选框勾上才点 Star。':'全部完成，在同一个弹窗里打开 ChatGPT。');
+ if(S.want&&ver!==2)tryStar()}
+function reset(){timers.forEach(clearTimeout);timers=[];$('bp')?.remove();tabs();S=fresh();draw();cap(V[ver].desc)}
+$('replay').onclick=reset;['model','scenario','gh'].forEach(id=>$(id).onchange=reset);
+reset();
+</script>
+</html>

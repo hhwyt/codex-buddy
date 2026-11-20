@@ -105,7 +105,7 @@ test('O-02 沙盒里 Codex 装成 <沙盒>/Applications/Test-ChatGPT.app，真�
   expect(macCodexAppPath(macPaths('/Users/x'))).toBe(path.normalize(MAC_CODEX_APP));
   expect(macCli(MAC_CODEX_APP)).toBe(path.normalize('/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex'));
   const real = macPaths('/Users/x');
-  expect(real.cloneHome('kimi')).toBe(path.join('/Users/x', '.codex-kimi'));
+  expect(real.cloneHome('kimi')).toBe(path.join('/Users/x', '.codex-codexbuddy-kimi'));
   expect(real.protectedRoots().appDataDirs).toEqual([path.join('/Users/x', 'Library', 'Application Support', 'Codex')]);
 });
 

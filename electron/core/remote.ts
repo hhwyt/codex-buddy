@@ -50,6 +50,7 @@ export function validateRemote(text: string): RemoteConfig | null {
   if (![latest.macUrl, latest.winUrl, community.qrUrl].every(u => isSafeUrl(u as string))) return null;
   if (!isObj(switches) || !Array.isArray(switches.hiddenVendors) || !switches.hiddenVendors.every(str)) return null;
   if (typeof switches.hideZh !== 'boolean' || typeof switches.hideClone !== 'boolean') return null;
+  if (switches.starVerify !== undefined && typeof switches.starVerify !== 'boolean') return null;
   const out: RemoteConfig['models'] = {};
   for (const [id, list] of Object.entries(models)) {
     if (!(VENDOR_IDS as readonly string[]).includes(id)) continue;
@@ -62,7 +63,7 @@ export function validateRemote(text: string): RemoteConfig | null {
       ...(latest.macSha256 ? { macSha256: latest.macSha256 as string } : {}), ...(latest.winSha256 ? { winSha256: latest.winSha256 as string } : {}) },
     models: out,
     community: { qrUrl: community.qrUrl, text: community.text },
-    switches: { hiddenVendors: [...switches.hiddenVendors], hideZh: switches.hideZh, hideClone: switches.hideClone },
+    switches: { hiddenVendors: [...switches.hiddenVendors], hideZh: switches.hideZh, hideClone: switches.hideClone, ...(switches.starVerify ? { starVerify: true } : {}) },
     minVersion,
   };
 }

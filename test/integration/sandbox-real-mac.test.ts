@@ -168,7 +168,7 @@ describe.runIf(onMac)('真实 Codex 实测模式（Mac，真工具，假 App）'
       env: { PATH: process.env.PATH, PROBE: probe, CODEX_HOME: path.join(os.homedir(), '.codex') },
     });
     const env = fs.readFileSync(`${probe}.env`, 'utf8');
-    const userData = path.join(paths.home, 'Library', 'Application Support', `Codex (${SANDBOX_CODEX_NAME})`);
+    const userData = path.join(paths.home, 'Library', 'Application Support', `Codex (CodexBuddy ${SANDBOX_CODEX_NAME})`);
     expect(env).toContain(`CODEX_HOME=${paths.codexHome}\n`);
     expect(env).toContain(`CODEX_ELECTRON_USER_DATA_PATH=${userData}\n`);
     expect(env).toContain('CODEX_SPARKLE_ENABLED=false\n');
@@ -232,9 +232,9 @@ describe.runIf(onMac)('真实 Codex 实测模式（Mac，真工具，假 App）'
     await install();
     const { clone, paths } = build();
     const info = await clone.make({ slug: 'deepseek', displayName: 'DeepSeek', iconPng: '', zh: false });
-    expect(info).toEqual({ slug: 'deepseek', appPath: path.join(sandbox, 'Applications', 'DeepSeek.app'), codexHome: path.join(paths.home, '.codex-deepseek') });
+    expect(info).toEqual({ slug: 'deepseek', appPath: path.join(sandbox, 'Applications', 'DeepSeek.app'), codexHome: path.join(paths.home, '.codex-codexbuddy-deepseek') });
     expect(calls).toContainEqual(['cp', '-cR', copyApp(), info.appPath]);
-    expect(await clone.list()).toEqual([info]);
+    expect(await clone.list()).toEqual([{ ...info, ownsHome: true }]);
     // The clone runs the real binary, not the sandbox copy's launcher (which would set the sandbox's main CODEX_HOME)
     const probe = path.join(root, 'clone-probe');
     execFileSync(path.join(info.appPath, 'Contents', 'MacOS', CLONE_LAUNCHER), [], { env: { PATH: process.env.PATH, PROBE: probe } });

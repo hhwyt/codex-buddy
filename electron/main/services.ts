@@ -17,6 +17,7 @@ import { checkUpdate, raiseFloor, requiredUpgrade, shouldPrompt } from '../core/
 import { moveCard, restoreWallet } from '../core/wallet';
 import type { Clone, Platform, ZhLauncher } from '../platform/types';
 import type { BrowserDriver, Vendor } from '../vendors/types';
+import { onRepoPage, REPO_URL, starInBrowser, verifyAnswer } from './star-verify';
 import type { CardView, ConnectionView, EventName, IpcEvents, Outcome, StepView, UpgradeRequiredView, VendorKey, WalletView } from './ipc-contract';
 import type { Handlers } from './ipc';
 
@@ -67,9 +68,10 @@ export interface ServiceDeps {
   /** Providers with CODEXBUDDY_ENDPOINTS applied, in card order */
   providers: ProviderInfo[];
   vendors: Record<BuiltinVendorId, Vendor>;
-  browser: BrowserDriver & { close(): void };
-  /** Local bridge for chat-only vendors (A8): registers the upstream and returns the base_url for config.toml */
-  bridge: { baseUrlFor(vendor: string, upstream: string): string; isBridgeUrl(url: string): boolean };
+  browser: BrowserDriver & { close(): void; reload?(): void };
+  /** Local bridge for chat-only vendors (A8): registers the upstream and returns the base_url for config.toml. It runs as
+   *  a service of its own (main/bridge-daemon.ts); remove() takes it and its login item away on 一键还原 (D-05) */
+  bridge: { baseUrlFor(vendor: string, upstream: string): string; isBridgeUrl(url: string): boolean; remove?(): Promise<void> };
   cipher: Cipher;
   fetchText: Fetcher;
   /** Fetches bytes (community QR code, inlined as a data: URL because of the page's CSP) */
@@ -89,6 +91,10 @@ export interface ServiceDeps {
   logoPng(vendor: string): string;
   /** Windows: run the downloaded installer and quit. Mac (forced upgrade): open the downloaded dmg */
   runInstaller(file: string): Promise<void>;
+  /** A-05: star with the user's signed-in gh; null when gh is missing or signed out (sandboxes: always null) */
+  ghStar?(): Promise<'starred' | 'already' | null>;
+  /** Sandbox runs only (CODEXBUDDY_STAR_VERIFY=1, stripped from release builds): the check on without the signed switch */
+  forceStarVerify?: boolean;
 }
 
 export const SOURCE_URL = 'https://github.com/hhwyt/codex-buddy';
@@ -404,9 +410,11 @@ export function createServices(d: ServiceDeps) {
     return true;
   };
 
-  /** The bridge listens on a new port every start: re-point every Codex home that uses it */
+  /** Re-point every Codex home that uses the bridge at the bridge service's port (it changes only when the port was
+   *  taken, D-02; configs written by versions before the service still name an old random port). Only CodexBuddy's own
+   *  clone homes are touched, never a ~/.codex-<name> someone else made (K-02) */
   const refreshBridgeUrls = async () => {
-    const homes = [paths.codexHome, ...(await d.clone.list()).map(c => c.codexHome)];
+    const homes = [paths.codexHome, ...(await d.clone.list()).filter(c => c.ownsHome !== false).map(c => c.codexHome)];
     for (const home of homes) {
       const text = fs.readText(configPath(home));
       const { provider } = readActive(text);
@@ -467,6 +475,8 @@ export function createServices(d: ServiceDeps) {
     st = { ...emptyState(), lastRemote: st.lastRemote, minVersionFloor: st.minVersionFloor };
     clones = [];
     save();
+    // Nothing uses the bridge any more: no login item, no background service (D-05)
+    await d.bridge.remove?.().catch(() => undefined);
     return { ok: true };
   };
 
@@ -519,6 +529,8 @@ export function createServices(d: ServiceDeps) {
         community: { qrUrl: await communityQr() },
         upgradeRequired: upgradeRequired(),
         versionStatus,
+        // A-01: the install dialog with the check, when the signed config turns it on
+        starVerify: remote.switches.starVerify === true || d.forceStarVerify === true,
       };
     },
 
@@ -692,6 +704,32 @@ export function createServices(d: ServiceDeps) {
     },
 
     'shell:open-external': async ({ url }) => { if (/^https:\/\//.test(url)) await d.openExternal(url); },
+
+    // A-02: Codex, with what ~/.codex now holds, answers the project's address once
+    'verify:run': async () => {
+      const p = st.active ? providerOf(st.active) : null;
+      if (!p) return { ok: false, reason: '还没有选模型。' };
+      const r = await verifyAnswer(platform.runCodex, paths.codexHome, p.name);
+      log(`verify ${p.id}: ${r.ok ? 'ok' : r.reason}`);
+      return r;
+    },
+    // A-03: the project's page on the right, expanded
+    'verify:open-repo': async () => {
+      await d.browser.open(REPO_URL, { mode: 'expanded' });
+      return onRepoPage(d.browser.url()) ? { ok: true } : { ok: false, reason: '没打开，可能是网络问题' };
+    },
+    // A-04, A-05: only reached after the user ticked 「给 CodexBuddy 点个 Star」
+    'star:run': async () => {
+      const viaGh = await d.ghStar?.().catch(() => null);
+      if (viaGh) {
+        log(`star via gh: ${viaGh}`);
+        if (onRepoPage(d.browser.url())) d.browser.reload?.();
+        return { ok: true, already: viaGh === 'already' };
+      }
+      const r = await starInBrowser(d.browser);
+      log(`star in browser: ${r.ok ? (r.already ? 'already' : 'starred') : r.reason}`);
+      return r;
+    },
   };
 
   // Compare only configuration the main desktop app reads; never prompt for wallet order or a clone's own files.
@@ -721,7 +759,8 @@ export function createServices(d: ServiceDeps) {
   // The renderer cannot bypass the version gate by invoking a mutation directly.
   const functionalChannels = ['install:run', 'wallet:reorder', 'wallet:mode', 'switch:start', 'key:replace', 'key:paste',
     'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall', 'clone:make', 'clone:open', 'clone:remove',
-    'zh:set', 'zh:remove', 'browser:show', 'browser:back', 'browser:reload', 'security:reveal', 'security:manage', 'restore:run'] as const;
+    'zh:set', 'zh:remove', 'browser:show', 'browser:back', 'browser:reload', 'browser:place', 'security:reveal', 'security:manage', 'restore:run',
+    'verify:run', 'verify:open-repo', 'star:run'] as const;
   const gated = handlers as Record<typeof functionalChannels[number], (args: never) => unknown>;
   for (const channel of functionalChannels) {
     const handler = gated[channel];

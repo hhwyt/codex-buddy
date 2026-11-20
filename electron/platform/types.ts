@@ -13,7 +13,7 @@ export interface Paths {
   home: string;
   /** ~/.codex (or CODEX_HOME) */
   codexHome: string;
-  /** ~/.codex-<slug> for a clone */
+  /** ~/.codex-codexbuddy-<slug> for a new clone (older clones may use ~/.codex-<slug>, platform/clone-home.ts) */
   cloneHome(slug: string): string;
   /** /Applications on Mac; on Windows the folder that holds our launchers (%LOCALAPPDATA%\CodexBuddy\apps) */
   appsDir: string;
@@ -79,6 +79,9 @@ export interface CloneInfo {
   slug: string;
   appPath: string;
   codexHome: string;
+  /** false: the clone runs in a ~/.codex-<slug> CodexBuddy did not make (an older version took it over); CodexBuddy
+   *  leaves that folder's files alone and the next 做分身 moves to a folder of its own (K-01, K-02) */
+  ownsHome?: boolean;
 }
 
 export interface Clone {

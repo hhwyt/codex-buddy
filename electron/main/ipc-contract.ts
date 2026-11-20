@@ -40,6 +40,8 @@ export interface AppStateView {
   restartRequired?: boolean;
   zh: { on: boolean; launcherExists: boolean; supported: boolean; hidden: boolean };
   community: { qrUrl: string | null }; // H-02
+  /** A-01: the install dialog with the check and the Star box (signed switch starVerify) */
+  starVerify?: boolean;
   /** Forced upgrade (remote minVersion): non-null → the page blocks everything until the user updates. Codex is not affected */
   upgradeRequired: UpgradeRequiredView | null;
 }
@@ -82,6 +84,7 @@ export interface IpcChannels {
   'browser:close': [void, void];                                     // B-04, M-09
   'browser:back': [void, void];                                      // B-05
   'browser:reload': [void, void];                                    // B-05
+  'browser:place': [{ x: number; y: number; width: number; height: number }, void]; // A-03: the view inside the install dialog
   'security:get': [void, { keys: { vendor: VendorKey; name: string; keyTail: string; file: string }[]; app: ConnectionView[]; web: ConnectionView[] }]; // S-01, S-04
   'security:reveal': [{ vendor: VendorKey }, void];                  // S-02
   'security:manage': [{ vendor: VendorKey }, void];                  // S-03
@@ -94,6 +97,9 @@ export interface IpcChannels {
   'restore:plan': [void, { lines: string[] }];                       // T-03
   'restore:run': [void, Outcome];                                    // T-04, C-10
   'shell:open-external': [{ url: string }, void];
+  'verify:run': [void, Outcome];                                     // A-02: Codex answers the project's GitHub address
+  'verify:open-repo': [void, Outcome];                               // A-03: the project's GitHub page in the right-side browser
+  'star:run': [void, Outcome & { already?: boolean }];               // A-05: only after the user ticked the box
 }
 
 export interface ConnectionView { host: string; allowed: boolean; at: number }
@@ -106,7 +112,7 @@ export interface IpcEvents {
   step: StepView;
   wallet: WalletView;                       // M-28: model changed inside Codex
   /** width: px the expanded browser takes at the window's right edge (0 when closed or in the small window) */
-  browser: { open: boolean; mode: 'pip' | 'expanded'; url: string; canGoBack: boolean; width: number };
+  browser: { open: boolean; mode: 'pip' | 'expanded' | 'inline'; url: string; canGoBack: boolean; width: number };
   connections: { app: ConnectionView[]; web: ConnectionView[] };
   update: { version: string; notes: string }; // U-01
   upgradeRequired: UpgradeRequiredView | null; // forced upgrade changed after a remote config refresh
@@ -129,8 +135,9 @@ export const CHANNELS: Channel[] = [
   'app:state', 'install:run', 'install:log', 'wallet:get', 'wallet:reorder', 'wallet:mode', 'switch:start', 'switch:cancel',
   'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall',
   'clone:make', 'clone:open', 'clone:remove', 'zh:set', 'zh:remove', 'browser:show', 'browser:close', 'browser:back',
-  'browser:reload', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
+  'browser:reload', 'browser:place', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
   'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'restore:plan', 'restore:run', 'shell:open-external',
+  'verify:run', 'verify:open-repo', 'star:run',
 ];
 export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired', 'restartRequired', 'network', 'versionStatus'];
 export const NETWORK_READ_CHANNELS: Channel[] = ['app:state', 'wallet:get', 'install:log', 'security:get', 'security:ask-ai', 'restore:plan'];

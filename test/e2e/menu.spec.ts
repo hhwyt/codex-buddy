@@ -2,6 +2,7 @@
 // M-24: model_catalog_json lists exactly the vendor's models from remote/config.json, each marked（免费）or（付费）.
 // M-25: every listed model answers a real request through the app's own route (bridge or vendor), no 404.
 // R-01: a chat-only vendor goes through the app's 127.0.0.1 bridge: one plain turn and one tool call.
+// D-01, D-02, D-04: that bridge is a service of its own: it keeps answering after CodexBuddy quits, on the same port.
 import { expect, test } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -9,6 +10,7 @@ import * as path from 'node:path';
 import { finishOnboarding, switchTo } from './flows';
 import { catalogOf, codexHome, configToml, launch, readText, REPO, seedConfigured, seedCodex, seedUserData, tomlValue, vendorState, type Launched } from './launch';
 import { BASE_NEEDS, needs } from './pending';
+import { sandboxPaths } from '../../electron/platform/sandbox';
 
 let run: Launched;
 needs(BASE_NEEDS);
@@ -101,4 +103,23 @@ test('R-01 Codex 经过转接层能完成一轮对话和一次工具调用', asy
     const r = spawnSync(cli, ['exec', '--skip-git-repo-check', '--ephemeral', '你好'], { env: { ...process.env, CODEX_HOME: codexHome(run.sandbox) }, encoding: 'utf8', timeout: 60_000 });
     expect(r.status, r.stderr).toBe(0);
   }
+});
+
+const bridgeState = () => JSON.parse(readText(path.join(sandboxPaths(run.sandbox).buddyDir, 'bridge.json')) ?? '{}') as { pid: number; port: number };
+
+test('D-01 关掉 CodexBuddy 后转发服务还在，Codex 照样能对话；再打开不换端口、不起第二个', async () => {
+  await ready();
+  await switchTo(run, 'deepseek');
+  const before = route().baseUrl;
+  const model = tomlValue(configToml(run.sandbox), 'model') ?? 'deepseek-flash';
+  await run.quit();
+  const after = await responses(model, '你好');
+  expect(after.status).toBe(200);
+  expect(after.body).toContain('好了');
+  const state = bridgeState();
+  run = await run.relaunch();
+  await finishOnboarding(run.page);
+  expect(route().baseUrl).toBe(before);
+  const again = bridgeState();
+  expect(again.pid).toBe(state.pid);
 });

@@ -112,13 +112,13 @@ describe.runIf(onMac)('分身 Mac（真工具，假 App）', () => {
     const before = digest(sourceApp);
     const clone = createMacClone(platform, { run: recording() });
     const info = await clone.make(spec());
-    expect(info).toEqual({ slug: 'deepseek', appPath: path.join(root, 'Applications', 'DeepSeek.app'), codexHome: path.join(root, 'home', '.codex-deepseek') });
+    expect(info).toEqual({ slug: 'deepseek', appPath: path.join(root, 'Applications', 'DeepSeek.app'), codexHome: path.join(root, 'home', '.codex-codexbuddy-deepseek') });
     expect(fs.existsSync(path.join(info.appPath, 'Contents', 'MacOS', CLONE_LAUNCHER))).toBe(true);
     expect(plist(info.appPath, 'CFBundleExecutable')).toBe(CLONE_LAUNCHER);
     execFileSync('codesign', ['--verify', '--deep', '--strict', info.appPath]);
     expect(digest(sourceApp)).toBe(before);
     expect(calls.some(c => c[0] === 'cp' && c[1] === '-cR')).toBe(true);
-    expect(await clone.list()).toEqual([info]);
+    expect(await clone.list()).toEqual([{ ...info, ownsHome: true }]);
   });
 
   test('C-05 分身的名字、bundle id 和图标是厂商自己的', async () => {
@@ -140,7 +140,7 @@ describe.runIf(onMac)('分身 Mac（真工具，假 App）', () => {
     const probe = path.join(root, 'probe');
     runLauncher(info.appPath, probe);
     const env = fs.readFileSync(probe + '.env', 'utf8');
-    const userData = path.join(root, 'home', 'Library', 'Application Support', 'Codex (DeepSeek)');
+    const userData = path.join(root, 'home', 'Library', 'Application Support', 'Codex (CodexBuddy DeepSeek)');
     expect(env).toContain(`CODEX_HOME=${info.codexHome}\n`);
     expect(env).toContain('CODEX_SPARKLE_ENABLED=false\n');
     expect(env).toContain(`CODEX_ELECTRON_USER_DATA_PATH=${userData}\n`);
@@ -188,7 +188,7 @@ describe.runIf(onMac)('分身 Mac（真工具，假 App）', () => {
     await clone.remove('deepseek');
     expect(fs.existsSync(info.appPath)).toBe(false);
     expect(fs.readFileSync(path.join(info.codexHome, 'sessions', 'chat.jsonl'), 'utf8')).toBe('{"hello":1}');
-    expect(fs.existsSync(path.join(root, 'home', 'Library', 'Application Support', 'Codex (DeepSeek)'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'home', 'Library', 'Application Support', 'Codex (CodexBuddy DeepSeek)'))).toBe(true);
     expect(fs.existsSync(sourceApp)).toBe(true);
     expect(await clone.list()).toEqual([]);
     await clone.remove('deepseek'); // nothing left: no error
@@ -305,5 +305,55 @@ describe('分身 Mac（假命令）', () => {
   test('runCommand 返回输出，失败时带上错误信息', async () => {
     expect(await runCommand(process.execPath, ['-e', 'console.log("hi")'])).toBe('hi\n');
     await expect(runCommand(process.execPath, ['-e', 'process.exit(3)'])).rejects.toThrow(/failed/);
+  });
+  // K-01, K-02: which ~/.codex-<slug> is CodexBuddy's (platform/clone-home.ts). bornAt: the folders' creation times
+  const legacy = () => path.join(root, 'home', '.codex-deepseek');
+  const legacyData = () => path.join(root, 'home', 'Library', 'Application Support', 'Codex (DeepSeek)');
+  const born = (times: Record<string, number>) => (file: string) => times[file] ?? null;
+
+  test('K-01 别人建的 ~/.codex-deepseek 和数据目录不沿用、不改：分身用 CodexBuddy 自己的目录', async () => {
+    fs.mkdirSync(legacy(), { recursive: true });
+    fs.writeFileSync(path.join(legacy(), 'config.toml'), 'model = "mine"\n');
+    fs.mkdirSync(legacyData(), { recursive: true });
+    const before = fs.readdirSync(legacy()).sort();
+    const info = await createMacClone(platform, { run: noop, bornAt: born({ [legacy()]: 1, [platform.paths.buddyDir]: 2 }) }).make(spec());
+    expect(info.codexHome).toBe(path.join(root, 'home', '.codex-codexbuddy-deepseek'));
+    expect(fs.existsSync(path.join(info.codexHome, '.codexbuddy-clone'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'home', 'Library', 'Application Support', 'Codex (CodexBuddy DeepSeek)'))).toBe(true);
+    expect(fs.readdirSync(legacy()).sort()).toEqual(before);
+    expect(fs.readFileSync(path.join(legacy(), 'config.toml'), 'utf8')).toBe('model = "mine"\n');
+  });
+
+  /** A clone made by a CodexBuddy before 2026-11-20: its launcher runs ~/.codex-deepseek */
+  async function olderClone(bornAt: (f: string) => number | null) {
+    const clone = createMacClone(platform, { run: noop, bornAt });
+    const info = await clone.make(spec());
+    const launcher = path.join(info.appPath, 'Contents', 'MacOS', CLONE_LAUNCHER);
+    const meta = parseLauncher(fs.readFileSync(launcher, 'utf8'))!;
+    fs.writeFileSync(launcher, launcherScript({ ...meta, codexHome: legacy(), userData: legacyData() }));
+    fs.mkdirSync(path.join(legacy(), 'sessions'), { recursive: true });
+    fs.writeFileSync(path.join(legacy(), 'sessions', 'chat.jsonl'), '{"old":1}');
+    return clone;
+  }
+
+  test('K-02 旧版 CodexBuddy 建的 ~/.codex-deepseek 分身继续沿用，聊天记录接上，并补上标记', async () => {
+    const buddy = platform.paths.buddyDir;
+    const clone = await olderClone(f => (f === legacy() ? 5 : f === buddy ? 2 : null));
+    expect((await clone.list())[0]).toMatchObject({ codexHome: legacy(), ownsHome: true });
+    const again = await clone.make(spec());
+    expect(again.codexHome).toBe(legacy());
+    expect(fs.readFileSync(path.join(legacy(), 'sessions', 'chat.jsonl'), 'utf8')).toBe('{"old":1}');
+    expect(fs.existsSync(path.join(legacy(), '.codexbuddy-clone'))).toBe(true);
+    expect(parseLauncher(fs.readFileSync(path.join(again.appPath, 'Contents', 'MacOS', CLONE_LAUNCHER), 'utf8'))!.userData).toBe(legacyData());
+  });
+
+  test('K-02 旧分身指向的 ~/.codex-deepseek 比 CodexBuddy 还早：算别人的，不再用它', async () => {
+    const buddy = platform.paths.buddyDir;
+    const clone = await olderClone(f => (f === legacy() ? 1 : f === buddy ? 2 : null));
+    expect((await clone.list())[0]).toMatchObject({ codexHome: legacy(), ownsHome: false });
+    const again = await clone.make(spec());
+    expect(again.codexHome).toBe(path.join(root, 'home', '.codex-codexbuddy-deepseek'));
+    expect(fs.existsSync(path.join(legacy(), '.codexbuddy-clone'))).toBe(false);
+    expect((await clone.list())).toEqual([{ ...again, ownsHome: true }]);
   });
 });
