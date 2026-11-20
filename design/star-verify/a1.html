@@ -170,7 +170,7 @@ async function flow(ui){ui.asking();const r=await ask();if(!r.ok){ui.failed(r);r
 function lg(){return $('login').value}
 
 let S;const MK={done:'<span class="mk ok">✓</span>',run:'<span class="mk"><span class="spin"></span></span>',wait:'<span class="mk">·</span>',fail:'<span class="mk">✕</span>'};
-function draw(){const m=M().name;const rows=[['done','下载 Codex'],['done','装好 Codex'],['done','设置 '+m],[S.q,'测试 '+m+' 中',S.qs],[S.p,'尝试打开本项目的 GitHub Repo',S.ps]];
+function draw(){const m=M().name;const rows=[['done','下载 Codex'],['done','装好 Codex'],['done','设置 '+m],[S.q,'测试 Codex',S.qs],[S.p,'尝试打开本项目的 GitHub Repo',S.ps]];
  $('steps').innerHTML=rows.map(([st,t,sub])=>`<li class="${st}">${MK[st]}<span>${t}${sub?`<small>${sub}</small>`:''}</span></li>`).join('')}
 const UI={asking(){S.q='run';S.qs='';draw();$('fail').innerHTML='';caption('CodexBuddy 让 Codex 用选好的模型回答一句。')},
  failed(r){S.q='fail';S.qs=(r.answer?'答：'+esc(r.answer)+'　':'')+r.reason;draw();$('fail').innerHTML='<div class="row even"><button id="change">换个模型</button><button id="retry">重试</button></div>';$('retry').onclick=()=>flow(UI);$('change').onclick=()=>caption('会回到模型页换模型或换 Key（原型里不展开）。');caption('没验证成功：一句原因 + 重试。')},

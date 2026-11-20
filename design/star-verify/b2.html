@@ -173,7 +173,7 @@ let A;
 function dlg(){const m=M();const head=A.state==='run'?'<span class="spin"></span>正在验证':A.state==='fail'?'<span class="err">✕</span>没验证成功':`<span class="ok">✓</span>${m.name} 能用了`;
  const page=A.page==='run'?'<span class="spin"></span>正在打开':A.page==='done'?`<span class="ok">✓</span>${SHORT}`:A.page==='fail'?'<span class="err">没打开，可能是网络问题</span>':'—';
  const q=A.state==='fail'?'<span class="err">✕</span>':A.ans?'<span class="ok">✓</span>':'<span class="spin"></span>';const pg=A.page==='run'?'<span class="spin"></span>':A.page==='done'?'<span class="ok">✓</span>':A.page==='fail'?'<span class="err">✕</span>':'·';
- $('dh').innerHTML=head;$('kv').innerHTML=`<dt>${q}</dt><dd>测试 ${m.name} 中</dd><dt>${pg}</dt><dd>尝试打开本项目的 GitHub Repo</dd>`}
+ $('dh').innerHTML=head;$('kv').innerHTML=`<dt>${q}</dt><dd>测试 Codex</dd><dt>${pg}</dt><dd>尝试打开本项目的 GitHub Repo</dd>`}
 const UI={asking(){A={state:'run',ans:'',page:''};$('tail').innerHTML='';dlg();caption('弹窗里依次显示：用的模型、问答、打开的页面。')},
  failed(r){A.state='fail';dlg();$('tail').innerHTML=`<p class="err" style="margin:14px 0 0;font-size:14px">${r.reason}</p><div class="row"><button id="later">稍后再试</button><button id="retry">重试</button></div>`;$('retry').onclick=()=>flow(UI);$('later').onclick=()=>{document.querySelector('.mscrim').remove();caption('关了弹窗，可以去换模型或换 Key。')};caption('失败：一句原因 + 重试。')},
  answered(r){A.ans=`<mark>${REPO}</mark>`;dlg()},

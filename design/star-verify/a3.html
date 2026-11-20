@@ -178,7 +178,7 @@ function lg(){return $('login').value}
 const RING='<circle class="track" cx="46" cy="46" r="42"/><circle class="arc" cx="46" cy="46" r="42"/>';let F;
 function facts(){return F.map(([s,t])=>`<li class="${s?'on':''}"><span class="mk">${s==='ok'?'<span class="ok">✓</span>':s==='run'?'<span class="spin" style="width:12px;height:12px"></span>':s==='bad'?'<span class="err">✕</span>':'·'}</span>${t}</li>`).join('')}
 function paint(ring,title,extra=''){$('ring').innerHTML=ring;$('t').textContent=title;$('facts').innerHTML=facts();$('x').innerHTML=extra}
-const UI={asking(){F=[['ok','模型：'+M().name],['run','测试 '+M().name+' 中'],['','尝试打开本项目的 GitHub Repo']];paint(`<svg class="ring" viewBox="0 0 92 92">${RING}</svg>`,'正在验证 '+M().name);caption('整屏只回答一个问题：装好的模型能不能用。')},
+const UI={asking(){F=[['ok','模型：'+M().name],['run','测试 Codex'],['','尝试打开本项目的 GitHub Repo']];paint(`<svg class="ring" viewBox="0 0 92 92">${RING}</svg>`,'正在验证 '+M().name);caption('整屏只回答一个问题：装好的模型能不能用。')},
  failed(r){F[1]=['bad',(r.answer?'它答：'+esc(r.answer)+'　':'')+r.reason];paint(`<svg class="ring bad" viewBox="0 0 92 92">${RING}<path class="cross" d="M33 33 l26 26 M59 33 l-26 26"/></svg>`,'没验证成功','<div class="row even" style="width:100%;margin-top:4px"><button id="change">换个模型</button><button id="retry">重试</button></div>');$('retry').onclick=()=>flow(UI);$('change').onclick=()=>caption('会回到模型页换模型或换 Key（原型里不展开）。');caption('失败：红叉 + 一句原因 + 重试。')},
  answered(r){F[1]=['ok',`它答：${SHORT}`];$('facts').innerHTML=facts()},
  opening(){F[2]=['run','尝试打开本项目的 GitHub Repo'];$('facts').innerHTML=facts()},
