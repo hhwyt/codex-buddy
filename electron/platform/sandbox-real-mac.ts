@@ -4,7 +4,7 @@
 // launcher sets CODEX_HOME=<sandbox>/home/.codex, its own --user-data-dir inside the sandbox, --use-mock-keychain and
 // Sparkle off. So it runs next to the user's own ChatGPT.app, whatever opens it (CodexBuddy, the 汉化版, Finder).
 // The user's /Applications/ChatGPT.app is only read (cp -c), ~/.codex is never used, "running" means the sandbox
-// copy's own Contents/MacOS/ (mac.ts macRunningPattern), and nothing here quits or kills any process.
+// copy's own Contents/MacOS/ (mac.ts macRunningPattern); a confirmed restart only quits that copy.
 import * as path from 'node:path';
 import { guardedRemove } from '../core/guard';
 import { createMacClone, runCommand, type CommandRunner } from './clone-mac';

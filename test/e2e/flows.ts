@@ -2,6 +2,7 @@
 // Everything goes through ui/testids.ts and the IPC contract; nothing depends on class names or internal storage.
 import { expect, type ElectronApplication, type Locator, type Page } from '@playwright/test';
 import { TID } from '../../ui/testids';
+import { CARD_HEIGHT } from '../../ui/components/card';
 import { wallet, type Launched } from './launch';
 
 export const nav = {
@@ -10,12 +11,15 @@ export const nav = {
   community: (page: Page) => page.getByTestId(TID.shell.navCommunity).click(),
 };
 
-/** Finishes onboarding (fake install) and lands on the model page */
+/** Installs through the shared banner when Codex is missing. */
 export async function finishOnboarding(page: Page): Promise<void> {
-  const models = page.getByTestId(TID.models.root);
-  if (await models.isVisible().catch(() => false)) return;
-  await page.getByTestId(TID.onboarding.start).click();
-  await expect(models).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId(TID.models.root)).toBeVisible();
+  const banner = page.getByTestId(TID.onboarding.start);
+  if (await banner.isVisible()) {
+    await banner.click();
+    await expect(banner).toBeHidden({ timeout: 30_000 });
+    await expect(page.getByTestId(TID.onboarding.root)).toHaveCount(0);
+  }
 }
 
 /** URL of every webContents the main process has (the right-side browser is one of them) */
@@ -63,9 +67,10 @@ export async function frontCard(page: Page): Promise<string> {
 
 /** Drags a card by its header to the given y (page coordinates), in small steps like a hand would */
 export async function dragCardTo(page: Page, vendor: string, toY: number, onMove?: () => Promise<void>): Promise<void> {
+  await cardsSettled(page);
   const box = (await page.getByTestId(TID.models.card(vendor)).boundingBox())!;
   const x = box.x + box.width / 2;
-  const y = box.y + 45; // the visible head: below the 22px tucked under the card above
+  const y = box.y + 45 * box.height / CARD_HEIGHT;
   await page.mouse.move(x, y);
   await page.mouse.down();
   const steps = 12;
@@ -78,16 +83,22 @@ export async function dragCardTo(page: Page, vendor: string, toY: number, onMove
 
 /** Drags a back card all the way to the front position */
 export async function dragToFront(page: Page, vendor: string): Promise<void> {
+  await cardsSettled(page);
   const front = await frontCard(page);
   const fb = (await page.getByTestId(TID.models.card(front)).boundingBox())!;
-  await dragCardTo(page, vendor, fb.y + 45);
+  await dragCardTo(page, vendor, fb.y + 45 * fb.height / CARD_HEIGHT);
 }
 
 /** Switches to a vendor by clicking its card, scanning the fake QR code when a login page shows up */
 export async function switchTo(run: Launched, vendor: string, opts: { expectOk?: boolean; via?: 'click' | 'drag' } = {}): Promise<void> {
   const { page, app } = run;
   if (opts.via === 'drag') await dragToFront(page, vendor);
-  else await page.getByTestId(TID.models.card(vendor)).click({ position: { x: 60, y: 45 } });
+  else {
+    await cardsSettled(page);
+    const card = page.getByTestId(TID.models.card(vendor));
+    const scale = await card.evaluate(el => el.getBoundingClientRect().width / (el as HTMLElement).offsetWidth);
+    await card.click({ position: { x: 60 * scale, y: 25 * scale } });
+  }
   if (vendor !== 'openai') {
     // Login is only needed the first time; ignore when the vendor needs none
     await fakeScan(app, vendor).catch(() => undefined);

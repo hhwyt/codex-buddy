@@ -102,11 +102,11 @@ const app = () => macCodexAppPath(paths);
 
 test('O-02 沙盒里 Codex 装成 <沙盒>/Applications/Test-ChatGPT.app，真机路径是 /Applications/ChatGPT.app', () => {
   expect(app()).toBe(path.join(root, 'Applications', 'Test-ChatGPT.app'));
-  expect(macCodexAppPath(macPaths('/Users/x'))).toBe(MAC_CODEX_APP);
-  expect(macCli(MAC_CODEX_APP)).toBe('/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex');
+  expect(macCodexAppPath(macPaths('/Users/x'))).toBe(path.normalize(MAC_CODEX_APP));
+  expect(macCli(MAC_CODEX_APP)).toBe(path.normalize('/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex'));
   const real = macPaths('/Users/x');
-  expect(real.cloneHome('kimi')).toBe('/Users/x/.codex-kimi');
-  expect(real.protectedRoots().appDataDirs).toEqual(['/Users/x/Library/Application Support/Codex']);
+  expect(real.cloneHome('kimi')).toBe(path.join('/Users/x', '.codex-kimi'));
+  expect(real.protectedRoots().appDataDirs).toEqual([path.join('/Users/x', 'Library', 'Application Support', 'Codex')]);
 });
 
 test('O-02 已经装了 Codex：读出版本，直接算已装好，不下载不覆盖', async () => {
@@ -350,11 +350,43 @@ test('G-01 沙盒路径：所有路径都在沙盒里（Mac 和 Windows）', asy
   expect(sandboxPaths(root).appsDir.startsWith(root)).toBe(true);
 });
 
-test('R-01 runCodex 用沙盒里 Codex 自带的命令行，CODEX_HOME 指到给定目录', async () => {
+test.skipIf(process.platform === 'win32')('R-01 runCodex 用沙盒里 Codex 自带的命令行，CODEX_HOME 指到给定目录', async () => {
   const cli = macCli(app());
   fs.mkdirSync(path.dirname(cli), { recursive: true });
   fs.mkdirSync(paths.codexHome, { recursive: true });
-  fs.writeFileSync(cli, '#!/bin/sh\necho "home=$CODEX_HOME"\n', { mode: 0o755 });
-  const r = await platform().runCodex(['--version'], { codexHome: paths.codexHome, timeoutMs: 5000 });
+  if (process.platform === 'win32') fs.copyFileSync(process.execPath, cli);
+  else fs.symlinkSync(process.execPath, cli);
+  const r = await platform().runCodex(['-e', 'console.log("home=" + process.env.CODEX_HOME)'], { codexHome: paths.codexHome, timeoutMs: 5000 });
   expect(r.out.trim()).toBe(`home=${paths.codexHome}`);
+});
+
+
+test('M-21 Mac 先退出对应安装路径的应用，再按语言设置重新打开', async () => {
+  makeApp(app());
+  running = true;
+  const platform = createMacPlatform(paths, { exec: async (command, args) => {
+    const result = await fakeExec(command, args);
+    if (command.endsWith('/osascript')) running = false;
+    if (command.endsWith('/open')) running = true;
+    return result;
+  } });
+  await platform.restartCodex({ zh: false });
+  const quit = calls.findIndex(c => c[0] === 'osascript');
+  const opened = calls.findIndex(c => c[0] === 'open');
+  expect(quit).toBeGreaterThan(-1);
+  expect(calls[quit].at(-1)).toBe(app());
+  expect(opened).toBeGreaterThan(quit);
+  expect(calls[opened]).toEqual(['open', app()]);
+  expect(calls.some(c => c[0] === 'pkill' || c[0] === 'killall')).toBe(false);
+});
+
+test('M-21 Mac 无法退出时不启动应用，打开失败也返回失败', async () => {
+  makeApp(app());
+  running = true;
+  const platform = createMacPlatform(paths, { exec: async (command, args) => command.endsWith('/osascript') ? { code: 1, stdout: '' } : fakeExec(command, args) });
+  await expect(platform.restartCodex({ zh: false })).rejects.toThrow('没能退出 ChatGPT');
+  expect(calls.some(c => c[0] === 'open')).toBe(false);
+  running = false;
+  const brokenOpen = createMacPlatform(paths, { exec: async (command, args) => command.endsWith('/open') ? { code: 1, stdout: '' } : fakeExec(command, args) });
+  await expect(brokenOpen.restartCodex({ zh: false })).rejects.toThrow('没能重新打开 ChatGPT');
 });

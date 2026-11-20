@@ -1,5 +1,5 @@
-// remote/config.json: read jsDelivr → GitHub → last good copy → bundled fallback. Owner: A1.
-// Never contains or calls any non-GitHub host (H-03). U-04: switches hide a vendor card or the 汉化 entry.
+// Read signed configuration from GitHub Pages, CDN and GitHub; retain local copies for display.
+// GitHub Pages uses the publisher's custom domain. U-04: switches hide a vendor card or the 汉化 entry.
 // Anti-forgery: every fetched copy must come with config.json.sig (base64 Ed25519 over the exact bytes, made by
 // scripts/sign-remote-config.mjs) from the same source; a missing or wrong signature counts as unreachable. The bundled
 // copy is trusted as is (it ships inside the integrity-checked app.asar).
@@ -42,6 +42,10 @@ export function validateRemote(text: string): RemoteConfig | null {
   const { latest, models, community, switches, minVersion = '0.0.0' } = d;
   if (!str(minVersion) || !VERSION.test(minVersion)) return null;
   if (!isObj(latest) || ![latest.version, latest.notes, latest.macUrl, latest.winUrl].every(str)) return null;
+  if (!VERSION.test(latest.version as string)) return null;
+  for (const digest of [latest.macSha256, latest.winSha256]) {
+    if (digest !== undefined && (typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest))) return null;
+  }
   if (!isObj(models) || !isObj(community) || !str(community.qrUrl) || !str(community.text)) return null;
   if (![latest.macUrl, latest.winUrl, community.qrUrl].every(u => isSafeUrl(u as string))) return null;
   if (!isObj(switches) || !Array.isArray(switches.hiddenVendors) || !switches.hiddenVendors.every(str)) return null;
@@ -54,7 +58,8 @@ export function validateRemote(text: string): RemoteConfig | null {
   }
   return {
     schema: 1,
-    latest: { version: latest.version as string, notes: latest.notes as string, macUrl: latest.macUrl as string, winUrl: latest.winUrl as string },
+    latest: { version: latest.version as string, notes: latest.notes as string, macUrl: latest.macUrl as string, winUrl: latest.winUrl as string,
+      ...(latest.macSha256 ? { macSha256: latest.macSha256 as string } : {}), ...(latest.winSha256 ? { winSha256: latest.winSha256 as string } : {}) },
     models: out,
     community: { qrUrl: community.qrUrl, text: community.text },
     switches: { hiddenVendors: [...switches.hiddenVendors], hideZh: switches.hideZh, hideClone: switches.hideClone },
@@ -74,12 +79,12 @@ export function verifySignature(text: string, sigBase64: string, publicKeyPem: s
 
 /** urls[0] is jsDelivr, urls[1] GitHub (core/endpoints.ts). The first valid, correctly signed answer wins; the
  *  signature is <url>.sig on the same source */
-export async function loadRemote(urls: string[], fetch: Fetcher, lastGood: RemoteConfig | null, bundled: RemoteConfig, publicKeyPem: string): Promise<{ config: RemoteConfig; source: 'jsdelivr' | 'github' | 'cache' | 'bundled' }> {
+export async function loadRemote(urls: string[], fetch: Fetcher, lastGood: RemoteConfig | null, bundled: RemoteConfig, publicKeyPem: string): Promise<{ config: RemoteConfig; source: 'pages' | 'jsdelivr' | 'github' | 'cache' | 'bundled' }> {
   for (let i = 0; i < urls.length; i++) {
     try {
       const [text, sig] = await Promise.all([fetch(urls[i], REMOTE_TIMEOUT_MS), fetch(`${urls[i]}.sig`, REMOTE_TIMEOUT_MS)]);
       const config = verifySignature(text, sig, publicKeyPem) ? validateRemote(text) : null;
-      if (config) return { config, source: i === 0 ? 'jsdelivr' : 'github' };
+      if (config) return { config, source: (urls[i].includes('.github.io/') || urls[i].includes('hhwyt.xyz/')) ? 'pages' : urls[i].includes('jsdelivr') ? 'jsdelivr' : 'github' };
     } catch { /* next one */ }
   }
   return lastGood ? { config: lastGood, source: 'cache' } : { config: bundled, source: 'bundled' };

@@ -22,22 +22,20 @@ function setup(install: () => Promise<Outcome> | Outcome, log = '') {
 const get = (id: string) => byTestId(document.body, id)!;
 
 describe('onboarding', () => {
-  test('O-01 欢迎屏只有标题和「开始安装」', () => {
-    setup(() => ({ ok: true }));
-    const view = get(TID.onboarding.root);
-    expect(view.textContent).toBe('开始安装');
-    expect(get(TID.onboarding.start).className).toContain('primary');
+  test('O-01 抽屉打开就开始安装，没有第二个开始按钮', () => {
+    const f = setup(() => new Promise(() => {}));
+    expect(get(TID.onboarding.root).getAttribute('role')).toBe('dialog');
+    expect(byTestId(root, TID.onboarding.start)).toBeNull();
+    expect(f.invoke).toHaveBeenCalledWith('install:run');
     expect(readFileSync('ui/index.html', 'utf8')).toContain('href="onboarding.css"');
   });
 
-  test('O-01 安装中：圆环、标题、步骤列表从上到下居中；没装好时标题和步骤靠左', async () => {
+  test('O-01 安装中：步骤列表居中；没装好时标题和步骤靠左', async () => {
     let fail!: (o: Outcome) => void;
     setup(() => new Promise<Outcome>(r => { fail = r; }));
-    get(TID.onboarding.start).click();
     await flush();
     const col = document.querySelector('.onb-steps')!;
-    expect([...col.children].map(c => c.className)).toEqual(['progress-ring', 'onb-head', 'progress', 'onb-fixing']);
-    expect(get(TID.onboarding.ring).textContent).toBe('0%');
+    expect([...col.children].map(c => c.className)).toEqual(['progress', 'onb-fixing']);
     const css = readFileSync('ui/onboarding.css', 'utf8');
     expect(css).toMatch(/\.onb-steps \{[^}]*align-items: center[^}]*text-align: center/);
     fail({ ok: false, reason: 'x' } as Outcome);
@@ -46,26 +44,23 @@ describe('onboarding', () => {
     expect(css).toMatch(/\.onb-failure \{[^}]*align-items: flex-start[^}]*text-align: left/);
   });
 
-  test('O-01 Mac 一点开始安装就列出全部三步（灰的），Windows 做到哪步出现哪步', async () => {
+  test('O-01 Mac 打开抽屉就列出全部三步（灰的），Windows 做到哪步出现哪步', async () => {
     document.documentElement.classList.add('os-mac');
     try {
       setup(() => new Promise<Outcome>(() => undefined));
-      get(TID.onboarding.start).click();
-      await flush();
+        await flush();
       expect([...document.querySelectorAll<HTMLElement>('.progress-row')].map(r => [r.dataset.state, r.textContent]))
         .toEqual([['pending', '下载 Codex'], ['pending', '装进应用程序'], ['pending', '检查 Codex']]);
     } finally { document.documentElement.classList.remove('os-mac'); }
     root.replaceChildren();
     setup(() => new Promise<Outcome>(() => undefined));
-    get(TID.onboarding.start).click();
     await flush();
     expect(document.querySelectorAll('.progress-row')).toHaveLength(0);
   });
 
-  test('O-01 点「开始安装」→ 进度依次打勾 → 进模型页', async () => {
+  test('O-01 抽屉开始安装 → 进度依次打勾 → 进模型页', async () => {
     let finish!: (o: Outcome) => void;
     const f = setup(() => new Promise(r => { finish = r; }));
-    get(TID.onboarding.start).click();
     expect(byTestId(root, TID.onboarding.start)).toBeNull();
     f.emit('step', step('check', 'start', '检测电脑'));
     expect(get(TID.onboarding.step('check')).dataset.state).toBe('start');
@@ -83,20 +78,8 @@ describe('onboarding', () => {
     expect(f.invoke).toHaveBeenCalledTimes(1);
   });
 
-  test('O-01 安装中再点不会重复开始', async () => {
-    let finish!: (o: Outcome) => void;
-    const f = setup(() => new Promise(r => { finish = r; }));
-    const start = get(TID.onboarding.start);
-    start.click();
-    start.click();
-    expect(f.invoke).toHaveBeenCalledTimes(1);
-    finish({ ok: true });
-    await flush();
-  });
-
   test('O-02 已经装了 Codex：那一行直接显示「已装好」', async () => {
     const f = setup(() => new Promise(() => {}));
-    get(TID.onboarding.start).click();
     f.emit('step', step('codex', 'done', '已装好'));
     const row = get(TID.onboarding.step('codex'));
     expect(row.dataset.state).toBe('done');
@@ -105,7 +88,6 @@ describe('onboarding', () => {
 
   test('O-08 安装中自动修小问题，显示「正在帮你修：…」，修好就收起', () => {
     const f = setup(() => new Promise(() => {}));
-    get(TID.onboarding.start).click();
     const fixing = get(TID.onboarding.fixing);
     expect(fixing.hidden).toBe(true);
     f.emit('step', step('fix-catalog', 'start', '模型菜单文件'));
@@ -119,7 +101,6 @@ describe('onboarding', () => {
   test('O-03 安装失败 → 故障屏 →「再试一次」从失败的那一步接着做', async () => {
     const outcomes: Outcome[] = [{ ok: false, reason: '网络断了，下载没完成' }, { ok: true }];
     const f = setup(() => outcomes.shift()!);
-    get(TID.onboarding.start).click();
     f.emit('step', step('check', 'done', '检测电脑'));
     f.emit('step', step('codex', 'fail', '安装 Codex'));
     await flush();
@@ -139,7 +120,6 @@ describe('onboarding', () => {
 
   test('O-03 主进程出错没给原因 → 故障屏写默认原因', async () => {
     setup(() => { throw new Error('boom'); });
-    get(TID.onboarding.start).click();
     await flush();
     expect(get(TID.onboarding.failure).textContent).toContain('安装没完成，请再试一次');
   });
@@ -148,7 +128,6 @@ describe('onboarding', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     setup(() => ({ ok: false }), 'POST https://api.deepseek.com key=sk-abcdef1234567890\nAuthorization: Bearer abcdefghijkl');
-    get(TID.onboarding.start).click();
     await flush();
     get(TID.onboarding.copyLog).click();
     await flush();
@@ -167,7 +146,6 @@ describe('onboarding', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     setup(() => ({ ok: false }), 'log');
-    get(TID.onboarding.start).click();
     await flush();
     get(TID.onboarding.copyLog).click();
     await flush();
@@ -179,7 +157,6 @@ describe('onboarding', () => {
   test('O-04 剪贴板不可用 → 红色提示「没复制成功」', async () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => { throw new Error('denied'); } }, configurable: true });
     setup(() => ({ ok: false }), 'log');
-    get(TID.onboarding.start).click();
     await flush();
     get(TID.onboarding.copyLog).click();
     await flush();
@@ -192,7 +169,6 @@ describe('onboarding', () => {
 
   test('O-05 故障屏「进群发给我们」→ 社群页', async () => {
     const f = setup(() => ({ ok: false }));
-    get(TID.onboarding.start).click();
     await flush();
     get(TID.onboarding.toCommunity).click();
     expect(f.go).toHaveBeenCalledWith('community');
@@ -201,7 +177,6 @@ describe('onboarding', () => {
   test('O-07 离开引导后不再响应进度，也不再跳页', async () => {
     let finish!: (o: Outcome) => void;
     const f = setup(() => new Promise(r => { finish = r; }));
-    get(TID.onboarding.start).click();
     expect(f.count('step')).toBe(1);
     f.cleanup();
     expect(f.count('step')).toBe(0);

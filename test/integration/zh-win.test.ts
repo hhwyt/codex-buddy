@@ -114,7 +114,7 @@ describe('汉化版 on Windows: running codex.ps1', () => {
   });
 
   test('L-02 codex.ps1 从 asar 外面的解包目录读', () => {
-    expect(bundledPs1('/A/CodexBuddy/resources/app.asar/dist/platform')).toBe('/A/CodexBuddy/resources/app.asar.unpacked/scripts/vendor/codex.ps1');
+    expect(bundledPs1('/A/CodexBuddy/resources/app.asar/dist/platform')).toBe(path.normalize('/A/CodexBuddy/resources/app.asar.unpacked/scripts/vendor/codex.ps1'));
     expect(fs.existsSync(bundledPs1(path.join(__dirname, '..', '..', 'dist', 'platform')))).toBe(true);
     expect(typeof realPs1Runner()).toBe('function');
   });

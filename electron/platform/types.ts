@@ -55,7 +55,8 @@ export interface Platform {
   runCodex: CodexRunner;
   /** Opens Codex (the 汉化版 launcher when edition is zh) */
   openCodex(opts: { zh: boolean }): Promise<void>;
-  /** Asks the running Codex to quit is NOT allowed (M-21): only tells whether it runs */
+  /** Only called after the user confirms; excludes other installs, clones and CLI tasks. */
+  restartCodex(opts: { zh: boolean }): Promise<void>;
   isCodexRunning(): Promise<boolean>;
   /** Shows a file in Finder / Explorer (S-02) */
   revealInFolder(target: string): Promise<void>;

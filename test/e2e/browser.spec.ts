@@ -3,7 +3,7 @@
 import { expect, test } from '@playwright/test';
 import { TID } from '../../ui/testids';
 import { fakeScan, finishOnboarding, inWebContents, nav, switchTo, webContentsUrls } from './flows';
-import { launch, seedCodex, seedUserData, setCodexScenario, vendorState, type Launched } from './launch';
+import { launch, seedConfigured, seedCodex, seedUserData, setCodexScenario, vendorState, type Launched } from './launch';
 import { BASE_NEEDS, merge, needs } from './pending';
 
 let run: Launched;
@@ -11,7 +11,7 @@ needs(merge(BASE_NEEDS, { ui: { models: [] }, ipc: ['browser:show', 'browser:clo
 test.afterEach(async () => { await run?.close(); });
 
 async function ready(): Promise<Launched> {
-  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); seedConfigured(s); } });
   await finishOnboarding(run.page);
   await run.page.evaluate(() => {
     const w = window as unknown as { __browser?: unknown[]; buddy: { on(e: string, fn: (p: unknown) => void): void } };

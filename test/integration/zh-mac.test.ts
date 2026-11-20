@@ -41,7 +41,7 @@ const config = (): ZhRunnerConfig => JSON.parse(fs.readFileSync(path.join(resour
 /** Points the launcher's runner at the fake opener instead of /usr/bin/open */
 function useFakeOpener(extra: Partial<ZhRunnerConfig> = {}) {
   const c = config();
-  writeZhRunner(nodeFs, resources(), { ...c, cmd: opener, args: ['-a', app, '--args'], ...extra });
+  writeZhRunner(nodeFs, resources(), { ...c, cmd: process.execPath, args: [opener, '-a', app, '--args'], ...extra });
 }
 const runRunner = (dir = resources()) => spawnSync(process.execPath, [path.join(dir, 'zh-runner.js'), path.join(dir, 'zh.json')], { encoding: 'utf8', timeout: 20_000 });
 const runRunnerAsync = (dir = resources()) => new Promise<number | null>(resolve => {
@@ -80,7 +80,7 @@ describe('汉化版 on Mac', () => {
     expect(plist).toContain('<string>ChatGPT 汉化版</string>');
     expect(plist).toContain(`<string>${ZH_APP_EXECUTABLE}</string>`);
     const exe = path.join(contents, 'MacOS', ZH_APP_EXECUTABLE);
-    expect(fs.statSync(exe).mode & 0o111).not.toBe(0);
+    if (process.platform !== 'win32') expect(fs.statSync(exe).mode & 0o111).not.toBe(0);
     expect(fs.readFileSync(exe, 'utf8')).toContain('ELECTRON_RUN_AS_NODE=1');
     expect(config()).toMatchObject({ cmd: '/usr/bin/open', args: ['-a', app, '--args'], version: '26.1027.61615', stateDir: zhStateDir(paths.buddyDir) });
     expect(fs.readFileSync(path.join(resources(), 'zh-runner.js'), 'utf8')).toContain('enable_i18n');
@@ -125,7 +125,7 @@ describe('汉化版 on Mac', () => {
     expect(fs.readFileSync(path.join(zhStateDir(paths.buddyDir), 'zh.log'), 'utf8')).toContain('patched page app://-/index.html');
   });
 
-  test('L-02 启动器脚本：用 CodexBuddy 自带的 Electron 跑汉化，没有它时直接按英文打开', async () => {
+  test.skipIf(process.platform === 'win32')('L-02 启动器脚本：用 CodexBuddy 自带的 Electron 跑汉化，没有它时直接按英文打开', async () => {
     await zh(realExec).add();
     useFakeOpener({ waitMs: 300 });
     const exe = path.join(paths.zhLauncherPath, 'Contents', 'MacOS', ZH_APP_EXECUTABLE);
@@ -160,7 +160,7 @@ describe('汉化版 on Mac', () => {
     expect(await z.exists()).toBe(false);
   });
 
-  test('L-05 Codex 已经开着：汉化版不关它，只把它调到前面；能检测 Codex 开没开', async () => {
+  test.runIf(isMac)('L-05 Codex 已经开着：汉化版不关它，只把它调到前面；能检测 Codex 开没开', async () => {
     await zh(realExec).add();
     useFakeOpener();
     expect(await isMacCodexRunning(realExec, app)).toBe(false);
@@ -197,7 +197,7 @@ describe('汉化版 on Mac', () => {
     const cloneDir = path.join(root, 'Applications', 'DeepSeek.app', 'Contents', 'Resources');
     const cloneHome = paths.cloneHome('deepseek');
     writeZhRunner(nodeFs, cloneDir, {
-      cmd: opener, args: ['--user-data-dir=' + path.join(root, 'ud')], env: { CODEX_HOME: cloneHome }, version: '26.1027.61615',
+      cmd: process.execPath, args: [opener, '--user-data-dir=' + path.join(root, 'ud')], env: { CODEX_HOME: cloneHome }, version: '26.1027.61615',
       stateDir: zhStateDir(paths.buddyDir), runningPattern: path.join(root, 'Applications', 'DeepSeek.app') + '/Contents/MacOS/', waitMs: 300,
     });
     expect(runRunner(cloneDir).status).toBe(0);
@@ -239,8 +239,8 @@ describe('汉化版 on Mac: details', () => {
   });
 
   test('L-02 默认的命令执行器能报出退出码', async () => {
-    expect((await realExec('/bin/sh', ['-c', 'echo hi'])).out).toBe('hi\n');
-    expect((await realExec('/bin/sh', ['-c', 'exit 3'])).code).toBe(3);
+    expect((await realExec(process.execPath, ['-e', 'console.log("hi")'])).out).toBe('hi\n');
+    expect((await realExec(process.execPath, ['-e', 'process.exit(3)'])).code).toBe(3);
     expect((await realExec(path.join(root, 'missing'), [])).code).toBe(1);
   });
 

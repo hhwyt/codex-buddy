@@ -30,12 +30,14 @@ export interface WalletView {
 }
 
 export interface AppStateView {
+  versionStatus?: VersionStatus;
   version: string;
   os: 'mac' | 'win';
   /** true → skip onboarding, open the model page (O-06) */
   configured: boolean;
   codexInstalled: boolean;
   codexRunning: boolean;
+  restartRequired?: boolean;
   zh: { on: boolean; launcherExists: boolean; supported: boolean; hidden: boolean };
   community: { qrUrl: string | null }; // H-02
   /** Forced upgrade (remote minVersion): non-null → the page blocks everything until the user updates. Codex is not affected */
@@ -44,12 +46,17 @@ export interface AppStateView {
 
 /** The release to install before CodexBuddy can be used again; url = the download for this OS */
 export interface UpgradeRequiredView { version: string; notes: string; url: string }
+export type VersionStatus = 'checking' | 'offline' | 'allowed';
 
 export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'upgrade' | 'repair'; id: string; state: 'start' | 'done' | 'fail'; text: string }
-export interface Outcome { ok: boolean; reason?: string; [extra: string]: unknown }
+export interface Outcome { ok: boolean; reason?: string; restartRequired?: boolean; [extra: string]: unknown }
+export type NetworkState = 'checking' | 'online' | 'offline';
 
 /** invoke channels: name → [args, result] */
 export interface IpcChannels {
+  'network:check': [void, Outcome];
+  'network:offline': [void, void];
+  'app:quit': [void, void];
   'app:state': [void, AppStateView];
   'install:run': [void, Outcome];                                   // O-01..O-03, O-07, O-08
   'install:log': [void, { text: string }];                           // O-04 (already redacted)
@@ -63,6 +70,7 @@ export interface IpcChannels {
   'recharge:open': [{ vendor: VendorKey }, Outcome];                 // M-13, M-18
   'custom:add': [{ name: string; baseUrl: string; model: string; apiKey: string }, Outcome]; // M-19
   'codex:open': [{ vendor?: VendorKey }, Outcome];                   // M-20
+  'codex:restart': [void, Outcome];                                  // M-21, L-05: user-confirmed restart
   'codex:repair': [void, Outcome];                                   // M-15
   'codex:reinstall': [void, Outcome];                                // M-16
   'clone:make': [{ vendor: VendorKey }, Outcome];                    // C-01, C-05, C-06, C-08
@@ -92,6 +100,9 @@ export interface ConnectionView { host: string; allowed: boolean; at: number }
 
 /** main → page events */
 export interface IpcEvents {
+  network: NetworkState;
+  restartRequired: boolean;
+  versionStatus: VersionStatus;
   step: StepView;
   wallet: WalletView;                       // M-28: model changed inside Codex
   /** width: px the expanded browser takes at the window's right edge (0 when closed or in the small window) */
@@ -114,10 +125,12 @@ export interface BuddyApi {
 
 /** Every channel name, for preload's allowlist and the contract test */
 export const CHANNELS: Channel[] = [
+  'network:check', 'network:offline', 'app:quit',
   'app:state', 'install:run', 'install:log', 'wallet:get', 'wallet:reorder', 'wallet:mode', 'switch:start', 'switch:cancel',
-  'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:repair', 'codex:reinstall',
+  'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall',
   'clone:make', 'clone:open', 'clone:remove', 'zh:set', 'zh:remove', 'browser:show', 'browser:close', 'browser:back',
   'browser:reload', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
   'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'restore:plan', 'restore:run', 'shell:open-external',
 ];
-export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired'];
+export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired', 'restartRequired', 'network', 'versionStatus'];
+export const NETWORK_READ_CHANNELS: Channel[] = ['app:state', 'wallet:get', 'install:log', 'security:get', 'security:ask-ai', 'restore:plan'];

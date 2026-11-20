@@ -16,7 +16,7 @@ export const TID = {
   // O-01..O-08: onboarding
   onboarding: {
     root: 'onb-root',
-    start: 'onb-start', // 开始安装
+    start: 'onb-start', // shared 未安装提示条
     step: (id: string) => `onb-step-${id}`,
     ring: 'onb-ring', // overall install progress
     fixing: 'onb-fixing', // 正在帮你修 O-08
@@ -115,6 +115,19 @@ export const TID = {
     quit: 'upgrade-quit', // Mac: 退出
   },
   // shared components
+  network: {
+    root: 'network-root',
+    loading: 'network-loading',
+    error: 'network-error',
+    retry: 'network-retry',
+    quit: 'network-quit',
+  },
+  restart: {
+    root: 'restart-dialog',
+    later: 'restart-later',
+    now: 'restart-now',
+    notice: 'restart-notice',
+  },
   dialog: {
     root: 'dialog',
     confirm: 'dialog-confirm',

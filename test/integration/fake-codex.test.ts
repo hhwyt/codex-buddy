@@ -16,7 +16,8 @@ function home(model: string, catalog: string[]) {
 }
 
 test('M-07 模型不在清单里测试连通不过', async () => {
-  const run = codexRunner(fake);
+  const node = codexRunner(process.execPath);
+  const run: typeof node = (args, opts) => node([fake, ...args], opts);
   expect((await testConnectivity(run, home('glm-5', ['glm-5']), 10_000)).ok).toBe(true);
   const bad = await testConnectivity(run, home('gpt-5.5', ['glm-5']), 10_000);
   expect(bad).toMatchObject({ ok: false, code: 'model' });

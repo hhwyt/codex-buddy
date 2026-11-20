@@ -20,7 +20,7 @@ test('W-01 没有标题栏，Mac 红绿灯嵌在左栏顶上，Windows 右上角
     return { size: w.getSize(), content: w.getContentSize() };
   });
   expect(frame.content[0]).toBeGreaterThan(800);
-  await expect(run.page.getByTestId(TID.onboarding.root)).toBeVisible();
+  await expect(run.page.getByTestId(TID.models.root)).toBeVisible();
   // no system title bar: the page owns the whole window height
   expect(frame.content[1]).toBe(frame.size[1]);
   if (process.platform === 'win32') {
@@ -54,7 +54,7 @@ test('W-03 断网时正在做的那一步失败，再试一次从失败处接着
   const doneBefore = (await steps(run.page)).filter(s => s.flow === failed.flow && s.state === 'done').map(s => s.id);
   await clearSteps(run.page);
   await run.page.getByTestId(TID.onboarding.retry).click(); // 再试一次
-  await expect(run.page.getByTestId(TID.models.root)).toBeVisible({ timeout: 30_000 });
+  await expect(run.page.getByTestId(TID.onboarding.start)).toBeHidden({ timeout: 30_000 });
   const again = (await steps(run.page)).filter(s => s.state === 'start').map(s => s.id);
   expect(again[0]).toBe(failed.id);
   for (const id of doneBefore) expect(again).not.toContain(id);

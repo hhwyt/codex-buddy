@@ -2,6 +2,7 @@
 // Owner: integration. Electron-free so it runs under vitest against temp dirs and the fake Codex CLI; app.ts passes
 // the real pieces in. Keys never leave this file except masked (keyTail) or inside auth.json / the encrypted state.
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import { backup, restoreBackup } from '../core/backup';
 import { CATALOG_FILE, modelsFor } from '../core/catalogs';
 import { guardedRemove, guardedRemoveOwn } from '../core/guard';
@@ -25,6 +26,7 @@ export const QR_WAIT_MS = 3000;
  *  gets a 'wallet' event when the fetched one changes the cards. Blocked jsDelivr + GitHub took 2 × 8 s, and the model
  *  page sat blank all that time */
 export const REMOTE_GRACE_MS = 500;
+export const VERSION_CHECK_INTERVAL_MS = 60_000;
 
 export interface CustomVendor { id: `custom-${string}`; name: string; baseUrl: string; model: string }
 
@@ -47,12 +49,13 @@ export interface BuddyState {
   lastRemote: RemoteConfig | null;
   /** Highest remote minVersion ever accepted (encrypted): never lowered, kept through 一键还原, enforced offline */
   minVersionFloor: string | null;
+  restartRequired: boolean;
 }
 
 export const emptyState = (): BuddyState => ({
   order: [], active: null, mode: 'switch', keys: {}, openaiAuth: null, models: {}, zh: false, onboarded: false,
   startedAt: null, firstSuccess: false, original: null, dismissed: null, custom: [], rateLimited: [], lastRemote: null,
-  minVersionFloor: null,
+  minVersionFloor: null, restartRequired: false,
 });
 
 export interface ServiceDeps {
@@ -133,8 +136,11 @@ export function createServices(d: ServiceDeps) {
   let remote: RemoteConfig = st.lastRemote ?? d.bundledRemote;
   let remoteLoaded: Promise<RemoteConfig> | null = null;
   let online = false;
+  let versionStatus: 'checking' | 'offline' | 'allowed' = 'checking';
+  let lastVersionCheck = 0;
+  let remoteRefresh: Promise<RemoteConfig> | null = null;
   // Forced upgrade: the floor rises with every signed config we accept and never drops (a later, lower minVersion or
-  // being offline changes nothing). Fail open only while no remote config was ever accepted
+  // being offline cannot lower it). Only a fresh signed response permits use
   const savedFloor = (): string | null => { try { return st.minVersionFloor ? dec(st.minVersionFloor) : null; } catch { return null; } };
   const floor = () => raiseFloor(savedFloor(), st.lastRemote?.minVersion);
   const upgradeRequired = (): UpgradeRequiredView | null => {
@@ -143,10 +149,13 @@ export function createServices(d: ServiceDeps) {
   };
   let lastUpgradeSent = 'null';
   const refreshRemote = (): Promise<RemoteConfig> => {
+    if (remoteRefresh) return remoteRefresh;
     remoteLoaded = loadRemote(d.remoteUrls, d.fetchText, st.lastRemote, d.bundledRemote, d.remotePublicKey).then(r => {
       const cardsBefore = JSON.stringify([remote.models, remote.switches]);
       remote = r.config;
-      online = r.source === 'jsdelivr' || r.source === 'github';
+      online = r.source !== 'cache' && r.source !== 'bundled';
+      versionStatus = online ? 'allowed' : 'offline';
+      lastVersionCheck = d.now();
       if (online) {
         const next = raiseFloor(floor(), r.config.minVersion);
         st.lastRemote = r.config;
@@ -154,12 +163,15 @@ export function createServices(d: ServiceDeps) {
         save();
       }
       const u = upgradeRequired();
+      if (!online || u) { switchAbort?.abort(); d.browser.close(); }
       if (JSON.stringify(u) !== lastUpgradeSent) { lastUpgradeSent = JSON.stringify(u); d.emit('upgradeRequired', u); }
+      d.emit('versionStatus', versionStatus);
       // the page may already show cards from the cached copy (REMOTE_GRACE_MS): redraw them when models or switches moved
       if (JSON.stringify([remote.models, remote.switches]) !== cardsBefore) d.emit('wallet', wallet());
       return remote;
-    });
-    return remoteLoaded;
+    }).finally(() => { remoteRefresh = null; });
+    remoteRefresh = remoteLoaded;
+    return remoteRefresh;
   };
   const getRemote = () => remoteLoaded ?? refreshRemote();
   /** The remote config if it comes within REMOTE_GRACE_MS, else go on with the copy we have (the fetch keeps going) */
@@ -279,6 +291,7 @@ export function createServices(d: ServiceDeps) {
       if (!('key' in k) || typeof k.key !== 'string') return k;
       apiKey = k.key;
     }
+    if (signal?.aborted) return { ok: false, kind: 'cancelled', reason: '取消了，配置没有更改' };
     const models = modelsOf(p);
     const dir = scratch();
     try {
@@ -457,17 +470,55 @@ export function createServices(d: ServiceDeps) {
     return { ok: true };
   };
 
+  const installerPath = (version: string) => path.join(paths.buddyDir, 'downloads', `CodexBuddy-${version}.${d.os === 'mac' ? 'dmg' : 'exe'}`);
+  const prepareInstaller = async (version: string, url: string, emit: (event: StepEvent) => void): Promise<string> => {
+    const expected = d.os === 'mac' ? remote.latest.macSha256 : remote.latest.winSha256;
+    const suffix = d.os === 'mac' ? '.dmg' : '.exe';
+    const release = new URL(url);
+    if (!expected || !/^[a-f0-9]{64}$/.test(expected) || release.protocol !== 'https:' || release.hostname !== 'github.com'
+      || !release.pathname.startsWith(`/hhwyt/codex-buddy-releases/releases/download/v${version}/`) || !release.pathname.endsWith(suffix)) throw new Error('invalid release metadata');
+    const digest = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
+    const file = installerPath(version);
+    const cached = fs.readBytes(file);
+    if (cached && digest(cached) === expected) return file;
+    if (cached) guardedRemove(fs, file, roots());
+    emit({ id: 'download', state: 'start', text: '0%' });
+    try {
+      let previous = -1;
+      const { data } = await d.fetchBytes(url, (received, total) => {
+        const percent = total > 0 ? Math.min(100, Math.floor(received / total * 100)) : 0;
+        if (percent === previous) return;
+        previous = percent;
+        const mb = (n: number) => (n / 1048576).toFixed(1);
+        emit({ id: 'download', state: 'start', text: `${percent}% · ${mb(received)}${total > 0 ? ' / ' + mb(total) : ''} MB` });
+      });
+      if (digest(data) !== expected) throw new Error('installer checksum mismatch');
+      fs.mkdirp(path.dirname(file));
+      fs.writeBytes(file, data);
+      emit({ id: 'download', state: 'done', text: '100%' });
+      return file;
+    } catch (error) {
+      emit({ id: 'download', state: 'fail', text: '更新包下载或校验失败' });
+      throw error;
+    }
+  };
+
   // ---------- handlers ----------
+  let restarting: Promise<Outcome> | null = null;
   const handlers: Handlers = {
     'app:state': async () => {
       await remoteSoon();
       const codex = await platform.findCodex();
+      const codexRunning = await platform.isCodexRunning();
+      if (st.restartRequired && !codexRunning) { st.restartRequired = false; save(); d.emit('restartRequired', false); }
       return {
         version: d.version, os: d.os, configured: st.onboarded, codexInstalled: !!codex,
-        codexRunning: await platform.isCodexRunning(),
+        codexRunning,
+        restartRequired: st.restartRequired,
         zh: { on: st.zh, launcherExists: await d.zh.exists(), supported: await d.zh.supported().catch(() => false), hidden: remote.switches.hideZh },
         community: { qrUrl: await communityQr() },
         upgradeRequired: upgradeRequired(),
+        versionStatus,
       };
     },
 
@@ -513,6 +564,21 @@ export function createServices(d: ServiceDeps) {
       return r;
     },
     'codex:open': async () => { await platform.openCodex({ zh: st.zh }); return { ok: true }; },
+    'codex:restart': () => {
+      if (restarting) return restarting;
+      restarting = (async () => {
+        try {
+          await platform.restartCodex({ zh: st.zh });
+          st.restartRequired = false;
+          save();
+          d.emit('restartRequired', false);
+          return { ok: true };
+        } catch {
+          return { ok: false, reason: '没能重启 ChatGPT。配置已保存，重启后生效。' };
+        }
+      })().finally(() => { restarting = null; });
+      return restarting;
+    },
     // M-15: steps already in place are ticked without redoing them; then the vendor in use is written again
     'codex:repair': async () => {
       if (!st.active) return { ok: false, reason: '还没有选模型' };
@@ -594,67 +660,86 @@ export function createServices(d: ServiceDeps) {
     },
     'update:dismiss': ({ version }) => { st.dismissed = { version, at: d.now() }; save(); },
     'update:install': async () => {
-      const latest = remote.latest;
-      if (d.os === 'mac') {
-        // Unsigned Mac build (m1-decisions): open the download page instead of updating in place (U-03)
-        await d.browser.open(latest.macUrl, { mode: 'expanded' });
-        return { ok: true, downloadPage: true };
-      }
-      const file = path.join(paths.buddyDir, 'downloads', `CodexBuddy-Setup-${latest.version}.exe`);
-      if (fs.exists(file)) { await d.runInstaller(file); return { ok: true }; }
-      const emit = step('update');
-      emit({ id: 'download', state: 'start', text: '0%' });
+      await refreshRemote();
+      if (!online) return { ok: false, reason: '连不上网，稍后再试' };
       try {
-        const { data } = await d.fetchBytes(latest.winUrl);
-        fs.writeBytes(file, data);
-      } catch {
-        emit({ id: 'download', state: 'fail', text: '下载没成功' });
-        return { ok: false, reason: '下载没成功，检查一下网络再试' };
-      }
-      emit({ id: 'download', state: 'done', text: '100%' });
-      return { ok: true };
+        const file = installerPath(remote.latest.version);
+        const hadInstaller = fs.exists(file);
+        await prepareInstaller(remote.latest.version, d.os === 'mac' ? remote.latest.macUrl : remote.latest.winUrl, step('update'));
+        if (hadInstaller) await d.runInstaller(file);
+        return { ok: true };
+      } catch { return { ok: false, reason: '更新包下载或校验失败，请重试' }; }
     },
 
     'upgrade:run': async () => {
-      await getRemote();
+      await refreshRemote();
+      if (!online) return { ok: false, reason: '连不上网，请检查网络后重试' };
       const u = upgradeRequired();
-      if (!u) return { ok: false, reason: '已经是能用的版本了' };
-      const file = path.join(paths.buddyDir, 'downloads', `CodexBuddy-${u.version}.${d.os === 'mac' ? 'dmg' : 'exe'}`);
-      if (!fs.exists(file)) {
-        const emit = step('upgrade');
-        const mb = (n: number) => (n / 1048576).toFixed(1);
-        let shown = '';
-        emit({ id: 'download', state: 'start', text: '0%' });
-        try {
-          const { data } = await d.fetchBytes(u.url, (got, total) => {
-            const text = total > 0 ? `${Math.min(100, Math.floor((got * 100) / total))}% · ${mb(got)} / ${mb(total)} MB` : `${mb(got)} MB`;
-            if (text.split(' · ')[0] !== shown.split(' · ')[0]) emit({ id: 'download', state: 'start', text }); // one event per percent
-            shown = text;
-          });
-          fs.writeBytes(file, data);
-        } catch {
-          emit({ id: 'download', state: 'fail', text: '下载没成功' });
-          return { ok: false, reason: '下载没成功，检查一下网络再试' };
-        }
-        emit({ id: 'download', state: 'done', text: '100%' });
-      }
-      await d.runInstaller(file);
-      return { ok: true };
+      if (!u) return { ok: false, reason: '当前版本无需升级' };
+      if (remote.latest.version !== u.version) return { ok: false, reason: '更新包版本不符合要求，请稍后重试' };
+      try {
+        const file = await prepareInstaller(u.version, u.url, step('upgrade'));
+        await d.runInstaller(file);
+        return { ok: true };
+      } catch { return { ok: false, reason: '更新包下载、校验或安装失败，请重试' }; }
     },
 
     'restore:plan': async () => ({ lines: describeRestore((await restoreSteps()).map(s => (s.kind === 'remove-clone' ? { ...s, vendor: cloneName(s.vendor) } : s))) }),
-    'restore:run': () => runRestore(),
+    'restore:run': async () => {
+      const result = await runRestore();
+      if (result.ok) d.emit('restartRequired', false);
+      return result;
+    },
 
     'shell:open-external': async ({ url }) => { if (/^https:\/\//.test(url)) await d.openExternal(url); },
   };
 
-  /** Startup: the update prompt (U-01), bridge URLs, model polling */
+  // Compare only configuration the main desktop app reads; never prompt for wallet order or a clone's own files.
+  const configuration = () => JSON.stringify([st.zh, ...['config.toml', 'auth.json', CATALOG_FILE].map(file => fs.readText(path.join(paths.codexHome, file)))]);
+  const configChannels = ['switch:start', 'key:replace', 'key:paste', 'custom:add', 'codex:repair', 'zh:set', 'zh:remove'] as const;
+  const tracked = handlers as Record<typeof configChannels[number], (args: never) => Outcome | Promise<Outcome>>;
+  for (const channel of configChannels) {
+    const handler = tracked[channel];
+    tracked[channel] = async (args: never) => {
+      const before = configuration();
+      const result = await handler(args);
+      if (!result.ok || before === configuration()) return result;
+      const restartRequired = await platform.isCodexRunning();
+      st.restartRequired = restartRequired;
+      save();
+      d.emit('restartRequired', restartRequired);
+      return { ...result, restartRequired };
+    };
+  }
+
+  const versionAllowed = async () => {
+    if (!remoteLoaded || versionStatus === 'checking') await getRemote();
+    else if (d.now() - lastVersionCheck >= VERSION_CHECK_INTERVAL_MS) await refreshRemote();
+    return versionStatus === 'allowed' && !upgradeRequired();
+  };
+
+  // The renderer cannot bypass the version gate by invoking a mutation directly.
+  const functionalChannels = ['install:run', 'wallet:reorder', 'wallet:mode', 'switch:start', 'key:replace', 'key:paste',
+    'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall', 'clone:make', 'clone:open', 'clone:remove',
+    'zh:set', 'zh:remove', 'browser:show', 'browser:back', 'browser:reload', 'security:reveal', 'security:manage', 'restore:run'] as const;
+  const gated = handlers as Record<typeof functionalChannels[number], (args: never) => unknown>;
+  for (const channel of functionalChannels) {
+    const handler = gated[channel];
+    if (!handler) continue;
+    gated[channel] = async (args: never) => {
+      if (!(await versionAllowed())) return { ok: false, kind: 'version-required', reason: versionStatus === 'offline' ? '连上网后才能使用' : '升级后继续使用' };
+      return handler(args);
+    };
+  }
+
+  /** Startup: validate before enabling configuration writes. */
   const startup = async () => {
-    await refreshBridgeUrls();
     const r = await getRemote();
+    if (versionStatus !== 'allowed' || upgradeRequired()) return;
+    await refreshBridgeUrls();
     const u = checkUpdate(d.version, r);
     if (u.kind === 'new' && shouldPrompt(u.version, st.dismissed, d.now())) d.emit('update', { version: u.version, notes: u.notes });
   };
 
-  return { handlers, startup, pollModel, wallet, state: () => st, refreshBridgeUrls };
+  return { handlers, startup, pollModel, wallet, state: () => st, refreshBridgeUrls, checkVersion: refreshRemote, versionAllowed };
 }

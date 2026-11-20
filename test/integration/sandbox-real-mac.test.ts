@@ -2,7 +2,7 @@
 // ChatGPT.app inside the sandbox, with the sandbox's CODEX_HOME and data dir. Real cp -c / plutil / codesign run on a
 // fake ChatGPT.app outside the sandbox; `open` and lsregister are recorded instead of run (nothing is launched).
 // The safety property tested hardest: "Codex is running" only ever sees processes of the sandbox copy, never the
-// user's /Applications/ChatGPT.app, and nothing on Mac ever quits or kills a process.
+// user's /Applications/ChatGPT.app; confirmed restarts only address the sandbox copy.
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
@@ -116,11 +116,11 @@ describe('真实 Codex 实测模式（Mac）：运行检测只认沙盒副本', 
     expect(macRunningPattern('/a (b)/C+.app')).toBe('/a \\(b\\)/C\\+\\.app/Contents/MacOS/');
   });
 
-  test('M-21 平台的 Mac 代码里没有任何关 / 杀进程的命令（不替用户关 Codex）', () => {
+  test('M-21 Mac 不使用进程名批量杀进程，退出只允许指定应用路径', () => {
     const dir = path.join(__dirname, '..', '..', 'electron', 'platform');
     for (const file of ['mac.ts', 'sandbox-real-mac.ts', 'clone-mac.ts', 'zh-mac.ts']) {
       const text = fs.readFileSync(path.join(dir, file), 'utf8');
-      expect(text, file).not.toMatch(/pkill|killall|process\.kill|\.kill\(|kill -|'kill'|"kill"|quit app|to quit/i);
+      expect(text, file).not.toMatch(/pkill|killall|process\.kill|\.kill\(|kill -|'kill'|"kill"|quit app/i);
     }
   });
 });

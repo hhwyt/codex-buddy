@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodexBuddy 模型页 10 种风格</title>
+<style>
+  body { margin:0; background:#fff; color:#1d1d1f; font:14px/1.5 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; }
+  header { max-width:1320px; margin:0 auto; padding:32px 28px 8px; }
+  header h1 { font-size:26px; margin:0 0 6px; }
+  header p { color:#6e6e73; margin:0; }
+  .toc { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .toc a { font-size:13px; color:#1d1d1f; text-decoration:none; border:1px solid #e5e5ea; border-radius:14px; padding:3px 12px; }
+  .item { max-width:1320px; margin:0 auto; padding:34px 28px; border-bottom:1px solid #f0f0f2; }
+  .item h2 { font-size:20px; margin:0; display:flex; align-items:baseline; gap:12px; }
+  .item h2 .n { color:#8e8e93; font-weight:500; font-size:15px; }
+  .item .meta { display:flex; gap:18px; color:#6e6e73; margin:6px 0 18px; flex-wrap:wrap; }
+  .item .sc { color:#1d1d1f; font-weight:600; }
+  .fit { position:relative; overflow:hidden; }
+</style>
+</head>
+<body>
+<header><h1>模型页：10 种风格</h1><p>每种学一个公认好看的真实 App 的界面语言（字体、形状、布局、配色），内容都一样：正在用 DeepSeek，其他是智谱、OpenAI、＋其他厂商。分数是我拿它和原 App 对照的自评，满分 100。</p><nav class="toc" id="toc"></nav></header>
+<main id="root"></main>
+<script src="app.js"></script>
+<script src="styles.js"></script>
+<script src="gallery.js"></script>
+<script>
+document.getElementById('root').innerHTML = GALLERY.map((g, i) => `<section class="item" id="${g.key}"><h2><span class="n">${i + 1}</span>${g.name}</h2>
+  <div class="meta"><span>学的是：${g.learn}</span><span class="sc">自评 ${g.score} 分</span>${g.gap ? `<span>差在：${g.gap}</span>` : ''}</div>
+  <div class="fit">${g.render()}</div></section>`).join('');
+document.getElementById('toc').innerHTML = GALLERY.map((g, i) => `<a href="#${g.key}">${i + 1} ${g.name}</a>`).join('');
+function fit() {
+  document.querySelectorAll('.fit').forEach((f) => {
+    const w = f.firstElementChild, natural = w.offsetWidth, h = w.offsetHeight;
+    const s = Math.min(1, (f.parentElement.clientWidth - 56) / natural);
+    w.style.transform = `scale(${s})`; f.style.width = natural * s + 'px'; f.style.height = h * s + 'px';
+  });
+}
+window.addEventListener('resize', fit); fit();
+</script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodexBuddy 用户全程</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <h1>CodexBuddy：一个用户从第一次打开到不想用了</h1>
+  <p>按 <a href="prd.md">prd.md 第 2 稿</a>画的。窗口里画的就是用户最终看到的样子（亮色科幻风），说明只写在窗口左边。</p>
+  <p>还没定的按默认画：左栏第 3 项先叫「帮助」（原「社群」）；OpenAI 连不上时卡片变灰。</p>
+  <nav class="toc" id="toc"></nav>
+</header>
+<section class="part" id="styles"><h2>〇、模型页：连接图（学 Little Snitch）+ 11 种主流风格</h2><p class="lead">网上 2026 年常见的风格，同样的内容各画一遍：正在用 DeepSeek，其他是智谱、OpenAI、＋其他厂商。</p><div id="styleRoot"></div></section>
+<main id="root"></main>
+<p class="note">要点：大多数日子里，用户根本不打开 CodexBuddy，直接从 Dock 或桌面打开 Codex 干活。CodexBuddy 只在第一次、遇到问题、想换东西的时候被打开，所以每次打开都直接落在「现在能不能用」这一行上。</p>
+<script src="app.js"></script>
+<script>
+/* ---------- render ---------- */
+let n = 0;
+const html = PARTS.map((p) => `<section class="part" id="${p.id}"><h2>${p.title}</h2><p class="lead">${p.lead}</p>
+  ${p.scenes.map((s) => { n++; return `<div class="scene" id="s${n}"><div class="cap"><h3><span class="n">${n}</span>${s.t}</h3><dl>
+    <dt>用户心里想</dt><dd>${s.think}</dd><dt>用户做什么</dt><dd>${s.doing}</dd><dt>CodexBuddy 做什么</dt><dd>${s.app}</dd></dl>${s.freq ? `<div class="freq">多久一次：${s.freq}</div>` : ''}</div>
+    <div class="shot">${s.w ? `<div class="fit">${s.w()}</div>` : `<div class="outside">${s.outside}</div>`}</div></div>`; }).join('')}
+  </section>`).join('');
+document.getElementById('root').innerHTML = html;
+</script>
+<script src="styles.js"></script>
+<script>
+
+document.getElementById('toc').innerHTML = '<a href="#ls1">〇、连接图</a><a href="#styles">11 种风格</a>' + PARTS.map((p) => `<a href="#${p.id}">${p.title}</a>`).join('');
+function fit() {
+  document.querySelectorAll('.fit').forEach((f) => {
+    const w = f.firstElementChild, natural = w.offsetWidth, h = w.offsetHeight;
+    const avail = f.parentElement.clientWidth, s = Math.min(1, avail / natural);
+    w.style.transform = `scale(${s})`; f.style.width = natural * s + 'px'; f.style.height = h * s + 'px';
+  });
+}
+window.addEventListener('resize', fit); fit();
+setInterval(() => {
+  document.querySelectorAll('.count').forEach((el) => { const to = +el.dataset.to; let v = 0; const t = setInterval(() => { v += 2; el.textContent = Math.min(v, to); if (v >= to) clearInterval(t); }, 30); });
+}, 4000);
+document.querySelectorAll('.count').forEach((el) => el.textContent = el.dataset.to);
+setInterval(() => {
+  document.querySelectorAll('.ring').forEach((r) => { const p = parseFloat(getComputedStyle(r).getPropertyValue('--p')) || 0; const b = r.querySelector('.pct'); if (b) b.textContent = Math.round(p) + '%'; });
+}, 100);
+
+</script>
+</body>
+</html>

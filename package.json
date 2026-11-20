@@ -1,13 +1,13 @@
 {
   "name": "codex-buddy",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "description": "CodexBuddy：一键装好 Codex，免费用 AI",
   "author": "hhwyt",
   "license": "AGPL-3.0-only",
   "private": true,
   "main": "dist/app.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p ui/tsconfig.json",
+    "build": "node -e \"for (const dir of ['dist', 'ui/build']) require('node:fs').rmSync(dir, { recursive: true, force: true })\" && tsc -p tsconfig.json && tsc -p ui/tsconfig.json",
     "start": "npm run build && electron .",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p ui/tsconfig.json --noEmit && tsc -p test/tsconfig.json",
     "lint": "npm run typecheck && node scripts/lint-scan.mjs",
@@ -18,7 +18,8 @@
     "preview": "scripts/preview.sh",
     "dist": "npm run build && electron-builder --win nsis --x64 --publish never",
     "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
-    "dist:drive": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder -c build/drive.config.cjs --publish never"
+    "dist:drive": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder -c build/drive.config.cjs --publish never",
+    "release:publish": "node scripts/publish-release.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
@@ -57,7 +58,9 @@
       "onlyLoadAppFromAsar": true,
       "enableCookieEncryption": true
     },
-    "asarUnpack": ["scripts/vendor/codex.ps1"],
+    "asarUnpack": [
+      "scripts/vendor/codex.ps1"
+    ],
     "compression": "maximum",
     "electronLanguages": [
       "zh-CN",
@@ -75,6 +78,8 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
       "oneClick": true,
       "perMachine": false,
       "runAfterFinish": true,
@@ -82,7 +87,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "CodexBuddy",
       "artifactName": "CodexBuddy-Setup-${version}.exe",
-      "deleteAppDataOnUninstall": true
+      "deleteAppDataOnUninstall": false
     },
     "mac": {
       "target": [
@@ -94,7 +99,8 @@
         }
       ],
       "identity": "-",
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns"
     },
     "dmg": {
       "artifactName": "CodexBuddy-${version}.dmg",

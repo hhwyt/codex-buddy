@@ -224,14 +224,33 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
     return { ok: true };
   };
 
+  const openCodex: Platform['openCodex'] = async ({ zh }) => {
+    const target = zh && nodeFs.exists(paths.zhLauncherPath) ? paths.zhLauncherPath : app;
+    if ((await exec('/usr/bin/open', [target])).code !== 0) throw new Error('没能重新打开 ChatGPT');
+  };
+
+  const restartCodex: Platform['restartCodex'] = async opts => {
+    if (!(await findCodex())) throw new Error('没找到 ChatGPT');
+    if (await isCodexRunning()) {
+      const quit = await exec('/usr/bin/osascript', ['-e', 'on run argv', '-e', 'with timeout of 5 seconds',
+        '-e', 'tell application (item 1 of argv) to quit', '-e', 'end timeout', '-e', 'end run', app]);
+      if (quit.code !== 0) throw new Error('没能退出 ChatGPT，请先保存任务并退出后重试');
+      for (let i = 0; i < 20 && await isCodexRunning(); i++) await new Promise(r => setTimeout(r, 250));
+      if (await isCodexRunning()) throw new Error('ChatGPT 还没有退出，请先保存任务并退出后重试');
+    }
+    await openCodex(opts);
+    for (let i = 0; i < 40; i++) {
+      if (await isCodexRunning()) return;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    throw new Error('没能重新打开 ChatGPT');
+  };
+
   return {
     os: 'mac', paths, fs: nodeFs,
     findCodex, installCodex, uninstallCodex,
     runCodex: (args, opts) => codexRunner(macCli(app))(args, opts),
-    openCodex: async ({ zh }) => {
-      const target = zh && nodeFs.exists(paths.zhLauncherPath) ? paths.zhLauncherPath : app;
-      await exec('/usr/bin/open', [target]);
-    },
+    openCodex, restartCodex,
     isCodexRunning,
     revealInFolder: async target => { await exec('/usr/bin/open', ['-R', target]); },
   };

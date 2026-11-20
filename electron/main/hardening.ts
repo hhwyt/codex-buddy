@@ -11,5 +11,10 @@ export const DEBUG_SWITCHES = ['remote-debugging-port', 'remote-debugging-pipe',
 export const debuggable = (packaged: boolean, packageMeta: { codexbuddyDebuggable?: unknown }): boolean =>
   !packaged || packageMeta.codexbuddyDebuggable === true;
 
+export function removeTestEnvironment(env: NodeJS.ProcessEnv, allowDebug: boolean): void {
+  if (allowDebug) return;
+  for (const key of Object.keys(env)) if (key.startsWith('CODEXBUDDY_')) delete env[key];
+}
+
 /** The debugging switches present on the command line (hasSwitch = app.commandLine.hasSwitch) */
 export const debugSwitchesIn = (hasSwitch: (name: string) => boolean): string[] => DEBUG_SWITCHES.filter(s => hasSwitch(s));

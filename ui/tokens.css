@@ -1,6 +1,7 @@
 /* Design tokens: approved-spec §2「Codex 原样」. The ONLY file allowed to contain color values (UI-00, npm run lint).
    Everything else uses var(--…). No gradients, no glow, no sweep. Owner: Base. */
 :root {
+  --accent-fill: #0a77d1;
   --bg: #fff;
   --side: #f9f9f9;
   --line: #ededed;
@@ -9,6 +10,8 @@
   --ink-3: #8f8f8f;
   --on-ink: #fff;
   --blue: #0285ff;         /* only「正在用 / ✓ 能用」and selected */
+  --accent: #0c8df6;
+  --accent-fill: #0a77d1;
   --blue-bg: #e5f3ff;
   --green: #00a240;        /* only success */
   --red: #e02e2a;          /* only errors */

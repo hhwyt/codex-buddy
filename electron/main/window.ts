@@ -14,6 +14,7 @@ export function windowOptions(os: 'mac' | 'win', devTools = true): Electron.Brow
   return {
     width: WINDOW_SIZE.width, height: WINDOW_SIZE.height, minWidth: 860, minHeight: 560, useContentSize: true,
     title: 'CodexBuddy', backgroundColor: '#ffffff', autoHideMenuBar: true, show: false,
+    icon: path.join(__dirname, '..', '..', 'ui', 'assets', 'icon.png'),
     ...(os === 'mac'
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 16, y: 18 } }
       : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: SIDE, symbolColor: INK, height: 40 } }),

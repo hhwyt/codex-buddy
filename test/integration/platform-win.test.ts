@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { sandboxPaths } from '../../electron/platform/sandbox';
 import {
-  createNodeWinShell, createWinPlatform, FIND_CODEX_PS, parseStepLine, UNINSTALL_CODEX_PS, winCli, winPaths, type WinShell,
+  createNodeWinShell, createWinPlatform, FIND_CODEX_PS, STOP_CODEX_PS, parseStepLine, UNINSTALL_CODEX_PS, winCli, winPaths, type WinShell,
 } from '../../electron/platform/win';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cb-win-'));
@@ -207,42 +207,42 @@ describe('openCodex / revealInFolder', () => {
 
 describe('runCodex', () => {
   const cliDir = (location: string) => path.dirname(winCli(location));
-  function withCli(script: string) {
+  function withCli() {
     const location = tmp();
     fs.mkdirSync(cliDir(location), { recursive: true });
-    const cli = winCli(location);
-    fs.writeFileSync(cli, `#!/bin/sh\n${script}\n`, { mode: 0o755 });
+    if (process.platform === 'win32') fs.copyFileSync(process.execPath, winCli(location));
+    else fs.symlinkSync(process.execPath, winCli(location));
     return location;
   }
 
   test('M-07 用 Codex 自带的 codex.exe、带 CODEX_HOME 跑', async () => {
-    const location = withCli('echo "home=$CODEX_HOME args=$*"');
+    const location = withCli();
     const { platform } = setup(() => ({ out: codexJson({ location }) }));
     const home = tmp();
-    const r = await platform.runCodex(['exec', 'hi'], { codexHome: home, timeoutMs: 10_000 });
+    const r = await platform.runCodex(['-e', 'console.log(`home=${process.env.CODEX_HOME} args=${process.argv.slice(1).join(" ")}`)', '--', 'exec', 'hi'], { codexHome: home, timeoutMs: 10_000 });
     expect(r.out.trim()).toBe(`home=${home} args=exec hi`);
     expect(r.timedOut).toBe(false);
   });
 
   test('M-07 超时就用 taskkill /T 结束整棵进程树', async () => {
-    const location = withCli('sleep 5');
+    const location = withCli();
     const { platform, killed } = setup(() => ({ out: codexJson({ location }) }));
-    const r = await platform.runCodex(['exec'], { codexHome: tmp(), timeoutMs: 200 });
+    const r = await platform.runCodex(['-e', 'setTimeout(() => {}, 5000)'], { codexHome: tmp(), timeoutMs: 200 });
     expect(r.timedOut).toBe(true);
     expect(killed).toHaveLength(1);
   });
 
   test('M-09 取消切换（signal 中止）就用 taskkill /T 结束整棵进程树；已经中止的不再等', async () => {
-    const location = withCli('sleep 5');
+    const location = withCli();
     const { platform, killed } = setup(() => ({ out: codexJson({ location }) }));
     const abort = new AbortController();
-    const run = platform.runCodex(['login'], { codexHome: tmp(), timeoutMs: 60_000, signal: abort.signal });
+    const run = platform.runCodex(['-e', 'setTimeout(() => {}, 5000)'], { codexHome: tmp(), timeoutMs: 60_000, signal: abort.signal });
     setTimeout(() => abort.abort(), 100);
     const r = await run;
     expect(r.timedOut).toBe(false);
     expect(killed).toHaveLength(1);
     const started = Date.now();
-    await platform.runCodex(['login'], { codexHome: tmp(), timeoutMs: 60_000, signal: abort.signal });
+    await platform.runCodex(['-e', 'setTimeout(() => {}, 5000)'], { codexHome: tmp(), timeoutMs: 60_000, signal: abort.signal });
     expect(Date.now() - started).toBeLessThan(3000);
     expect(killed).toHaveLength(2);
   });
@@ -253,7 +253,7 @@ describe('runCodex', () => {
   });
 });
 
-describe('real shell (stand-in executables)', () => {
+describe.skipIf(process.platform === 'win32')('real shell (POSIX stand-in executables)', () => {
   function exe(dir: string, name: string, body: string) {
     const f = path.join(dir, name);
     fs.writeFileSync(f, `#!/bin/sh\n${body}\n`, { mode: 0o755 });
@@ -318,4 +318,56 @@ describe('winPaths', () => {
     expect(p.os).toBe('win');
     expect(typeof p.fs.exists).toBe('function');
   });
+});
+
+
+describe.runIf(process.platform === 'win32')('real Windows shell', () => {
+  test('PowerShell 逐行输出、环境变量和退出码', async () => {
+    const lines: string[] = [];
+    const result = await createNodeWinShell().powershell('Write-Output $env:CB_X; Write-Output "第二行"; exit 3', {
+      env: { CB_X: 'y' }, onLine: line => lines.push(line),
+    });
+    expect(result).toEqual({ code: 3, out: 'y\n第二行\n' });
+    expect(lines).toEqual(['y', '第二行']);
+  });
+
+  test('分离启动与 taskkill 结束真实子进程', async () => {
+    const { spawn } = await import('node:child_process');
+    const shell = createNodeWinShell();
+    const file = path.join(tmp(), 'launched');
+    shell.launch(process.execPath, ['-e', `require('fs').writeFileSync(${JSON.stringify(file)}, 'launched')`]);
+    await expect.poll(() => fs.existsSync(file)).toBe(true);
+    expect(fs.readFileSync(file, 'utf8')).toBe('launched');
+    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)']);
+    const exited = new Promise(resolve => child.once('exit', resolve));
+    try {
+      await new Promise<void>((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
+      await shell.killTree(child.pid!);
+      await exited;
+      expect(child.exitCode !== null || child.signalCode !== null).toBe(true);
+    } finally { child.kill(); }
+  });
+});
+
+
+test('M-21 Windows 重启只结束商店安装目录下的主窗口，排除分身、CLI 和系统服务', async () => {
+  const b = setup(command => command === STOP_CODEX_PS ? { out: 'OK' } : { out: codexJson({ running: [42] }) });
+  try {
+    await b.platform.restartCodex({ zh: false });
+    expect(b.calls[0].command).toBe(STOP_CODEX_PS);
+    expect(STOP_CODEX_PS).toContain("$_.Name -ieq 'ChatGPT.exe'");
+    expect(STOP_CODEX_PS).toContain('StartsWith($appDir');
+    expect(STOP_CODEX_PS).toContain('--(user-data-dir|type)');
+    expect(STOP_CODEX_PS).toContain('CloseMainWindow');
+    expect(b.killed).toEqual([]);
+    expect(b.launched).toEqual([['explorer.exe', ['shell:AppsFolder\\OpenAI.Codex_abc!App']]]);
+  } finally { fs.rmSync(b.root, { recursive: true, force: true }); }
+});
+
+test('M-21 Windows 退出失败不打开第二个窗口', async () => {
+  const b = setup(() => ({ code: 1, out: 'failed' }));
+  try {
+    await expect(b.platform.restartCodex({ zh: false })).rejects.toThrow('没能退出 ChatGPT');
+    expect(b.launched).toEqual([]);
+  } finally { fs.rmSync(b.root, { recursive: true, force: true }); }
 });

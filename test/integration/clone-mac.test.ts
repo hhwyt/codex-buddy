@@ -303,7 +303,7 @@ describe('分身 Mac（假命令）', () => {
   });
 
   test('runCommand 返回输出，失败时带上错误信息', async () => {
-    expect(await runCommand('echo', ['hi'])).toBe('hi\n');
-    await expect(runCommand('ls', [path.join(root, 'missing')])).rejects.toThrow(/ls failed/);
+    expect(await runCommand(process.execPath, ['-e', 'console.log("hi")'])).toBe('hi\n');
+    await expect(runCommand(process.execPath, ['-e', 'process.exit(3)'])).rejects.toThrow(/failed/);
   });
 });

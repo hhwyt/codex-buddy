@@ -22,7 +22,7 @@ import { sandboxPaths } from '../../electron/platform/sandbox';
 import type { Clone, ZhLauncher } from '../../electron/platform/types';
 
 let root: string;
-beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'cb-wire-')); });
+beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'cb-wire-')); ipc.handlers.clear(); ipc.removed.length = 0; });
 afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
 
 describe('cipher', () => {
@@ -63,6 +63,15 @@ describe('cipher', () => {
 });
 
 describe('ipc', () => {
+  test('N-03 联网失败时拒绝后台功能，不调用真正的处理函数', async () => {
+    const install = vi.fn(() => ({ ok: true }));
+    registerIpc({ 'install:run': install }, async () => false);
+    expect(await ipc.handlers.get('buddy:install:run')!({}, undefined)).toEqual({ ok: false, kind: 'network', reason: '网络问题' });
+    expect(install).not.toHaveBeenCalled();
+    registerIpc({ 'install:run': install }, async () => true);
+    expect(await ipc.handlers.get('buddy:install:run')!({}, undefined)).toEqual({ ok: true });
+    expect(install).toHaveBeenCalledTimes(1);
+  });
   test('W-02 每个通道都注册；没做的通道回「还没做好」；出错时原因里没有 Key', async () => {
     registerIpc({
       'wallet:mode': () => { throw new Error('bad key sk-abcdefghijklmnopqrstu'); },
