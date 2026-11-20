@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>装好后验证 · 5 版原型</title>
+<style>
+:root{--accent:#0c8df6;--fill:#0a77d1;--ink:#0d0d0d;--ink-2:#5d5d5d;--ink-3:#8f8f8f;--line:#ededed;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:#fff}
+body{margin:0;padding:40px 24px}main{max-width:760px;margin:auto}h1{font-size:24px;margin:0 0 10px;letter-spacing:-.5px}
+p{color:var(--ink-2);font-size:14px;line-height:1.8;margin:0 0 8px}ul{list-style:none;padding:0;margin:24px 0;display:flex;flex-direction:column;gap:10px}
+a{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:14px;padding:16px 18px;color:var(--ink);text-decoration:none}a:hover{border-color:var(--accent)}
+a span{color:var(--ink-2);font-size:14px;line-height:1.7}.rule{font-size:13px;color:var(--ink-3)}
+</style>
+<main><h1>装好后验证 · 5 版原型</h1>
+<p>装好 Codex 后，让 Codex 用选好的模型真的回答一句「CodexBuddy 的 GitHub 地址是什么？」，答对了算验证通过，再请用户去项目页自己点 Star。</p>
+<p class="rule">每版都能点：验证中、模型的回答、失败（原因 + 重试）、去点赞、跳过。上方可以切模型和模拟结果。点赞是请求不是门槛：「跳过」和「去点赞」一样显眼，跳过也算装好；CodexBuddy 只打开页面，不替用户点。仓库开源前这个功能先关着。界面和现在的 App 一样只有白天主题。</p>
+<ul><li><a href="v1.html"><b>第 1 版 · 安装抽屉里多一步验证</b><span>装 Codex 的右侧抽屉里，最后多一行「用 DeepSeek 回答一句」。打勾后，在同一个抽屉里问要不要去点赞，「跳过」和「去点赞」一样大。</span></a></li><li><a href="v2.html"><b>第 2 版 · 验证弹窗</b><span>装好后在模型页上弹一个框：「正在用 DeepSeek 验证」，能看到问了什么、它答了什么。答对了，框里再问要不要去点赞。</span></a></li><li><a href="v3.html"><b>第 3 版 · 在 ChatGPT 里问一句</b><span>打开 ChatGPT（Codex），自动发出一句「CodexBuddy 的 GitHub 地址是什么？」，用户亲眼看到模型回答。CodexBuddy 在旁边打勾，再问要不要去点赞。</span></a></li><li><a href="v4.html"><b>第 4 版 · 卡片上验证 + 底部小链接</b><span>不弹框。模型卡片右上角自己转圈、打勾，卡片下面一行小字写它答了什么；页面底部只放一个「去 GitHub 点个 Star」的小链接，旁边一个同样大小的「不再显示」。</span></a></li><li><a href="v5.html"><b>第 5 版 · 打勾那一刻顺带邀请</b><span>整屏只做一件事：正在验证 → 大的对勾画出来，写「DeepSeek 能用了」，下面淡入一行邀请和两个一样大的按钮。动效只在打勾这一下。</span></a></li></ul></main></html>

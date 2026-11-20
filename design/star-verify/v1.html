@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>装好后验证 · 第 1 版</title>
+<style>
+:root{--accent:#0c8df6;--fill:#0a77d1;--ink:#0d0d0d;--ink-2:#5d5d5d;--ink-3:#8f8f8f;--line:#ededed;--side:#f9f9f9;--blue:#0285ff;--blue-bg:#e5f3ff;--green:#00a240;--red:#e02e2a;--scrim:rgba(0,0,0,.32);--shadow:rgba(0,0,0,.12);--face-zhipu:#1c1c1e;--face-deepseek:#4d6bfe;--face-openai:#ececec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;letter-spacing:-.01em;color:var(--ink);background:#fff}
+*{box-sizing:border-box}body{margin:0;padding:28px 36px 40px;-webkit-font-smoothing:antialiased}
+button,select{font:inherit;letter-spacing:inherit}button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:10px 18px;font-size:14px;font-weight:550}button:hover{background:#f5f6f7}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.primary{background:var(--fill);border-color:var(--fill);color:#fff}.primary:hover{background:#0867b7}
+.pre{max-width:1140px;margin:0 auto}
+.pre h1{font-size:22px;margin:0 0 6px;letter-spacing:-.4px}.pre p{margin:0;color:var(--ink-2);font-size:13px;line-height:1.8}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 14px}.tabs a{border:1px solid var(--line);border-radius:99px;padding:7px 14px;font-size:13px;color:var(--ink);text-decoration:none}.tabs a[aria-current=page]{border-color:var(--accent);color:var(--fill)}
+.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:14px;font-size:13px;color:var(--ink-2)}.controls select{padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:#fff}.controls button{padding:6px 12px;font-size:13px}
+.off{font-size:12px;color:var(--ink-3)}
+.frame{max-width:1140px;height:660px;margin:0 auto;border:1px solid #dfe2e7;border-radius:14px;box-shadow:0 16px 55px #1823320d;position:relative;overflow:hidden;display:flex;background:#fff}
+.side{width:200px;flex:none;background:var(--side);border-right:1px solid var(--line);padding:46px 10px 12px}
+.brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;padding:8px 10px 18px}.brand svg{width:26px;height:26px}
+.nav{padding:8px 10px;border-radius:8px;font-size:14px}.nav.on{background:rgba(0,0,0,.06)}
+.winbtn{position:absolute;right:16px;top:12px;display:flex;gap:22px;color:#7b8088;font-size:15px;z-index:1}
+.main{flex:1;min-width:0;position:relative;padding:56px 32px 32px;display:flex;flex-direction:column;align-items:center;gap:16px;overflow:auto}
+.mcard{width:380px;height:240px;flex:none;border-radius:18px;padding:18px 20px;color:#fff;display:flex;flex-direction:column;box-shadow:0 -8px 24px var(--shadow),0 22px 50px var(--shadow)}
+.mcard.light{color:#5d5d5d}.mcard .top{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600}
+.logo{width:34px;height:34px;border-radius:9px;background:#fff;display:grid;place-items:center;color:var(--ink);font-size:15px;font-weight:700;flex:none}
+.mcard .st{margin-left:auto;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px}
+.mcard .num{margin-top:auto;font:500 18px/1 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.14em}
+.mcard .bot{display:flex;justify-content:space-between;margin-top:14px;font-size:13px;opacity:.85}
+.under{width:380px;height:40px;border-radius:0 0 18px 18px;margin-top:-10px;opacity:.5}
+.scrim{position:absolute;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:5;animation:fade .15s}
+.dialog{background:#fff;border-radius:18px;padding:28px;width:440px;max-width:calc(100% - 32px);box-shadow:0 12px 40px var(--shadow);animation:up .18s ease-out}
+.dialog h2{margin:0 0 10px;font-size:21px;letter-spacing:-.4px}.dialog p{margin:0;color:var(--ink-2);font-size:14px;line-height:1.75}
+.row{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}.row.even{display:grid;grid-template-columns:1fr 1fr}
+.spin{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+.spin.big{width:34px;height:34px;border-width:3px;border-top-color:var(--accent)}
+.ok{color:var(--green)}.err{color:var(--red)}
+.qa{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.7;background:var(--side);text-align:left}
+.qa .q{color:var(--ink-2)}.qa .a{margin-top:6px}.qa .a b{font-weight:600}.qa mark{background:var(--blue-bg);color:var(--ink);border-radius:4px;padding:0 3px}
+.caret::after{content:"▍";animation:blink 1s steps(1) infinite;color:var(--ink-3)}
+.bulb{margin-top:14px;color:var(--ink-3);font-size:12px}
+.browser{position:absolute;right:18px;top:18px;bottom:18px;width:470px;background:#fff;border:1px solid #d9dce1;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.22);z-index:9;display:flex;flex-direction:column;animation:slide .25s ease-out;overflow:hidden}
+.browser .bar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--side);font-size:12px}
+.browser .url{flex:1;background:#fff;border:1px solid var(--line);border-radius:99px;padding:5px 12px;color:var(--ink-2)}
+.browser .x{border:0;background:none;padding:2px 6px;font-size:16px;color:var(--ink-2)}
+.browser .pg{padding:22px;font-size:13px;color:var(--ink-2);line-height:1.7}
+.browser .repo{display:flex;align-items:center;gap:10px;font-size:17px;color:var(--ink)}
+.browser .repo b{font-weight:600}
+.browser .acts{display:flex;gap:8px;margin:16px 0 18px}
+.browser .acts button{padding:5px 12px;font-size:12px;border-radius:6px;border-color:#d0d7de;background:#f6f8fa}
+.browser .acts .star.on{color:#9a6700}
+.browser .readme{border:1px solid var(--line);border-radius:8px;padding:14px}
+.browser .tip{margin-top:auto;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);background:var(--side)}
+.caption{max-width:1140px;margin:14px auto 0;font-size:13px;color:var(--ink-2);min-height:22px}
+[hidden]{display:none!important}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes blink{50%{opacity:0}}@keyframes fade{from{opacity:0}}@keyframes up{from{opacity:0;transform:translateY(8px)}}@keyframes slide{from{opacity:0;transform:translateX(30px)}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important}.spin{animation-duration:2s!important}}
+
+.drawer-scrim{position:absolute;inset:0;background:var(--scrim);display:flex;justify-content:flex-end;z-index:4}
+.drawer{background:#fff;width:340px;height:100%;padding:22px 20px;display:flex;flex-direction:column;gap:18px;box-shadow:-8px 0 30px var(--shadow);animation:slide .3s;overflow:auto}
+.drawer h2{margin:0;font-size:20px;font-weight:600}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.steps li{display:flex;gap:10px;align-items:center;color:var(--ink)}
+.steps .mk{width:18px;height:18px;display:grid;place-items:center;flex:none;font-size:13px}
+.steps li.wait{color:var(--ink-3)}.steps li.fail{color:var(--red)}
+.ask{border-top:1px solid var(--line);padding-top:18px;display:flex;flex-direction:column;gap:12px;animation:up .25s}
+.ask p{margin:0;font-size:14px;line-height:1.7}
+.ask .row{margin-top:4px}
+.faded{opacity:.35;pointer-events:none}
+
+</style>
+<div class="pre">
+<h1>装好后验证 · 第 1 版：安装抽屉里多一步验证</h1>
+<p>装 Codex 的右侧抽屉里，最后多一行「用 DeepSeek 回答一句」。打勾后，在同一个抽屉里问要不要去点赞，「跳过」和「去点赞」一样大。</p>
+<nav class="tabs" aria-label="版本"><a href="index.html">目录</a><a href="v1.html">1 · 安装抽屉里验证</a><a href="v2.html">2 · 验证弹窗</a><a href="v3.html">3 · 在 ChatGPT 里问一句</a><a href="v4.html">4 · 卡片上验证 + 小链接</a><a href="v5.html">5 · 打勾后邀请</a></nav>
+<div class="controls">
+<label>选好的模型 <select id="model"><option value="deepseek">DeepSeek</option><option value="zhipu">智谱 GLM（免费）</option><option value="openai">OpenAI 官方账号</option></select></label>
+<label>模拟结果 <select id="scenario"><option value="ok">一次就成功</option><option value="key">第一次失败：Key 不对，重试成功</option><option value="net">第一次失败：连不上，重试成功</option><option value="wrong">第一次答非所问，重试成功</option></select></label>
+<button id="replay">重新体验</button>
+<span class="off">假数据演示。仓库开源前这个功能先关着。</span>
+</div>
+</div>
+<section class="frame" aria-label="CodexBuddy 原型">
+<aside class="side"><div class="brand"><svg viewBox="0 0 1024 1024" aria-hidden="true"><rect x="64" y="64" width="896" height="896" rx="192" fill="#fff"/><g transform="translate(512 512) scale(.77) translate(-627 -630)" fill="#005bee"><path d="M 1011.3 450.8 A 424 424 0 1 0 1011.3 809.2 L 875 722 C 842 837 743 920 627 920 C 476 920 354 798 354 647 C 354 612 365 576 385 548 L 412 404 Q 415 384 433 397 L 544 468 L 702 468 L 813 397 Q 831 384 834 404 L 860 548 Z"/><circle cx="520" cy="640" r="38"/><circle cx="728" cy="640" r="38"/></g></svg>CodexBuddy</div>
+<div class="nav on">模型</div><div class="nav">设置</div><div class="nav">社群</div></aside>
+<div class="winbtn" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>
+<main class="main" id="main"></main>
+</section>
+<p class="caption" id="caption" role="status"></p>
+<script>
+const $=id=>document.getElementById(id);
+const MODELS={deepseek:{name:'DeepSeek',full:'DeepSeek V3',face:'var(--face-deepseek)',letter:'D',key:'sk-•••• •••• 8f2a',bot:'余额 · 去充值 ›'},zhipu:{name:'智谱 GLM',full:'GLM-4.5 免费版',face:'var(--face-zhipu)',letter:'智',key:'•••• •••• 3c1d',bot:'免费'},openai:{name:'OpenAI',full:'GPT-5',face:'var(--face-openai)',letter:'O',light:true,key:'已登录 ChatGPT 账号',bot:''}};
+const REPO='https://github.com/hhwyt/codex-buddy';
+const QUESTION='CodexBuddy 的 GitHub 地址是什么？只回答网址。';
+const FAILS={key:'没验证成功：{m} 说 Key 不对。',net:'没验证成功：连不上 {m}，可能是网络问题。',wrong:'没验证成功：{m} 回答了，但没答出地址。'};
+let attempt=0,timers=[];
+const M=()=>MODELS[$('model').value];
+const later=(fn,ms)=>{timers.push(setTimeout(fn,ms))};
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function caption(t){$('caption').textContent=t}
+/* Ask the chosen model one question. Fake: the first try fails per「模拟结果」, a retry succeeds. */
+function ask(){const sc=$('scenario').value,first=attempt++===0,m=M().name;return new Promise(res=>later(()=>{
+ if(first&&sc==='key')res({ok:false,reason:FAILS.key.replace('{m}',m),answer:''});
+ else if(first&&sc==='net')res({ok:false,reason:FAILS.net.replace('{m}',m),answer:''});
+ else if(first&&sc==='wrong')res({ok:false,reason:FAILS.wrong.replace('{m}',m),answer:'抱歉，我不确定这个项目的地址。'});
+ else res({ok:true,answer:REPO,secs:(1.2+Math.random()*1.4).toFixed(1)});
+},sc==='net'&&first?2200:1500))}
+function card(st){const m=M();return `<div class="mcard${m.light?' light':''}" style="background:${m.face}"><div class="top"><span class="logo">${m.letter}</span><span>${m.name}</span><span class="st" id="cardst">${st||''}</span></div><div class="num">${m.key}</div><div class="bot"><span>${m.full}</span><span>${m.bot}</span></div></div>`}
+function pile(){return `<div class="under" style="background:var(--face-zhipu)"></div>`}
+/* Fake browser: the user stars it themself */
+function openGithub(onClose){const f=document.querySelector('.frame');f.querySelector('.browser')?.remove();f.insertAdjacentHTML('beforeend',`<div class="browser" role="dialog" aria-label="浏览器"><div class="bar"><span>←　→</span><span class="url">github.com/hhwyt/codex-buddy</span><button class="x" aria-label="关闭浏览器">×</button></div><div class="pg"><div class="repo"><span class="logo" style="border:1px solid var(--line)">C</span><span>hhwyt / <b>codex-buddy</b></span></div><div class="acts"><button>Watch</button><button>Fork</button><button class="star">☆ Star <span class="cnt">128</span></button></div><div class="readme"><b style="color:var(--ink)">CodexBuddy</b><br>Windows 上一键装好 Codex，免费用智谱模型，可以换模型、换中文、一键还原。</div></div><div class="tip">这是模拟的浏览器。点 Star 要用你自己的 GitHub 账号，CodexBuddy 不会替你点。</div></div>`);
+ const b=f.querySelector('.browser'),s=b.querySelector('.star');s.onclick=()=>{const on=s.classList.toggle('on');s.innerHTML=(on?'★ Starred':'☆ Star')+` <span class="cnt">${on?129:128}</span>`;caption(on?'你在 GitHub 上点了 Star（模拟）。关掉浏览器回到 CodexBuddy。':'取消了 Star。')};
+ b.querySelector('.x').onclick=()=>{b.remove();onClose&&onClose()};caption('已在浏览器打开项目页，Star 由你自己点。')}
+function reset(){timers.forEach(clearTimeout);timers=[];attempt=0;document.querySelector('.browser')?.remove();caption('');start()}
+$('replay').onclick=reset;$('model').onchange=reset;$('scenario').onchange=reset;
+document.querySelector('.tabs a[href="v1.html"]').setAttribute('aria-current','page');
+
+function page(st){$('main').innerHTML=card(st)+pile()}
+function start(){page('');$('main').classList.add('faded');document.querySelector('.drawer-scrim')?.remove();
+ document.querySelector('.frame').insertAdjacentHTML('beforeend','<div class="drawer-scrim"><section class="drawer" role="dialog" aria-label="安装 Codex"><h2>安装 Codex</h2><ul class="steps" id="steps"></ul><div id="slot"></div></section></div>');
+ steps('run');verify()}
+function steps(state){const m=M().name;const mk={done:'<span class="mk ok">✓</span>',run:'<span class="mk"><span class="spin"></span></span>',fail:'<span class="mk">✕</span>'}[state];
+ $('steps').innerHTML=`<li><span class="mk ok">✓</span>下载 Codex</li><li><span class="mk ok">✓</span>装好 Codex</li><li><span class="mk ok">✓</span>设置 ${m}</li><li class="${state==='fail'?'fail':''}">${mk}用 ${m} 回答一句</li>`}
+async function verify(){$('slot').innerHTML=`<div class="qa"><div class="q">问：${QUESTION}</div><div class="a caret" id="ans"></div></div>`;caption('CodexBuddy 在后台让 Codex 用选好的模型回答一句。');
+ const r=await ask();if(r.ok){steps('done');
+  $('slot').innerHTML=`<div class="qa"><div class="q">问：${QUESTION}</div><div class="a">答：<mark>${r.answer}</mark></div></div><div class="ask"><p>${M().name} 能用了。CodexBuddy 是开源的，觉得有用的话，可以去 GitHub 点个 Star。</p><div class="row even"><button id="skip">跳过</button><button id="star">去点赞</button></div></div>`;
+  $('skip').onclick=()=>finish('跳过了点赞，也算装好。');$('star').onclick=()=>{finish('');openGithub(()=>caption('回到 CodexBuddy，已装好。'))};caption('答对了：回答里有项目地址。点赞只是请求，跳过也算装好。')}
+ else{steps('fail');$('slot').innerHTML=(r.answer?`<div class="qa"><div class="q">问：${QUESTION}</div><div class="a">答：${esc(r.answer)}</div></div>`:'')+`<div class="ask"><p class="err">${r.reason}</p><div class="row even"><button id="change">换个模型</button><button id="retry">重试</button></div></div>`;
+  $('retry').onclick=()=>{steps('run');verify()};$('change').onclick=()=>{close();page('');caption('回到模型页，可以换一个模型或者换 Key。')};caption('验证没过：先说原因，可以重试。')}}
+function close(){document.querySelector('.drawer-scrim')?.remove();$('main').classList.remove('faded')}
+function finish(t){close();page('✓ 能用');if(t)caption(t)}
+
+reset();
+</script>
+</html>
