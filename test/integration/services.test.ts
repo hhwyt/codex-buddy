@@ -3,7 +3,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { PROVIDERS } from '../../electron/core/providers';
 import { validateRemote } from '../../electron/core/remote';
@@ -124,7 +124,7 @@ beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'cb-svc-'));
   fs.mkdirSync(path.join(root, 'home', '.codex'), { recursive: true });
   events = []; opened = []; external = []; keyOutcome = {}; clock = 1_000_000; zhSupported = true; installed = [];
-  fetchText = async () => { throw new Error('offline'); };
+  fetchText = async () => JSON.stringify(bundled);
   forgedSig = null;
   clearFails = null;
   fetchBytes = async () => { throw new Error('offline'); };
@@ -315,7 +315,7 @@ describe('switching', () => {
     const b = build();
     expect(await b.h['switch:start']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'codex-missing' });
     expect((await b.h['codex:reinstall'](undefined as never)).ok).toBe(true);
-    expect(events.every(e => (e.payload as { flow: string }).flow === 'repair')).toBe(true);
+    expect(events.filter(e => e.event === 'step').every(e => (e.payload as { flow: string }).flow === 'repair')).toBe(true);
   });
 
   test('M-15 一键修复：重新切到正在用的那家；还没选时说明', async () => {
@@ -586,6 +586,7 @@ describe('security, community, update, restore', () => {
   });
 
   test('T-02 检查更新：有新版 / 已是最新 / 没网；U-01 启动时提示，稍后当天不再提示', async () => {
+    fetchText = async () => { throw new Error('offline'); };
     expect(await build().h['update:check'](undefined as never)).toEqual({ kind: 'offline' });
     fetchText = async () => JSON.stringify(bundled);
     expect(await build().h['update:check'](undefined as never)).toEqual({ kind: 'latest' });
@@ -606,9 +607,13 @@ describe('security, community, update, restore', () => {
     const required = async (b: ReturnType<typeof build>) => (await b.h['app:state'](undefined as never)).upgradeRequired;
     const want = { version: '0.3.0', notes: '必须更新', url: bundled.latest.macUrl };
 
-    test('首次启动没网（从没接受过远程配置）：放行', async () => {
+    test('V-01 首次启动断网也不放行功能', async () => {
+      fetchText = async () => { throw new Error('offline'); };
       expect(await required(build())).toBeNull();
       expect(events.filter(e => e.event === 'upgradeRequired')).toEqual([]);
+      const b = build();
+      expect((await b.h['app:state'](undefined as never)).versionStatus).toBe('offline');
+      expect(await b.h['install:run'](undefined as never)).toMatchObject({ ok: false, kind: 'version-required' });
     });
 
     test('当前版本低于 minVersion：app:state 和事件都报要升级；Windows 给 Windows 的下载地址', async () => {
@@ -637,7 +642,7 @@ describe('security, community, update, restore', () => {
       fs.writeFileSync(file, JSON.stringify({ ...saved, lastRemote: { ...saved.lastRemote, minVersion: '0.0.0' } }));
       const b = build();
       expect(await required(b)).toEqual(want);
-      expect(await b.h['restore:run'](undefined as never)).toEqual({ ok: true });
+      expect(await b.h['restore:run'](undefined as never)).toMatchObject({ ok: false, kind: 'version-required' });
       expect(await required(build())).toEqual(want);
     });
 
@@ -671,65 +676,80 @@ describe('security, community, update, restore', () => {
     });
   });
 
-  describe('强制升级：下载并安装', () => {
-    const blocked = () => { fetchText = async () => JSON.stringify({ ...bundled, minVersion: '0.2.0', latest: { ...bundled.latest, version: '0.3.0', macUrl: 'https://github.com/x/CodexBuddy-0.3.0.dmg', winUrl: 'https://github.com/x/CodexBuddy-Setup-0.3.0.exe' } }); };
-    const upgradeTexts = () => events.filter(e => e.event === 'step' && (e.payload as { flow: string }).flow === 'upgrade').map(e => (e.payload as { text: string }).text);
+  describe('强制升级：安装包验证', () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    const release = (extra: Record<string, unknown> = {}) => {
+      const config = { ...bundled, minVersion: '0.2.0', latest: { ...bundled.latest, version: '0.3.0',
+        macUrl: 'https://github.com/hhwyt/codex-buddy-releases/releases/download/v0.3.0/CodexBuddy-0.3.0.dmg',
+        winUrl: 'https://github.com/hhwyt/codex-buddy-releases/releases/download/v0.3.0/CodexBuddy-Setup-0.3.0.exe',
+        macSha256: sha256, winSha256: sha256, ...extra } };
+      fetchText = async () => JSON.stringify(config);
+    };
 
-    test('不需要升级时什么都不做', async () => {
-      expect(await build().h['upgrade:run'](undefined as never)).toEqual({ ok: false, reason: '已经是能用的版本了' });
-      expect(installed).toEqual([]);
-    });
-
-    test('Mac：按百分比报进度（同一个百分比只报一次），下好打开 dmg；再点一次直接打开，不重下', async () => {
-      blocked();
-      const urls: string[] = [];
-      fetchBytes = async (url, onProgress) => {
-        urls.push(url);
-        for (const got of [0, 1048576, 1048577, 2097152]) onProgress?.(got, 2097152);
-        return { type: 'application/octet-stream', data: new Uint8Array([7]) };
-      };
-      const b = build();
+    test.each(['mac', 'win'] as const)('V-04 %s 下载、校验并运行，缓存每次重验且不重复下载', async os => {
+      release();
+      let downloads = 0;
+      fetchBytes = async (_url, progress) => { downloads++; progress?.(1, 3); return { type: 'application/octet-stream', data: bytes }; };
+      const b = build({ os });
       expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: true });
-      expect(urls).toEqual(['https://github.com/x/CodexBuddy-0.3.0.dmg']);
-      expect(upgradeTexts()).toEqual(['0%', '0% · 0.0 / 2.0 MB', '50% · 1.0 / 2.0 MB', '100% · 2.0 / 2.0 MB', '100%']);
-      const file = path.join(b.paths.buddyDir, 'downloads', 'CodexBuddy-0.3.0.dmg');
+      const file = path.join(b.paths.buddyDir, 'downloads', `CodexBuddy-0.3.0.${os === 'mac' ? 'dmg' : 'exe'}`);
       expect(installed).toEqual([file]);
-      expect([...fs.readFileSync(file)]).toEqual([7]);
       expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: true });
-      expect(urls).toHaveLength(1);
-      expect(installed).toEqual([file, file]);
+      expect(downloads).toBe(1);
+      fs.writeFileSync(file, 'damaged');
+      expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: true });
+      expect(downloads).toBe(2);
+      expect([...fs.readFileSync(file)]).toEqual([...bytes]);
     });
 
-    test('Windows：下载 exe 再运行安装包；不知道总大小时只报已下多少；下载失败报错、不留半截文件', async () => {
-      blocked();
-      fetchBytes = async () => { throw new Error('offline'); };
+    test('V-04 哈希不匹配、没有哈希、发布页、错误版本链接均不执行', async () => {
+      let downloads = 0;
+      fetchBytes = async () => { downloads++; return { type: 'application/octet-stream', data: new Uint8Array([9]) }; };
       const b = build({ os: 'win' });
-      expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: false, reason: '下载没成功，检查一下网络再试' });
-      const file = path.join(b.paths.buddyDir, 'downloads', 'CodexBuddy-0.3.0.exe');
-      expect(fs.existsSync(file)).toBe(false);
-      events = [];
-      fetchBytes = async (url, onProgress) => { onProgress?.(524288, 0); return { type: 'application/octet-stream', data: new Uint8Array([1]) }; };
+      for (const extra of [{}, { winSha256: undefined }, { winUrl: 'https://github.com/hhwyt/codex-buddy-releases/releases/latest' },
+        { winUrl: 'https://github.com/hhwyt/codex-buddy-releases/releases/download/v0.1.0/old.exe' }]) {
+        release(extra);
+        expect(await b.h['upgrade:run'](undefined as never)).toMatchObject({ ok: false });
+      }
+      expect(downloads).toBe(1);
+      expect(installed).toEqual([]);
+      expect(fs.existsSync(path.join(b.paths.buddyDir, 'downloads', 'CodexBuddy-0.3.0.exe'))).toBe(false);
+    });
+
+    test('V-05 下载中断后可重试，不保留损坏安装包', async () => {
+      release();
+      const b = build({ os: 'win' });
+      expect(await b.h['upgrade:run'](undefined as never)).toMatchObject({ ok: false });
+      fetchBytes = async () => ({ type: 'application/octet-stream', data: bytes });
       expect(await b.h['upgrade:run'](undefined as never)).toEqual({ ok: true });
-      expect(upgradeTexts()).toEqual(['0%', '0.5 MB', '100%']);
-      expect(installed).toEqual([file]);
+      expect(installed).toHaveLength(1);
+    });
+
+    test('U-02 普通更新同样校验，两次点击先下载后安装', async () => {
+      release();
+      fetchBytes = async () => ({ type: 'application/octet-stream', data: bytes });
+      const b = build({ os: 'win' });
+      expect(await b.h['update:install'](undefined as never)).toEqual({ ok: true });
+      expect(installed).toEqual([]);
+      expect(await b.h['update:install'](undefined as never)).toEqual({ ok: true });
+      expect(installed).toHaveLength(1);
     });
   });
 
-  test('U-03 Mac 没签名：立即更新改成在右侧打开下载页', async () => {
+  test('V-02 运行中重新校验，抬高下限即拦截后台操作，断网也拦截，恢复网络再放行', async () => {
     const b = build();
-    expect(await b.h['update:install'](undefined as never)).toEqual({ ok: true, downloadPage: true });
-    expect(b.browser.opens).toEqual([bundled.latest.macUrl]);
-  });
-
-  test('U-02 Windows：下载安装包（百分比），再点一次就运行安装包', async () => {
-    const b = build({ os: 'win' });
-    expect(await b.h['update:install'](undefined as never)).toEqual({ ok: false, reason: '下载没成功，检查一下网络再试' });
-    fetchBytes = async () => ({ type: 'application/octet-stream', data: new Uint8Array([1]) });
-    fs.mkdirSync(path.join(b.paths.buddyDir, 'downloads'), { recursive: true });
-    expect(await b.h['update:install'](undefined as never)).toEqual({ ok: true });
-    expect(events.filter(e => e.event === 'step').map(e => (e.payload as { text: string }).text)).toContain('100%');
-    expect(await b.h['update:install'](undefined as never)).toEqual({ ok: true });
-    expect(installed).toHaveLength(1);
+    expect(await b.svc.versionAllowed()).toBe(true);
+    fetchText = async () => { throw new Error('offline'); };
+    clock += 60_000;
+    expect(await b.h['clone:open']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'version-required' });
+    fetchText = async () => JSON.stringify(bundled);
+    await b.svc.checkVersion();
+    expect(await b.svc.versionAllowed()).toBe(true);
+    fetchText = async () => JSON.stringify({ ...bundled, minVersion: '0.2.0', latest: { ...bundled.latest, version: '0.2.0' } });
+    await b.svc.checkVersion();
+    expect(await b.h['clone:open']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'version-required' });
+    expect(events.some(e => e.event === 'upgradeRequired' && e.payload)).toBe(true);
   });
 
   test('T-03 一键还原：列出要做的事，还原配置、去掉汉化入口和分身，聊天记录留着', async () => {
@@ -845,7 +865,7 @@ describe('配置生效与重启确认', () => {
     const restart = vi.spyOn(b.platform, 'restartCodex').mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
     const first = b.h['codex:restart'](undefined as never);
     const second = b.h['codex:restart'](undefined as never);
-    expect(restart).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(restart).toHaveBeenCalledTimes(1));
     expect(b.svc.state().restartRequired).toBe(true);
     finish();
     expect(await first).toEqual({ ok: true });

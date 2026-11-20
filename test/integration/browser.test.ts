@@ -34,9 +34,9 @@ vi.mock('electron', async () => {
     setWindowOpenHandler(h: (d: { url: string }) => unknown) { this.openHandler = h; }
     async loadURL(u: string) { if (u.includes('fail')) throw new Error('ERR_ABORTED'); this.url = u; this.emit('did-navigate', {}, u); }
     getURL() { return this.url; }
+    isDestroyed() { return this.closed; }
     reload() { this.reloads++; }
     async executeJavaScript(s: string) { return `ran:${s}`; }
-    isDestroyed() { return this.closed; }
     close() { this.closed = true; }
   }
   class WebContentsView {

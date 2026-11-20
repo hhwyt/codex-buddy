@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { finishOnboarding, switchTo } from './flows';
-import { catalogOf, codexHome, configToml, launch, readText, REPO, seedCodex, seedUserData, tomlValue, vendorState, type Launched } from './launch';
+import { catalogOf, codexHome, configToml, launch, readText, REPO, seedConfigured, seedCodex, seedUserData, tomlValue, vendorState, type Launched } from './launch';
 import { BASE_NEEDS, needs } from './pending';
 
 let run: Launched;
@@ -18,7 +18,7 @@ const REMOTE = JSON.parse(fs.readFileSync(path.join(REPO, 'remote', 'config.json
 const THIRD_PARTY = ['deepseek', 'zhipu', 'kimi', 'qwen', 'minimax', 'hunyuan'];
 
 async function ready(): Promise<Launched> {
-  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); seedConfigured(s); } });
   await finishOnboarding(run.page);
   return run;
 }

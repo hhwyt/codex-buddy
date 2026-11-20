@@ -54,7 +54,7 @@ describe('左栏（W-02）', () => {
     const fake = fakeApi({ 'app:state': appState({ version: '0.1.0', upgradeRequired: { version: '0.2.0', notes: '', url: 'u' } }) });
     const app = await createApp(document.getElementById('app')!, fake.api);
     expect($(TID.upgrade.root)).not.toBeNull();
-    expect($(TID.shell.side)).toBeNull();
+    expect(document.querySelector<HTMLElement>('.shell')!.inert).toBe(true);
     expect(app.route()).toBeNull();
     await app.go('models');
     expect($(TID.models.root)).toBeNull();
@@ -73,7 +73,7 @@ describe('左栏（W-02）', () => {
     expect($(TID.upgrade.root)).not.toBeNull();
     expect($(TID.toast)).toBeNull();
     expect(fake.called('browser:close')).toHaveLength(1);
-    expect(app.route()).toBeNull();
+    expect(document.querySelector<HTMLElement>('.shell')!.inert).toBe(true);
     fake.emit('upgradeRequired', { version: '1.1.0', notes: '', url: 'u' });
     expect(document.querySelectorAll(`[data-testid="${TID.upgrade.root}"]`)).toHaveLength(1);
   });

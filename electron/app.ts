@@ -5,7 +5,7 @@
 // (Windows: the Store package, platform/sandbox-real-win.ts; Mac: a copy of ChatGPT.app inside the sandbox,
 // platform/sandbox-real-mac.ts, where open / reveal / external links really happen); CODEXBUDDY_LOGIN_WINDOWS=1 opens
 // the six login pages at start and keeps <sandbox>/login-status.json up to date (which vendor is logged in).
-import { app, net, safeStorage, session, shell, type BrowserWindow } from 'electron';
+import { app, net, powerMonitor, safeStorage, session, shell, type BrowserWindow } from 'electron';
 import * as nfs from 'node:fs';
 import * as path from 'node:path';
 import { parseEndpoints, withEndpoints } from './core/endpoints';
@@ -20,7 +20,7 @@ import { aesCipher, loadDataKey } from './main/cipher';
 import { registerIpc, sendEvent } from './main/ipc';
 import type { ConnectionView } from './main/ipc-contract';
 import { connections, defaultAllowedHosts, guardedFetch, installNetGuard, readBytes } from './main/net';
-import { createServices } from './main/services';
+import { createServices, VERSION_CHECK_INTERVAL_MS } from './main/services';
 import { createMainWindow } from './main/window';
 import { pickPlatform } from './platform';
 import { createMacClone, runCommand } from './platform/clone-mac';
@@ -64,7 +64,7 @@ if (process.platform === 'darwin') app.commandLine.appendSwitch('use-mock-keycha
 const record = (kind: 'open' | 'reveal' | 'external', target: string) =>
   nfs.appendFileSync(path.join(sandbox!, 'opened.log'), JSON.stringify({ kind, target }) + '\n');
 const logOnly = !!sandbox && !(realCodex && os === 'mac');
-const open = async (target: string) => { if (logOnly) record('open', target); else await shell.openPath(target); };
+const open = async (target: string) => { if (logOnly) record('open', target); else { const error = await shell.openPath(target); if (error) throw new Error(error); } };
 const reveal = async (target: string) => { if (logOnly) record('reveal', target); else shell.showItemInFolder(target); };
 const openExternal = async (url: string) => { if (logOnly) record('external', url); else await shell.openExternal(url); };
 
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   let network: NetworkGate;
   // Codex's traffic to the vendors goes through the whitelist and shows under 「CodexBuddy 连过的」 (S-04, S-05)
   const bridge = await startBridge(upstreams, { fetch: (async (url: string, init?: RequestInit) => {
-    if (network?.state !== 'online' || !net.isOnline()) throw new Error('网络问题');
+    if (network?.state !== 'online' || !net.isOnline() || !(await services.versionAllowed())) throw new Error('网络问题');
     return guardedFetch(url, init);
   }) as typeof fetch });
   const keyFile = path.join(platform.paths.buddyDir, 'data-key.bin');
@@ -127,7 +127,9 @@ async function main(): Promise<void> {
       isBridgeUrl: url => url.startsWith(bridge.url),
     },
     fetchText: async (url, timeoutMs) => {
-      const r = await guardedFetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+      const address = new URL(url);
+      if (!sandbox) address.searchParams.set('check', String(Math.floor(Date.now() / VERSION_CHECK_INTERVAL_MS)));
+      const r = await guardedFetch(address.toString(), { signal: AbortSignal.timeout(timeoutMs), headers: { 'Cache-Control': 'no-cache' } });
       if (!r.ok) throw new Error(String(r.status));
       return r.text();
     },
@@ -174,11 +176,15 @@ async function main(): Promise<void> {
     },
     () => net.isOnline(),
   );
+  const versionChannels = new Set(['network:check', 'network:offline', 'app:state', 'app:quit', 'wallet:get', 'install:log', 'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'browser:close', 'switch:cancel', 'security:get', 'security:ask-ai', 'security:source', 'restore:plan']);
   registerIpc({ ...services.handlers, ...browserHandlers(rb),
     'network:check': async () => ({ ok: await network.check() }),
     'network:offline': () => network.block(),
     'app:quit': () => app.quit(),
-  }, channel => network.allows(channel));
+  }, async channel => {
+    if (!(await network.allows(channel))) return false;
+    return versionChannels.has(channel) || await services.versionAllowed() || 'version-required';
+  });
   // A vendor added under 「其他厂商」 (M-19) is allowed once its base URL is in use
   installNetGuard(() => [...defaultAllowedHosts(providers), ...Object.values(endpoints.vendors).map(u => new URL(u!).host), ...Object.values(upstreams).map(u => new URL(u).host)],
     () => sendEvent(win, 'connections', connectionViews()));
@@ -199,7 +205,11 @@ async function main(): Promise<void> {
   }
   const poll = setInterval(() => { if (network.state === 'online') services.pollModel(); }, 2000);
   const heartbeat = setInterval(() => { if (network.state === 'online') void network.check(); }, NETWORK_POLL_MS);
-  app.on('before-quit', () => { clearInterval(poll); clearInterval(heartbeat); void bridge.close(); });
+  const checkVersion = () => { void services.checkVersion().catch(() => undefined); };
+  const versionPoll = setInterval(checkVersion, VERSION_CHECK_INTERVAL_MS);
+  win.on('focus', checkVersion);
+  powerMonitor.on('resume', checkVersion);
+  app.on('before-quit', () => { clearInterval(poll); clearInterval(heartbeat); clearInterval(versionPoll); powerMonitor.removeListener('resume', checkVersion); void bridge.close(); });
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();

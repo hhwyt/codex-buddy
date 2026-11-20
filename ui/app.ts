@@ -5,7 +5,7 @@ import { restartNotice } from './components/restart.js';
 import { mountNetwork } from './components/network.js';
 import { clearToasts } from './components/toast.js';
 import { h } from './dom.js';
-import { BUNDLED_QR, communityQr, renderCommunity } from './pages/community.js';
+import { renderCommunity } from './pages/community.js';
 import { renderModels } from './pages/models.js';
 import { renderOnboarding } from './pages/onboarding.js';
 import { openSecurity } from './pages/security.js';
@@ -88,6 +88,10 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
     };
   }
 
+  let versionStatus = state.versionStatus;
+  let required = state.upgradeRequired;
+  let gate: HTMLElement | null = null;
+  let gateKey = '';
   const app: App = {
     async go(route) {
       if (blocked) return;
@@ -104,22 +108,28 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
     },
     route: () => current,
   };
-  // Forced upgrade (remote minVersion): this one screen replaces everything, now or whenever a refresh raises the floor
-  const block = (u: typeof state.upgradeRequired) => {
-    if (!u) return;
-    closeInstall?.();
-    if (!blocked && typeof cleanup === 'function') cleanup();
-    blocked = true;
-    current = null;
-    clearToasts();
-    void api.invoke('browser:close');
-    showUpgrade(api, root, u, { os: state.os, current: state.version, qr: communityQr(state.community.qrUrl) ?? BUNDLED_QR });
+  const synchronizeGate = () => {
+    const key = required ? `required:${required.version}` : versionStatus && versionStatus !== 'allowed' ? versionStatus : '';
+    blocked = !!key;
+    if (blocked) closeInstall?.();
+    shell.inert = blocked;
+    if (key === gateKey) return;
+    gateKey = key;
+    gate?.dispatchEvent(new Event('dispose'));
+    gate?.remove();
+    gate = null;
+    if (blocked) {
+      clearToasts();
+      void api.invoke('browser:close');
+      gate = showUpgrade(api, root, required, { os: state.os, current: state.version, qr: '', status: versionStatus });
+    } else if (!current) void app.go('models');
   };
-  api.on('upgradeRequired', block);
+  api.on('upgradeRequired', info => { required = info; synchronizeGate(); });
+  api.on('versionStatus', status => { versionStatus = status; synchronizeGate(); });
   watchUpdates(api, root);
   mountBrowser(api, root);
-  if (state.upgradeRequired) block(state.upgradeRequired);
-  else await app.go('models');
+  synchronizeGate();
+  if (!blocked && !current) await app.go('models');
   return app;
 }
 

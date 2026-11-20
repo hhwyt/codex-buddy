@@ -6,8 +6,10 @@
 import type { BuiltinVendorId, ProviderInfo } from './types';
 
 export const REMOTE_CONFIG_URLS = [
-  'https://cdn.jsdelivr.net/gh/hhwyt/codex-buddy@main/remote/config.json',
-  'https://raw.githubusercontent.com/hhwyt/codex-buddy/main/remote/config.json',
+  'https://hhwyt.xyz/codex-buddy-releases/remote/config.json',
+  'https://hhwyt.github.io/codex-buddy-releases/remote/config.json',
+  'https://cdn.jsdelivr.net/gh/hhwyt/codex-buddy-releases@main/remote/config.json',
+  'https://raw.githubusercontent.com/hhwyt/codex-buddy-releases/main/remote/config.json',
 ];
 
 export interface Endpoints {

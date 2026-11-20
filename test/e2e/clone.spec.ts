@@ -8,7 +8,7 @@ import { TID } from '../../ui/testids';
 import { cardBoxes, clickClear, finishOnboarding, makeCloneOf, nav, switchTo } from './flows';
 import { hashTree } from './hash';
 import {
-  catalogOf, cloneHome, codexHome, launch, readText, seedCodex, seedUserData, setCodexRunning, VENDOR_IDS, wallet, type Launched,
+  catalogOf, cloneHome, codexHome, launch, readText, seedConfigured, seedCodex, seedUserData, setCodexRunning, VENDOR_IDS, wallet, type Launched,
 } from './launch';
 import { BASE_NEEDS, merge, needs } from './pending';
 
@@ -17,7 +17,7 @@ needs(merge(BASE_NEEDS, { ui: { models: ['TID.models.modeClone', 'TID.models.clo
 test.afterEach(async () => { await run?.close(); });
 
 async function ready(): Promise<Launched> {
-  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); } });
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s); seedConfigured(s); } });
   await finishOnboarding(run.page);
   return run;
 }
@@ -127,7 +127,7 @@ test('C-06 分身的模型菜单里只有它这一家的模型', async () => {
 });
 
 test('C-07 删除分身先确认，只删 App，数据目录留着', async () => {
-  run = await launch({ seed: s => { seedCodex(s); seedUserData(s, ['deepseek']); } });
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s, ['deepseek']); seedConfigured(s); } });
   await finishOnboarding(run.page);
   await toCloneMode();
   await makeClone('deepseek');
@@ -142,7 +142,7 @@ test('C-07 删除分身先确认，只删 App，数据目录留着', async () =>
 });
 
 test('C-08 再做同名分身时自动接上原来的聊天记录', async () => {
-  run = await launch({ seed: s => { seedCodex(s); seedUserData(s, ['deepseek']); } });
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s, ['deepseek']); seedConfigured(s); } });
   await finishOnboarding(run.page);
   const sessions = path.join(cloneHome(run.sandbox, 'deepseek'), 'sessions');
   const before = hashTree(sessions);
@@ -179,7 +179,7 @@ test('C-09 切换和分身来回切：卡片叠起或摊开，切换模式的状
 });
 
 test('C-10 一键还原时分身 App 一起去掉，数据目录留着', async () => {
-  run = await launch({ seed: s => { seedCodex(s); seedUserData(s, ['kimi']); } });
+  run = await launch({ seed: s => { seedCodex(s); seedUserData(s, ['kimi']); seedConfigured(s); } });
   await finishOnboarding(run.page);
   await toCloneMode();
   await makeClone('kimi');

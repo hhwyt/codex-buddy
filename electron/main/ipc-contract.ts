@@ -30,6 +30,7 @@ export interface WalletView {
 }
 
 export interface AppStateView {
+  versionStatus?: VersionStatus;
   version: string;
   os: 'mac' | 'win';
   /** true → skip onboarding, open the model page (O-06) */
@@ -45,6 +46,7 @@ export interface AppStateView {
 
 /** The release to install before CodexBuddy can be used again; url = the download for this OS */
 export interface UpgradeRequiredView { version: string; notes: string; url: string }
+export type VersionStatus = 'checking' | 'offline' | 'allowed';
 
 export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'upgrade' | 'repair'; id: string; state: 'start' | 'done' | 'fail'; text: string }
 export interface Outcome { ok: boolean; reason?: string; restartRequired?: boolean; [extra: string]: unknown }
@@ -100,6 +102,7 @@ export interface ConnectionView { host: string; allowed: boolean; at: number }
 export interface IpcEvents {
   network: NetworkState;
   restartRequired: boolean;
+  versionStatus: VersionStatus;
   step: StepView;
   wallet: WalletView;                       // M-28: model changed inside Codex
   /** width: px the expanded browser takes at the window's right edge (0 when closed or in the small window) */
@@ -129,5 +132,5 @@ export const CHANNELS: Channel[] = [
   'browser:reload', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
   'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'restore:plan', 'restore:run', 'shell:open-external',
 ];
-export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired', 'restartRequired', 'network'];
+export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired', 'restartRequired', 'network', 'versionStatus'];
 export const NETWORK_READ_CHANNELS: Channel[] = ['app:state', 'wallet:get', 'install:log', 'security:get', 'security:ask-ai', 'restore:plan'];

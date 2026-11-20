@@ -111,7 +111,7 @@ export interface WalletState {
 /** remote/config.json, read jsDelivr → GitHub → bundled fallback (core/remote.ts) */
 export interface RemoteConfig {
   schema: 1;
-  latest: { version: string; notes: string; macUrl: string; winUrl: string };
+  latest: { version: string; notes: string; macUrl: string; winUrl: string; macSha256?: string; winSha256?: string };
   models: Partial<Record<BuiltinVendorId, ModelEntry[]>>;
   community: { qrUrl: string; text: string };
   switches: { hiddenVendors: string[]; hideZh: boolean; hideClone: boolean };
