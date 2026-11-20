@@ -79,12 +79,12 @@ export function verifySignature(text: string, sigBase64: string, publicKeyPem: s
 
 /** urls[0] is jsDelivr, urls[1] GitHub (core/endpoints.ts). The first valid, correctly signed answer wins; the
  *  signature is <url>.sig on the same source */
-export async function loadRemote(urls: string[], fetch: Fetcher, lastGood: RemoteConfig | null, bundled: RemoteConfig, publicKeyPem: string): Promise<{ config: RemoteConfig; source: 'jsdelivr' | 'github' | 'cache' | 'bundled' }> {
+export async function loadRemote(urls: string[], fetch: Fetcher, lastGood: RemoteConfig | null, bundled: RemoteConfig, publicKeyPem: string): Promise<{ config: RemoteConfig; source: 'pages' | 'jsdelivr' | 'github' | 'cache' | 'bundled' }> {
   for (let i = 0; i < urls.length; i++) {
     try {
       const [text, sig] = await Promise.all([fetch(urls[i], REMOTE_TIMEOUT_MS), fetch(`${urls[i]}.sig`, REMOTE_TIMEOUT_MS)]);
       const config = verifySignature(text, sig, publicKeyPem) ? validateRemote(text) : null;
-      if (config) return { config, source: i === 0 ? 'jsdelivr' : 'github' };
+      if (config) return { config, source: urls[i].includes('.github.io/') ? 'pages' : urls[i].includes('jsdelivr') ? 'jsdelivr' : 'github' };
     } catch { /* next one */ }
   }
   return lastGood ? { config: lastGood, source: 'cache' } : { config: bundled, source: 'bundled' };

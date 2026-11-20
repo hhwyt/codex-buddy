@@ -152,7 +152,7 @@ export function createServices(d: ServiceDeps) {
     remoteLoaded = loadRemote(d.remoteUrls, d.fetchText, st.lastRemote, d.bundledRemote, d.remotePublicKey).then(r => {
       const cardsBefore = JSON.stringify([remote.models, remote.switches]);
       remote = r.config;
-      online = r.source === 'jsdelivr' || r.source === 'github';
+      online = r.source !== 'cache' && r.source !== 'bundled';
       versionStatus = online ? 'allowed' : 'offline';
       lastVersionCheck = d.now();
       if (online) {
