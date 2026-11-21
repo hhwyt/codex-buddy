@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-// L3: 商城 page (P-01..P-03, design/shop-entry.html 5B).
+// L3: 商城 page (P-01..P-03, design/shop-entries.html 第 2 版).
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderShop, SMS_PRICE_YUAN } from '../../ui/pages/shop';
+import { renderShop } from '../../ui/pages/shop';
 import { TID } from '../../ui/testids';
 import { fakeApi } from './settings.fake';
 
@@ -26,29 +26,24 @@ describe('F-08 从官方卡跳来', () => {
   });
 });
 
-describe('商城页（P-01..P-03）', () => {
-  it('P-01 标题「商城」，一张验证码大卡和一行「购买更强的官方 GPT 模型」，别的不放', async () => {
+describe('商城页（P-01..P-04）', () => {
+  it('P-01 标题「商城」，三个入口并排，不写套餐和价格', async () => {
     await mount(fakeApi());
     const root = $(TID.shop.root)!;
     expect(root.querySelector('h1')!.textContent).toBe('商城');
-    expect(root.querySelectorAll('button')).toHaveLength(2);
-    expect(root.textContent).toBe('商城微信 / 支付宝付款，付完自动发货注册要手机验证码注册、登录 OpenAI 官方账号时收短信用，收不到可换号¥35购买更强的官方 GPT 模型');
-    expect(SMS_PRICE_YUAN).toBe(35);
+    expect(root.querySelectorAll('button')).toHaveLength(3);
+    expect(root.textContent).toBe('商城微信 / 支付宝付款，付完自动发货注册要手机验证码注册、登录 OpenAI 官方账号时收短信用ChatGPT 会员更强的官方 GPT 模型静态住宅 IP防 Codex 风控降智独享、固定不变');
+    expect(root.textContent).not.toMatch(/¥|元/);
   });
 
-  it('P-02 点验证码大卡：在右侧浏览器打开验证码商品', async () => {
+  it.each([
+    ['P-02 验证码', TID.shop.sms, 'sms'],
+    ['P-03 ChatGPT 会员', TID.shop.subscriptions, 'subscriptions'],
+    ['P-04 静态住宅 IP', TID.shop.ip, 'ip'],
+  ])('%s：点了在右侧浏览器打开对应的商城页', async (_name, testid, item) => {
     const fake = fakeApi();
     await mount(fake);
-    $(TID.shop.sms)!.click();
-    expect(fake.calls.filter(c => c.channel === 'shop:open').map(c => c.args)).toEqual([{ item: 'sms' }]);
-  });
-
-  it('P-03 「购买更强的官方 GPT 模型」不写品牌和价格，点了在右侧浏览器打开订阅分类', async () => {
-    const fake = fakeApi();
-    await mount(fake);
-    const more = $(TID.shop.subscriptions)!;
-    expect(more.textContent).toBe('购买更强的官方 GPT 模型');
-    more.click();
-    expect(fake.calls.filter(c => c.channel === 'shop:open').map(c => c.args)).toEqual([{ item: 'subscriptions' }]);
+    $(testid)!.click();
+    expect(fake.calls.filter(c => c.channel === 'shop:open').map(c => c.args)).toEqual([{ item }]);
   });
 });

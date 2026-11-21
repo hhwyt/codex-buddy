@@ -18,8 +18,10 @@ describe('左栏（W-02）', () => {
     expect(app.route()).toBe('models');
     const items = [...document.querySelectorAll<HTMLElement>(`[data-testid="${TID.shell.side}"] nav button`)];
     expect(items.map(b => [b.dataset.testid, b.textContent])).toEqual([
-      [TID.shell.navModels, '模型'], [TID.shell.navSettings, '设置'], [TID.shell.navCommunity, '社群'], [TID.shell.navShop, '商城'],
+      [TID.shell.navModels, '模型'], [TID.shell.navSettings, '设置'], [TID.shell.navCommunity, '社群'], [TID.shell.navShop, '商城GPT验证码 · GPT 会员 · 住宅 IP'],
     ]);
+    // P-01 商城右上角灰色小字「GPT」，悬停才显示卖什么
+    expect($(TID.shell.navShop)!.querySelector('.nav-mark')!.textContent).toBe('GPT');
     click($(TID.shell.navSettings));
     await settle();
     expect($(TID.settings.root)).not.toBeNull();

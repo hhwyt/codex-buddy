@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>商城入口原型</title>
+<style>
+:root { --ink:#0d0d0d; --ink-2:#5d5d5d; --ink-3:#8f8f8f; --line:#e5e5e5; --side:#f5f5f5; --bg:#fff; --side-width:140px; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #ececec; font: 14px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--ink); }
+.tabs { display: flex; gap: 8px; padding: 14px 16px 0; flex-wrap: wrap; justify-content: center; }
+.tabs:last-of-type { padding-bottom: 14px; }
+.tabs button { border: 1px solid #ccc; background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit; cursor: pointer; }
+.tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.win { display: grid; grid-template-columns: var(--side-width) 1fr; max-width: 980px; height: 600px; margin: 0 auto 24px; background: var(--bg); border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px #0002; transition: grid-template-columns .2s; }
+.nav { background: var(--side); border-right: 1px solid var(--line); padding: 18px 10px; font-size: 14px; color: var(--ink-2); display: flex; flex-direction: column; }
+.brand { color: var(--ink); font-size: 14px; font-weight: 700; margin: 0 8px 18px; white-space: nowrap; }
+.ni { position: relative; display: flex; align-items: center; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.ni:hover { background: #ebebeb; }
+.ni.on { background: #fff; color: var(--ink); font-weight: 600; }
+.bsup { align-self: flex-start; margin: -1px 0 0 2px; font-size: 9px; font-weight: 600; line-height: 1; color: var(--ink-3); }
+.tip { position: absolute; left: calc(100% - 4px); top: 50%; transform: translateY(-50%); white-space: nowrap; background: var(--ink); color: #fff; font-size: 12px; font-weight: 400; padding: 5px 9px; border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 5; }
+.ni:hover .tip { opacity: 1; }
+.upd { margin-top: auto; font-size: 12px; color: var(--ink-3); padding: 8px 10px; white-space: nowrap; }
+.main { padding: 30px 36px; position: relative; overflow: auto; }
+h1 { margin: 0; font-size: 22px; }
+.lead { color: var(--ink-2); font-size: 13px; margin: 6px 0 22px; }
+.empty { color: var(--ink-3); padding-top: 120px; text-align: center; }
+
+.ic { width: 40px; height: 40px; flex: none; border-radius: 11px; background: var(--side); display: grid; place-items: center; }
+.ic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ic img { width: 24px; height: 24px; }
+.ic.dark { background: var(--ink); color: #fff; }
+.ext { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; transition: transform .15s; }
+.clk { cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.clk:hover .ext { transform: translate(2px, -2px); }
+.t b { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.t span { display: block; font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+.warn { font-size: 11px; font-weight: 650; color: var(--ink); border: 1px solid var(--ink); padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+
+/* 1 三张卡竖排 */
+.l1 { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+.c1 { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; }
+.c1:hover { border-color: var(--ink-3); }
+.c1 .ext { margin-left: auto; }
+
+/* 2 三栏 */
+.l2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.c2 { display: flex; flex-direction: column; gap: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; position: relative; min-height: 170px; }
+.c2:hover { border-color: var(--ink-3); transform: translateY(-2px); }
+.c2 .ext { position: absolute; right: 16px; top: 18px; }
+.c2 .t b { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+/* 3 一个框三行 */
+.l3 { max-width: 560px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.c3 { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-top: 1px solid var(--line); }
+.c3:first-child { border-top: 0; }
+.c3:hover { background: #fafafa; }
+.c3 .ext { margin-left: auto; }
+
+/* 4 两张一样 + IP 黑框 */
+.c4ip { border: 1.5px solid var(--ink); }
+
+/* 5 上两张并排 + IP 横条 */
+.l5 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 640px; }
+.l5 .wide { grid-column: 1 / -1; }
+
+.browser { position: absolute; top: 0; right: 0; bottom: 0; width: 62%; background: #fff; border-left: 1px solid var(--line); box-shadow: -10px 0 30px #0001; display: none; flex-direction: column; animation: slide .25s ease; z-index: 9; }
+.browser.show { display: flex; }
+@keyframes slide { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.bar button { border: 0; background: var(--side); border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; }
+.page { flex: 1; display: grid; place-items: center; color: var(--ink-3); text-align: center; line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="tabs" id="tabs"></div>
+<div class="tabs" id="wtabs"></div>
+<div class="win" id="win">
+  <div class="nav" id="nav"></div>
+  <div class="main" id="main"></div>
+</div>
+<script>
+const LOGO = '../ui/assets/logos/openai.webp';
+const EXT = '<svg class="ext" viewBox="0 0 24 24"><path d="M7 17L17 7M8 7h9v9"/></svg>';
+const PHONE = '<svg viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18.5h4"/></svg>';
+const SHIELD = '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>';
+// 三个入口：只放名字和用途，不放价格和套餐（价格、套餐在商城网页上，App 不跟着改）
+const E = [
+  { k: 'sms', icon: `<div class="ic">${PHONE}</div>`, b: '注册要手机验证码', s: '注册、登录 OpenAI 官方账号时收短信用', url: 'products/codex-sms' },
+  { k: 'gpt', icon: `<div class="ic"><img src="${LOGO}" alt=""></div>`, b: 'ChatGPT 会员', s: '更强的官方 GPT 模型', url: 'categories/chatgpt' },
+  { k: 'ip', icon: `<div class="ic dark">${SHIELD}</div>`, b: '静态住宅 IP', tag: '防 Codex 风控降智', s: '独享、固定不变', url: 'categories/network' },
+];
+const inner = e => `${e.icon}<div class="t"><b>${e.b}${e.tag ? `<span class="warn">${e.tag}</span>` : ''}</b><span>${e.s}</span></div>${EXT}`;
+const V = [
+  ['1 三张卡竖排', () => `<div class="l1">${E.map(e => `<div class="c1 clk" data-u="${e.url}">${inner(e)}</div>`).join('')}</div>`],
+  ['2 三栏并排', () => `<div class="l2">${E.map(e => `<div class="c2 clk" data-u="${e.url}">${inner(e)}</div>`).join('')}</div>`],
+  ['3 一个框分三行', () => `<div class="l3">${E.map(e => `<div class="c3 clk" data-u="${e.url}">${inner(e)}</div>`).join('')}</div>`],
+  ['4 竖排，IP 加黑框', () => `<div class="l1">${E.map(e => `<div class="c1 clk ${e.k === 'ip' ? 'c4ip' : ''}" data-u="${e.url}">${inner(e)}</div>`).join('')}</div>`],
+  ['5 上两张并排，IP 通栏', () => `<div class="l5">${E.map(e => `<div class="c1 clk ${e.k === 'ip' ? 'wide' : ''}" data-u="${e.url}">${inner(e)}</div>`).join('')}</div>`],
+];
+const W = [['导航 200（现在）', 200], ['导航 160', 160], ['导航 140', 140], ['导航 124', 124]];
+let cur = 0, width = 2, page = 'shop';
+const tabs = document.getElementById('tabs'), wtabs = document.getElementById('wtabs'), nav = document.getElementById('nav'), main = document.getElementById('main');
+V.forEach(([n], i) => { const b = document.createElement('button'); b.textContent = n; b.onclick = () => { cur = i; page = 'shop'; draw(); }; tabs.append(b); });
+W.forEach(([n], i) => { const b = document.createElement('button'); b.textContent = n; b.onclick = () => { width = i; draw(); }; wtabs.append(b); });
+function draw() {
+  [...tabs.children].forEach((b, j) => b.classList.toggle('on', j === cur));
+  [...wtabs.children].forEach((b, j) => b.classList.toggle('on', j === width));
+  document.documentElement.style.setProperty('--side-width', W[width][1] + 'px');
+  const item = (k, label) => `<div class="ni ${page === k ? 'on' : ''}" data-p="${k}">${label}</div>`;
+  nav.innerHTML = `<div class="brand">CodexBuddy</div>${item('models', '模型')}${item('settings', '设置')}${item('community', '社群')}${item('shop', '商城<span class="bsup">GPT</span><span class="tip">验证码 · GPT 会员 · 住宅 IP</span>')}<div class="upd">有新版本</div>`;
+  nav.querySelectorAll('.ni').forEach(n => n.onclick = () => { page = n.dataset.p; draw(); });
+  main.innerHTML = page === 'shop'
+    ? `<h1>商城</h1><p class="lead">微信 / 支付宝付款，付完自动发货</p>${V[cur][1]()}<div class="browser" id="browser"><div class="bar"><button id="close">✕</button><span id="url"></span></div><div class="page" id="pg"></div></div>`
+    : `<div class="empty">（${({ models: '模型', settings: '设置', community: '社群' })[page]}页）</div>`;
+  main.querySelectorAll('.clk').forEach(c => c.onclick = () => {
+    document.getElementById('url').textContent = 'shop.humanslive.ai/' + c.dataset.u;
+    document.getElementById('pg').innerHTML = '右侧浏览器（示意）<br>' + c.dataset.u + '<br>套餐和价格都在这里看';
+    document.getElementById('browser').classList.add('show');
+  });
+  const cl = document.getElementById('close'); if (cl) cl.onclick = () => document.getElementById('browser').classList.remove('show');
+}
+draw();
+</script>
+</body>
+</html>

@@ -397,6 +397,7 @@ export function openLoginWindows(targets: { url: string; name: string }[], onUrl
 export const SHOP_URLS = {
   sms: 'https://shop.humanslive.ai/products/codex-sms', // lint-scan: allow (P-02, H-03 exception)
   subscriptions: 'https://shop.humanslive.ai/categories/chatgpt', // lint-scan: allow (P-03, H-03 exception)
+  ip: 'https://shop.humanslive.ai/categories/network', // lint-scan: allow (P-04, H-03 exception)
 } as const;
 export type ShopItem = keyof typeof SHOP_URLS;
 

@@ -220,10 +220,12 @@ describe('right-side browser', () => {
     expect(rb.url()).toBe(SHOP_URLS.sms);
     await h['shop:open']({ item: 'subscriptions' });
     expect(rb.url()).toBe(SHOP_URLS.subscriptions);
+    await h['shop:open']({ item: 'ip' });
+    expect(rb.url()).toBe(SHOP_URLS.ip);
     await h['shop:open']({ item: 'https://evil.example/' as never });
     await h['shop:open']({ item: 'constructor' as never });
-    expect(rb.url()).toBe(SHOP_URLS.subscriptions);
-    expect(SHOP_URLS).toEqual({ sms: 'https://shop.humanslive.ai/products/codex-sms', subscriptions: 'https://shop.humanslive.ai/categories/chatgpt' });
+    expect(rb.url()).toBe(SHOP_URLS.ip);
+    expect(SHOP_URLS).toEqual({ sms: 'https://shop.humanslive.ai/products/codex-sms', subscriptions: 'https://shop.humanslive.ai/categories/chatgpt', ip: 'https://shop.humanslive.ai/categories/network' });
   });
 
   test('B-03 🌐 在关着时也能打开一个空的浏览器', () => {

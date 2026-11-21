@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>商城订阅原型</title>
+<style>
+:root { --ink:#0d0d0d; --ink-2:#5d5d5d; --ink-3:#8f8f8f; --line:#e5e5e5; --side:#f5f5f5; --bg:#fff; --accent:#0c8df6; --accent-fill:#0a77d1; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #ececec; font: 14px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--ink); }
+.tabs { display: flex; gap: 8px; padding: 16px; flex-wrap: wrap; justify-content: center; }
+.tabs button { border: 1px solid #ccc; background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit; cursor: pointer; }
+.tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.win { display: flex; max-width: 1040px; height: 640px; margin: 0 auto 24px; background: var(--bg); border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px #0002; }
+.nav { width: 180px; flex: none; background: var(--side); padding: 18px 12px; font-size: 14px; color: var(--ink-2); }
+.nav .brand { color: var(--ink); font-size: 15px; font-weight: 700; margin: 0 10px 18px; }
+.ni { position: relative; display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.ni:hover { background: #ebebeb; }
+.ni.on { background: #fff; color: var(--ink); font-weight: 600; }
+.main { flex: 1; padding: 30px 36px; position: relative; overflow: auto; }
+h1 { margin: 0; font-size: 22px; }
+.lead { color: var(--ink-2); font-size: 13px; margin: 6px 0 20px; }
+.empty { color: var(--ink-3); padding-top: 120px; text-align: center; }
+.logo { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 8px; padding: 3px; background: #fff; flex: none; }
+.ext { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; flex: none; }
+.price { font-weight: 700; white-space: nowrap; }
+.price small { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+.sms { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 14px; cursor: pointer; }
+.sms:hover { border-color: var(--ink-3); }
+.sms .ic { width: 36px; height: 36px; border-radius: 10px; background: var(--side); display: grid; place-items: center; font-size: 18px; }
+.sms b { display: block; }
+.sms span { font-size: 12px; color: var(--ink-2); }
+.sms .price { margin-left: auto; }
+.sec { font-size: 13px; font-weight: 650; color: var(--ink-2); margin: 22px 0 10px; display: flex; align-items: center; gap: 8px; }
+.clk { cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.clk:hover .ext { transform: translate(2px,-2px); }
+.tag { font-size: 11px; font-weight: 650; padding: 1px 7px; border-radius: 999px; background: var(--ink); color: #fff; }
+.tip { position: absolute; left: calc(100% - 4px); top: 50%; transform: translateY(-50%); white-space: nowrap; background: var(--ink); color: #fff; font-size: 12px; padding: 5px 9px; border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 5; font-weight: 400; }
+.ni:hover .tip { opacity: 1; }
+
+/* 右侧浏览器 */
+.browser { position: absolute; top: 0; right: 0; bottom: 0; width: 62%; background: #fff; border-left: 1px solid var(--line); box-shadow: -10px 0 30px #0001; display: none; flex-direction: column; animation: slide .25s ease; z-index: 9; }
+.browser.show { display: flex; }
+@keyframes slide { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.bar button { border: 0; background: var(--side); border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; }
+.page { flex: 1; display: grid; place-items: center; color: var(--ink-3); text-align: center; line-height: 1.8; }
+
+/* V1 定价三栏 */
+.v1grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.v1c { position: relative; border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.v1c:hover { border-color: var(--ink-3); }
+.v1c.pick { border: 1.5px solid var(--ink); }
+.v1c .n { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+.v1c .big { font-size: 24px; font-weight: 750; margin-top: 8px; }
+.v1c .big small { font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.v1c .ext { position: absolute; right: 14px; top: 16px; }
+.v1c .tag { position: absolute; right: 36px; top: 16px; }
+.v1more { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 12px; }
+.chip:hover { border-color: var(--ink-3); }
+.bsup { align-self: flex-start; margin: -1px 0 0 -3px; font-size: 9px; font-weight: 600; line-height: 1; color: var(--ink-3); }
+.bred { align-self: flex-start; margin: -3px 0 0 -3px; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 4px; border-radius: 5px; background: #e5484d; color: #fff; }
+.bdot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); opacity: .6; align-self: flex-start; margin: 2px 0 0 -3px; }
+.blogo { width: 13px; height: 13px; margin-left: 2px; filter: grayscale(1); opacity: .45; }
+.nb1 { margin-left: auto; font-size: 11px; color: var(--ink-3); }
+.ni.on .nb1 { color: var(--ink-2); }
+
+/* V2 列表 */
+.v2list { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.v2r { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.v2r:first-child { border-top: 0; }
+.v2r:hover { background: #fafafa; }
+.v2r .n { font-weight: 650; }
+.v2r .d { font-size: 12px; color: var(--ink-3); }
+.v2r .price { margin-left: auto; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); margin-left: auto; }
+
+/* V3 分组横向卡 */
+.v3row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.v3c { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.v3c:hover { border-color: var(--ink-3); transform: translateY(-2px); }
+.v3c .top { display: flex; align-items: center; justify-content: space-between; }
+.v3c .n { font-weight: 700; }
+.pill { margin-left: auto; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: var(--ink); color: #fff; letter-spacing: .3px; }
+
+/* V4 主推一张 */
+.v4hero { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border: 1.5px solid var(--ink); border-radius: 16px; }
+.v4hero .logo { width: 48px; height: 48px; border-radius: 12px; padding: 6px; }
+.v4hero .n { font-size: 18px; font-weight: 750; }
+.v4hero .d { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+.v4hero .price { margin-left: auto; font-size: 22px; }
+.v4hero .buy { border: 0; background: var(--accent-fill); color: #fff; border-radius: 10px; padding: 10px 18px; font: inherit; font-weight: 650; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.v4hero .buy:hover { filter: brightness(1.08); }
+.fold { margin-top: 12px; }
+.fold summary { cursor: pointer; font-size: 13px; color: var(--ink-2); list-style: none; display: inline-flex; gap: 6px; align-items: center; }
+.fold summary::after { content: '⌄'; transition: transform .15s; }
+.fold[open] summary::after { transform: rotate(180deg); }
+.fold .v2list { margin-top: 10px; }
+.nsub { display: block; font-size: 11px; color: var(--ink-3); font-weight: 400; margin-top: 1px; }
+.ni4 { flex-direction: column; align-items: flex-start; gap: 0; }
+
+/* V5 网格 2 列 */
+.v5grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.v5c { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.v5c:hover { border-color: var(--ink-3); background: #fafafa; }
+.v5c .n { font-weight: 650; }
+.v5c .d { font-size: 12px; color: var(--ink-3); }
+.v5c .price { margin-left: auto; }
+.nlogo { width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--line); background: #fff; padding: 2px; margin-left: auto; }
+
+/* 静态住宅 IP 重点卡 */
+.ip { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1.5px solid var(--ink); border-radius: 14px; background: #fafafa; }
+.ip:hover { background: #f2f2f2; }
+.ip .ic { width: 36px; height: 36px; border-radius: 10px; background: var(--ink); color: #fff; display: grid; place-items: center; }
+.ip .ic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ip b { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.ip .warn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 650; color: #b42318; background: #fde8e7; padding: 2px 8px; border-radius: 999px; }
+.ip span.sub { font-size: 12px; color: var(--ink-2); }
+.ip .price { margin-left: auto; }
+.ip.compact { padding: 12px 16px; }
+</style>
+</head>
+<body>
+<div class="tabs" id="tabs"></div>
+<div class="tabs" id="btabs" style="padding-top:0"></div>
+<div class="win">
+  <div class="nav" id="nav"></div>
+  <div class="main" id="main"></div>
+</div>
+<script>
+const LOGO = '../ui/assets/logos/openai.webp';
+const EXT = '<svg class="ext" viewBox="0 0 24 24"><path d="M7 17L17 7M8 7h9v9"/></svg>';
+const P = {
+  go: { n: 'ChatGPT Go', d: '入门', p: 53, per: '/月', url: 'chatgpt-go-1m' },
+  plus: { n: 'ChatGPT Plus', d: '常用', p: 169, per: '/月', url: 'chatgpt-plus-1m' },
+  plus12: { n: 'ChatGPT Plus 一年', d: '常用，按年', p: 1419, per: '/年', url: 'chatgpt-plus-12m' },
+  pro100: { n: 'ChatGPT Pro 100', d: '重度', p: 679, per: '/月', url: 'chatgpt-pro-100-1m' },
+  pro200: { n: 'ChatGPT Pro 200', d: '重度，额度翻倍', p: 1129, per: '/月', url: 'chatgpt-pro-200-1m' },
+  pro500: { n: 'ChatGPT Pro 500', d: '团队级额度', p: 3569, per: '/月', url: 'chatgpt-pro-500-1m' },
+  codex: { n: 'Codex 额度 250', d: '只加 Codex 用量', p: 99, per: '', url: 'codex-credits' },
+};
+const logo = (c='logo') => `<img class="${c}" src="${LOGO}" alt="">`;
+const price = k => `<span class="price">¥${P[k].p}<small>${P[k].per}</small></span>`;
+const SHIELD = '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>';
+const IP = (c='') => `<div class="ip clk ${c}" data-u="us-static-ip-30d"><div class="ic">${SHIELD}</div><div><b>美国静态住宅 IP<span class="warn">防 Codex 风控降智</span></b><span class="sub">独享、固定不变、不限流量 · 30 天</span></div><span class="price">¥39</span>${EXT}</div>`;
+const SMS = `<div class="sms clk" data-u="codex-sms"><div class="ic">📱</div><div><b>注册要手机验证码</b><span>注册、登录 OpenAI 官方账号时收短信用，收不到可换号</span></div><span class="price">¥35</span>${EXT}</div>`;
+const row = k => `<div class="v2r clk" data-u="${P[k].url}">${logo()}<div><div class="n">${P[k].n}</div><div class="d">${P[k].d}</div></div>${price(k)}${EXT}</div>`;
+
+const V = [
+  { name: '1 定价三栏 · 导航小灰字',
+    nav: '<span class="nb1">GPT · IP</span>',
+    body: () => `${SMS}
+      <div class="sec">${logo()}更强的官方 GPT 模型</div>
+      <div class="v1grid">
+        ${['go','plus','pro200'].map(k => `<div class="v1c clk ${k==='plus'?'pick':''}" data-u="${P[k].url}">${k==='plus'?'<span class="tag">常用</span>':''}${EXT}<div class="n">${P[k].n.replace('ChatGPT ','')}</div><div class="d" style="font-size:12px;color:var(--ink-3)">${P[k].d}</div><div class="big">¥${P[k].p}<small>${P[k].per}</small></div></div>`).join('')}
+      </div>
+      <div class="v1more">${['plus12','pro100','pro500','codex'].map(k => `<span class="chip clk" data-u="${P[k].url}">${P[k].n.replace('ChatGPT ','')} · ¥${P[k].p}${EXT}</span>`).join('')}</div>
+      <div class="sec">稳定使用</div>${IP()}` },
+  { name: '2 整齐列表 · 导航小黑点＋悬停说明',
+    nav: '<span class="dot"></span><span class="tip">验证码 · GPT 会员 · 住宅 IP</span>',
+    body: () => `${SMS}
+      <div class="sec">更强的官方 GPT 模型</div>
+      <div class="v2list">${['go','plus','pro100','pro200','codex'].map(row).join('')}</div>
+      <div class="sec">稳定使用</div>${IP()}` },
+  { name: '3 分组横排卡 · 导航「GPT」胶囊',
+    nav: '<span class="pill">GPT</span>',
+    body: () => `<div class="sec" style="margin-top:0">注册</div>${SMS}
+      <div class="sec">${logo()}ChatGPT 会员</div>
+      <div class="v3row">${['go','plus','pro100','pro200'].map(k => `<div class="v3c clk" data-u="${P[k].url}"><div class="top"><span class="n">${P[k].n.replace('ChatGPT ','')}</span>${EXT}</div><div style="font-size:12px;color:var(--ink-3)">${P[k].d}</div>${price(k)}</div>`).join('')}</div>
+      <div class="sec">Codex</div>
+      <div class="v2list">${row('codex')}</div>
+      <div class="sec">稳定使用</div>${IP()}` },
+  { name: '4 主推 Plus · 导航第二行小字',
+    nav: '', navSub: '验证码 · GPT 会员 · 住宅 IP',
+    body: () => `${SMS}<div style="margin-top:12px"></div><div class="v4hero">${logo()}<div><div class="n">ChatGPT Plus</div><div class="d">官方 GPT 模型，Codex 直接能用</div></div><span class="price">¥169<small>/月</small></span><button class="buy clk" data-u="chatgpt-plus-1m">购买${EXT}</button></div>
+      <details class="fold"><summary>其他套餐</summary><div class="v2list">${['go','plus12','pro100','pro200','pro500','codex'].map(row).join('')}</div></details>
+      <div class="sec">稳定使用</div>${IP()}` },
+  { name: '5 两列网格 · 导航 OpenAI 小图标',
+    nav: `<img class="nlogo" src="${LOGO}" alt=""><span class="tip">验证码 · GPT 会员 · 住宅 IP</span>`,
+    body: () => `${SMS}<div class="sec">${logo()}ChatGPT 会员</div><div class="v5grid">
+        ${['go','plus','pro100','pro200','plus12','codex'].map(k => `<div class="v5c clk" data-u="${P[k].url}">${logo()}<div><div class="n">${P[k].n.replace('ChatGPT ','')}</div><div class="d">${P[k].d}</div></div>${price(k)}${EXT}</div>`).join('')}
+      </div>
+      <div class="sec">稳定使用</div>${IP()}` },
+];
+
+let cur = 0, page = 'shop', badge = -1;
+const TIP = '<span class="tip">验证码 · GPT 会员 · 住宅 IP</span>';
+const B = [
+  ['角标 A 不加，只在悬停时说明', TIP],
+  ['角标 B 灰色小点', `<span class="bdot"></span>${TIP}`],
+  ['角标 C 灰色 OpenAI 小图标', `<img class="blogo" src="${LOGO}" alt="">${TIP}`],
+  ['角标 D 灰色上标「GPT」', `<span class="bsup">GPT</span>${TIP}`],
+  ['角标 E 第二行灰色小字', null],
+];
+const btabs = document.getElementById('btabs');
+B.forEach(([n], i) => { const b = document.createElement('button'); b.textContent = n; b.onclick = () => { badge = i; draw(); }; btabs.append(b); });
+const tabs = document.getElementById('tabs'), nav = document.getElementById('nav'), main = document.getElementById('main');
+V.forEach((v, i) => { const b = document.createElement('button'); b.textContent = v.name; b.onclick = () => { cur = i; page = 'shop'; draw(); }; tabs.append(b); });
+badge = 0;
+function draw() {
+  [...tabs.children].forEach((b, j) => b.classList.toggle('on', j === cur));
+  const v = V[cur];
+  const item = (k, label, extra='') => `<div class="ni ${page===k?'on':''} ${extra}" data-p="${k}">${label}</div>`;
+  [...btabs.children].forEach((b, j) => b.classList.toggle('on', j === badge));
+  const sub = badge === 4 ? '验证码 · 会员 · IP' : (badge < 0 ? v.navSub : null);
+  const mark = badge >= 0 && badge < 4 ? B[badge][1] : v.nav;
+  const shopLabel = sub ? `商城<span class="nsub">${sub}</span>` : `商城${mark}`;
+  nav.innerHTML = `<div class="brand">CodexBuddy</div>${item('models','模型')}${item('settings','设置')}${item('community','社群')}${item('shop', shopLabel, sub ? 'ni4' : '')}`;
+  nav.querySelectorAll('.ni').forEach(n => n.onclick = () => { page = n.dataset.p; draw(); });
+  main.innerHTML = page === 'shop'
+    ? `<h1>商城</h1><p class="lead">微信 / 支付宝付款，付完自动发货</p>${v.body()}<div class="browser" id="browser"><div class="bar"><button id="close">✕</button><span id="url"></span></div><div class="page" id="pg"></div></div>`
+    : `<div class="empty">（${({models:'模型',settings:'设置',community:'社群'})[page]}页，点左边「商城」回来看角标）</div>`;
+  main.querySelectorAll('.clk').forEach(c => c.onclick = () => {
+    document.getElementById('url').textContent = 'shop.humanslive.ai/products/' + c.dataset.u;
+    document.getElementById('pg').innerHTML = '右侧浏览器（示意）<br>商品页：' + c.dataset.u;
+    document.getElementById('browser').classList.add('show');
+  });
+  const cl = document.getElementById('close'); if (cl) cl.onclick = () => document.getElementById('browser').classList.remove('show');
+}
+draw();
+</script>
+</body>
+</html>

@@ -85,7 +85,7 @@ export interface IpcChannels {
   'browser:close': [void, void];                                     // B-04, M-09
   'browser:back': [void, void];                                      // B-05
   'browser:reload': [void, void];                                    // B-05
-  'shop:open': [{ item: 'sms' | 'subscriptions' }, void];             // P-02, P-03: opens a fixed shop page, expanded
+  'shop:open': [{ item: 'sms' | 'subscriptions' | 'ip' }, void];             // P-02, P-03: opens a fixed shop page, expanded
   'browser:place': [{ x: number; y: number; width: number; height: number }, void]; // A-03: the view inside the install dialog
   'security:get': [void, { keys: { vendor: VendorKey; name: string; keyTail: string; file: string }[]; app: ConnectionView[]; web: ConnectionView[] }]; // S-01, S-04
   'security:reveal': [{ vendor: VendorKey }, void];                  // S-02

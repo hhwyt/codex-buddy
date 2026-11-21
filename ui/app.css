@@ -19,6 +19,10 @@ button { font: inherit; letter-spacing: inherit; color: inherit; cursor: pointer
 .nav-item { text-align: left; background: none; border: 0; border-radius: var(--r-sm); padding: 8px 10px; color: var(--ink); }
 .nav-item:hover { background: var(--hover); }
 .nav-item[aria-current="page"] { background: var(--selected); }
+.nav-item { position: relative; display: flex; align-items: center; }
+.nav-mark { align-self: flex-start; margin-left: 2px; font-size: 9px; font-weight: 600; line-height: 1; color: var(--ink-3); }
+.nav-tip { position: absolute; left: calc(100% - 4px); top: 50%; transform: translateY(-50%); z-index: 20; white-space: nowrap; padding: 5px 9px; border-radius: 6px; background: var(--ink); color: var(--on-ink); font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.nav-item:hover .nav-tip { opacity: 1; }
 .side-update { margin-top: auto; border: 0; background: none; padding: 8px 10px; text-align: left; display: flex; align-items: center; gap: 7px; color: var(--ink); -webkit-app-region: no-drag; font-size: 13px; }
 .side-update:hover { color: var(--accent); }
 .side-update-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
@@ -151,22 +155,20 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .community-copied { background: var(--community-copied-bg); color: var(--community-copied-text); font-size: 13px; border-radius: 9px; padding: 7px 12px; margin: 0 0 16px; }
 /* 商城 (design/shop-entry.html 5B): one big card for the SMS code, one quiet line for the subscriptions */
 .shop-lead { font-size: 14px; color: var(--ink-2); margin: 0 0 22px; }
-.shop-card { display: flex; align-items: center; gap: 16px; width: 100%; max-width: 520px; padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg); color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
-.shop-card:hover { border-color: var(--ink-3); }
-.shop-card-icon { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 11px; background: var(--side); }
-.shop-card-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.shop-card-text { flex: 1; min-width: 0; }
-.shop-card-text b { display: block; font-size: 16px; font-weight: 600; }
-.shop-card-text span { font-size: 13px; color: var(--ink-2); }
-.shop-card-price { font-weight: 600; white-space: nowrap; }
-.shop-more { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 520px; margin-top: 22px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-.shop-more:hover { border-color: var(--ink-3); background: var(--side); }
-.shop-more-icon { width: 30px; height: 30px; flex: none; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); object-fit: contain; }
-.shop-more-text { font-size: 13px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
-.shop-more-arrow { margin-left: auto; display: grid; transition: transform .15s ease; }
-.shop-more-arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.shop-more:hover .shop-more-arrow { transform: translate(2px, -2px); }
-.shop-card.hl, .shop-more.hl { animation: shop-glow 1.2s ease 2; }
+.shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 760px; }
+.shop-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 160px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg); color: var(--ink); text-align: left; cursor: pointer; font: inherit; transition: border-color .15s, transform .15s; }
+.shop-card:hover { border-color: var(--ink-3); transform: translateY(-2px); }
+.shop-card-icon { width: 40px; height: 40px; flex: none; display: grid; place-items: center; margin-bottom: 8px; border-radius: 11px; background: var(--side); }
+.shop-card-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.shop-card-icon img { width: 24px; height: 24px; }
+.shop-card-icon.dark { background: var(--ink); color: var(--on-ink); }
+.shop-card b { font-size: 15px; }
+.shop-card-tag { font-size: 11px; font-weight: 650; padding: 1px 7px; border: 1px solid var(--ink); border-radius: 999px; white-space: nowrap; }
+.shop-card-sub { font-size: 12px; color: var(--ink-2); }
+.shop-card-arrow { position: absolute; top: 18px; right: 16px; display: grid; transition: transform .15s ease; }
+.shop-card-arrow svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.shop-card:hover .shop-card-arrow { transform: translate(2px, -2px); }
+.shop-card.hl { animation: shop-glow 1.2s ease 2; }
 @keyframes shop-glow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); } 70% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent); } 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); } }
 .brand-wechat { color: var(--wechat); }
 .brand-xhs { color: var(--xhs); }

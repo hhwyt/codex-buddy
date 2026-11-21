@@ -139,7 +139,7 @@ function shopChips(go: { sms(): void; gpt(): void }): HTMLElement {
     class: 'shop-chip', type: 'button', 'data-testid': testid, onclick: (e: Event) => { e.stopPropagation(); onclick(); },
   }, h('span', {}, title), h('small', {}, sub));
   return h('div', { class: 'shop-chips' },
-    chip(TID.models.shopSms, '📱 收不到验证码', '¥35 买一个号码', go.sms),
+    chip(TID.models.shopSms, '📱 收不到验证码', '买一个号码', go.sms),
     chip(TID.models.shopGpt, '✦ 更强的 GPT', '官方订阅', go.gpt));
 }
 

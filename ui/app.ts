@@ -73,7 +73,7 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi, restoreNetwo
 
   const navButtons = NAV.map(n => h('button', {
     class: 'nav-item', type: 'button', 'data-testid': n.testid, 'data-route': n.route, onclick: () => { clearToasts(); void app.go(n.route); },
-  }, n.label));
+  }, n.label, ...(n.route === 'shop' ? [h('sup', { class: 'nav-mark' }, 'GPT'), h('span', { class: 'nav-tip', role: 'tooltip' }, '验证码 · GPT 会员 · 住宅 IP')] : [])));
   let updateInfo: { version: string; notes: string } | null = null;
   const updateBadge = h('button', {
     class: 'side-update', type: 'button', 'data-testid': TID.update.badge, hidden: true,
