@@ -39,9 +39,9 @@ export function raiseFloor(floor: string | null, candidate: string | null | unde
   return !floor || compareVersions(candidate, floor) > 0 ? candidate : floor;
 }
 
-/** Whether `current` must upgrade before use. floor null (never accepted a remote config) = fail open */
+/** Whether `current` must upgrade before use. floor null (never accepted a remote config) = fail open. Only when the
+ *  published latest meets the floor: with nothing to upgrade to, asking for an upgrade would lock the app for good */
 export function requiredUpgrade(current: string, floor: string | null, latest: RemoteConfig['latest']): UpgradeRequired | null {
-  if (!floor || compareVersions(current, floor) >= 0) return null;
-  const version = compareVersions(latest.version, floor) >= 0 ? latest.version : floor;
-  return { kind: 'required', version, notes: latest.notes, macUrl: latest.macUrl, winUrl: latest.winUrl };
+  if (!floor || compareVersions(current, floor) >= 0 || compareVersions(latest.version, floor) < 0) return null;
+  return { kind: 'required', version: latest.version, notes: latest.notes, macUrl: latest.macUrl, winUrl: latest.winUrl };
 }

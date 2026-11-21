@@ -41,8 +41,8 @@ describe('updater', () => {
     test('首次没取到配置（没有下限）：放行', () => {
       expect(requiredUpgrade('0.0.1', null, latest)).toBeNull();
     });
-    test('最新版比最低版本还低（配置写错）：至少报最低版本', () => {
-      expect(requiredUpgrade('0.1.0', '0.5.0', latest)?.version).toBe('0.5.0');
+    test('V-01 最新版比最低版本还低（没有能升级到的版本）：不要求升级', () => {
+      expect(requiredUpgrade('0.1.0', '0.5.0', latest)).toBeNull();
     });
     test('只升不降：下限只会变高', () => {
       expect(raiseFloor(null, '0.2.0')).toBe('0.2.0');

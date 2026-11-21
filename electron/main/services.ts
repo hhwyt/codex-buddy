@@ -693,7 +693,6 @@ export function createServices(d: ServiceDeps) {
       if (!online) return { ok: false, reason: '连不上网，请检查网络后重试。' };
       const u = upgradeRequired();
       if (!u) return { ok: false, reason: '当前版本不用升级。' };
-      if (remote.latest.version !== u.version) return { ok: false, reason: `${u.version} 还没发布，请稍后再试。` };
       let file: string;
       try { file = await prepareInstaller(u.version, u.url, step('upgrade')); } catch (error) {
         return { ok: false, reason: error instanceof UpgradeFailure ? error.message : '更新包没下载下来，请检查网络后重试。' };

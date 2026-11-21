@@ -725,7 +725,7 @@ describe('security, community, update, restore', () => {
       const b = build({ os: 'win' });
       const reason = async () => (await b.h['upgrade:run'](undefined as never)).reason;
       release({ version: '0.1.5' });
-      expect(await reason()).toBe('0.2.0 还没发布，请稍后再试。');
+      expect(await reason()).toBe('当前版本不用升级。');
       release({ winSha256: undefined });
       expect(await reason()).toBe('更新包的信息不对，请稍后再试。');
       release();

@@ -58,11 +58,11 @@ describe('简洁强制升级', () => {
   });
 
   it('V-05 失败时写真实原因，没有原因才写请检查网络', async () => {
-    const fake = fakeApi({ 'upgrade:run': { ok: false, reason: '0.2.6 还没发布，请稍后再试。' } });
+    const fake = fakeApi({ 'upgrade:run': { ok: false, reason: '下载的更新包不完整，请再试一次。' } });
     showUpgrade(fake.api, root(), INFO, OPTIONS);
     click($(TID.upgrade.download)); await settle();
-    expect(text()).toContain('升级没成功0.2.6 还没发布，请稍后再试。');
-    expect(text()).not.toContain('请检查网络');
+    expect(text()).toContain('升级没成功下载的更新包不完整，请再试一次。');
+    expect(fake.called('upgrade:run')).toHaveLength(1);
   });
 
   it('V-05 下载失败后去社群问问打开社群页，返回回到同一个升级弹窗', async () => {
