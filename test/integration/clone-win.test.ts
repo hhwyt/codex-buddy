@@ -155,7 +155,7 @@ describe('分身 Windows', () => {
     const opened = await waitFor(() => readRecord(record)[0]);
     expect(opened.codexHome).toBe(info.codexHome);
     expect(opened.args[0]).toBe(config.args[0]);
-    const port = Number(opened.args[1].replace('--remote-debugging-port=', ''));
+    const port = Number(opened.args.find(a => a.startsWith('--remote-debugging-port='))!.replace('--remote-debugging-port=', ''));
     const server = cdpServer(port, (msg, send, close) => {
       if (msg.method === 'Target.setAutoAttach') send({ method: 'Target.attachedToTarget', params: { sessionId: 'S1', targetInfo: { type: 'page', url: 'app://-/index.html' }, waitingForDebugger: true } });
       if (msg.method === 'Runtime.runIfWaitingForDebugger') setTimeout(close, 100);

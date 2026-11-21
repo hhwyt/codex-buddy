@@ -213,9 +213,10 @@ describe('汉化版 on Mac', () => {
     const opened = await waitFor(() => readRecord(record)[0]);
     expect(opened.codexHome).toBe(cloneHome);
     expect(opened.args[0]).toBe('--user-data-dir=' + path.join(root, 'ud'));
-    expect(opened.args[1]).toMatch(/^--remote-debugging-port=\d+$/);
+    expect(opened.args[1]).toBe('--remote-debugging-address=127.0.0.1');
+    expect(opened.args[2]).toMatch(/^--remote-debugging-port=\d+$/);
     // Chinese even on an English system: Codex follows the language Chromium is told (hwy-pc, en-US Windows)
-    expect(opened.args[2]).toBe('--lang=zh-CN');
+    expect(opened.args[3]).toBe('--lang=zh-CN');
   });
 });
 
