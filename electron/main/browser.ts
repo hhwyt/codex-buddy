@@ -37,10 +37,12 @@ export function pageZoom(viewWidth: number): number {
 }
 
 export type BrowserMode = 'pip' | 'expanded';
+/** 'inline': placed by the page inside a dialog (the install dialog's right half, A-03); every open stays there */
+export type BrowserPlacement = BrowserMode | 'inline';
 export interface Bounds { x: number; y: number; width: number; height: number }
 export interface Size { width: number; height: number }
 /** width: px the expanded view takes at the window's right edge, so the page can move out of its way; 0 otherwise */
-export interface BrowserState { open: boolean; mode: BrowserMode; url: string; canGoBack: boolean; width: number }
+export interface BrowserState { open: boolean; mode: BrowserPlacement; url: string; canGoBack: boolean; width: number }
 
 /** Where the web view sits inside the window's content area */
 export function viewBounds(mode: BrowserMode, content: Size, widened: boolean): Bounds {
@@ -103,6 +105,9 @@ export interface RightBrowser extends BrowserDriver {
   reload(): void;
   /** 🌐 / PiP click / shrink (B-03); opens a blank browser when closed */
   show(mode: BrowserMode): void;
+  /** Pins the view to these window bounds (inside a dialog) until close(): later opens, modes and resizes keep it there.
+   *  A zero-size box pins it hidden until the page knows where its room is */
+  place(bounds: Bounds): void;
   state(): BrowserState;
 }
 
@@ -114,16 +119,23 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
   let mode: BrowserMode = 'pip';
   /** px the window grew for the expanded browser; 0 = not widened */
   let widenedBy = 0;
+  /** Bounds the page pinned the view to (place); null = the usual small window / expanded panel */
+  let pinned: Bounds | null = null;
   const urlWaiters = new Set<UrlWaiter>();
   const respWaiters = new Set<RespWaiter>();
 
   const state = (): BrowserState => ({
-    open: !!host, mode, url: host?.currentUrl() ?? '', canGoBack: host?.canGoBack() ?? false,
-    width: host && mode === 'expanded' ? viewBounds('expanded', host.contentSize(), widenedBy > 0).width : 0,
+    open: !!host, mode: pinned ? 'inline' : mode, url: host?.currentUrl() ?? '', canGoBack: host?.canGoBack() ?? false,
+    width: host && !pinned && mode === 'expanded' ? viewBounds('expanded', host.contentSize(), widenedBy > 0).width : 0,
   });
   const emit = () => onState(state());
   const place = () => {
     if (!host) return;
+    if (pinned) {
+      host.setBounds(pinned);
+      if (pinned.width > 0) host.setZoom(pageZoom(pinned.width));
+      return;
+    }
     const b = viewBounds(mode, host.contentSize(), widenedBy > 0);
     host.setBounds(b);
     host.setZoom(pageZoom(b.width));
@@ -151,6 +163,7 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
 
   function applyMode(m: BrowserMode) {
     const h = ensureHost();
+    if (pinned) { place(); emit(); return; }
     mode = m;
     const { width } = h.contentSize();
     if (m === 'expanded' && !widenedBy) {
@@ -204,6 +217,13 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
       return host.hasCookie(url, name);
     },
     show(m) { applyMode(m); },
+    place(b) {
+      pinned = { x: Math.round(b.x), y: Math.round(b.y), width: Math.max(0, Math.round(b.width)), height: Math.max(0, Math.round(b.height)) };
+      if (!host) return;
+      if (widenedBy) { host.setContentWidth(host.contentSize().width - widenedBy); widenedBy = 0; }
+      place();
+      emit();
+    },
     back() { if (host?.canGoBack()) host.goBack(); },
     reload() { host?.reload(); },
     state,
@@ -213,6 +233,7 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
       if (widenedBy) h.setContentWidth(h.contentSize().width - widenedBy);
       widenedBy = 0;
       mode = 'pip';
+      pinned = null;
       host = null;
       h.destroy();
       for (const w of urlWaiters) w.done(false);
@@ -382,5 +403,6 @@ export function browserHandlers(rb: RightBrowser) {
     'shop:open': async ({ item }: { item: ShopItem }) => {
       if (Object.prototype.hasOwnProperty.call(SHOP_URLS, item)) await rb.open(SHOP_URLS[item], { mode: 'expanded' });
     },
+    'browser:place': (b: Bounds) => rb.place(b),
   };
 }

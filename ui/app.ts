@@ -7,6 +7,7 @@ import { clearToasts } from './components/toast.js';
 import { h } from './dom.js';
 import { renderCommunity } from './pages/community.js';
 import { renderModels } from './pages/models.js';
+import { renderInstallVerify } from './pages/install-verify.js';
 import { renderOnboarding } from './pages/onboarding.js';
 import { openSecurity } from './pages/security.js';
 import { renderSettings } from './pages/settings.js';
@@ -48,6 +49,8 @@ export async function createApp(root: HTMLElement, api: BuddyApi): Promise<App> 
 
 async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App> {
   const state = await api.invoke('app:state');
+  /** A-01: refreshed on every page change (the signed config may arrive after the first app:state) */
+  let starVerify = !!state.starVerify;
   document.documentElement.classList.add(`os-${state.os}`);
   let current: Route | null = null;
   let cleanup: void | (() => void);
@@ -77,7 +80,8 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
     const host = h('div');
     root.append(host);
     shell.inert = true;
-    const dispose = renderOnboarding({ api, root: host, go: route => {
+    // A-01: with the signed switch on, install and the check run in one dialog
+    const dispose = (starVerify ? renderInstallVerify : renderOnboarding)({ api, root: host, go: route => {
       closeInstall?.();
       void app.go(route);
     } });
@@ -100,6 +104,7 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
       const fresh = await api.invoke('app:state');
       if (blocked) return;
       banner.hidden = fresh.codexInstalled;
+      starVerify = !!fresh.starVerify;
       if (typeof cleanup === 'function') cleanup();
       current = route;
       for (const b of navButtons) {
@@ -111,7 +116,8 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
     route: () => current,
   };
   const synchronizeGate = () => {
-    const key = required ? `required:${required.version}` : versionStatus && versionStatus !== 'allowed' ? versionStatus : '';
+    // N-01: no waiting screen while the version is still being checked; only a required upgrade or no network locks
+    const key = required ? `required:${required.version}` : versionStatus === 'offline' ? versionStatus : '';
     blocked = !!key;
     if (blocked) closeInstall?.();
     shell.inert = blocked;

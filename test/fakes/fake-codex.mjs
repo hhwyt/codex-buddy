@@ -58,7 +58,10 @@ switch (scenario) {
   default:
     if (provider && provider !== 'openai' && !key) fail(['ERROR: unexpected status 401 Unauthorized: missing api key']);
     if (catalog && model && !catalog.includes(model)) fail([`ERROR: unexpected status 404 Not Found: Model not available: ${model}`]);
-    process.stderr.write(`session id: fake\n--------\nuser\n${args[args.length - 1]}\ncodex\n好了\ntokens used\n2\n`);
-    process.stdout.write('好了\n');
+    // A-02: asked for the project's address, it gives back the one the prompt names (scenario no-url: it does not)
+    const prompt = args[args.length - 1];
+    const reply = /只回答网址/.test(prompt) && scenario !== 'no-url' ? (/https:\/\/github\.com\/[\w./-]+[\w]/.exec(prompt)?.[0] ?? '好了') : '好了';
+    process.stderr.write(`session id: fake\n--------\nuser\n${prompt}\ncodex\n${reply}\ntokens used\n2\n`);
+    process.stdout.write(`${reply}\n`);
     process.exit(0);
 }

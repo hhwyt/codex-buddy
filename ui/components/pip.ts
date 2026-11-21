@@ -25,7 +25,8 @@ export function mountBrowser(api: BuddyApi, root: HTMLElement): () => void {
     // The expanded browser's width (from the main process): its frame matches the native view, pages move out of its way
     root.classList.toggle('browser-expanded', s.open && s.mode === 'expanded');
     root.style.setProperty('--browser-width', `${s.width}px`);
-    if (!s.open) { host.replaceChildren(); return; }
+    // Closed, or inside the install dialog (A-03), which draws its own frame
+    if (!s.open || s.mode === 'inline') { host.replaceChildren(); return; }
     if (s.mode === 'pip') {
       const expand = () => void api.invoke('browser:show', { mode: 'expanded' });
       host.replaceChildren(h('div', { class: 'pip', 'data-testid': TID.browser.pip, title: '点一下放大', onclick: expand },

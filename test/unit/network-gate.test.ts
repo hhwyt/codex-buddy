@@ -22,7 +22,7 @@ test('N-01 错误状态、跳转到其他地址、请求失败都不能放行', 
   expect(await checkInternet(vi.fn<typeof fetch>().mockRejectedValue(new Error('no network')))).toBe(false);
 });
 
-test('N-01 请求超时结束转圈，不能一直挂起', async () => {
+test('N-01 请求超时结束等待，不能一直挂起', async () => {
   vi.useFakeTimers();
   const fetcher: typeof fetch = (_url, options) => new Promise((_resolve, reject) => {
     options!.signal!.addEventListener('abort', () => reject(new Error('timeout')));
@@ -32,66 +32,66 @@ test('N-01 请求超时结束转圈，不能一直挂起', async () => {
   expect(await result).toBe(false);
 });
 
-test('N-03 默认拒绝后台功能，只放行检查、退出和终止进行中的操作', async () => {
-  const verify = vi.fn(async () => true);
+test('N-03 启动检查出结果前，读取照常，改配置的操作等检查通过才执行', async () => {
+  let finish!: (ok: boolean) => void;
+  const verify = vi.fn(() => new Promise<boolean>(resolve => { finish = resolve; }));
   const gate = new NetworkGate(verify, () => {});
-  for (const channel of ['install:run', 'wallet:get', 'codex:open', 'codex:restart', 'zh:set', 'restore:run'] as const) {
-    expect(await gate.allows(channel)).toBe(false);
-  }
-  for (const channel of ['network:check', 'app:quit', 'network:offline', 'switch:cancel', 'browser:close'] as const) {
+  for (const channel of ['app:state', 'wallet:get', 'network:check', 'app:quit', 'switch:cancel', 'browser:close'] as const) {
     expect(await gate.allows(channel)).toBe(true);
   }
   expect(verify).not.toHaveBeenCalled();
+  const action = gate.allows('switch:start');
+  const again = gate.allows('install:run');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(verify).toHaveBeenCalledTimes(1);
+  finish(true);
+  expect(await action).toBe(true);
+  expect(await again).toBe(true);
 });
 
-test('N-03 功能操作需要新请求，内存里的成功和本地配置不能替代连接', async () => {
-  let reachable = true;
+test('N-03 启动检查失败：操作被拒，读取照常；缓存和内置配置不能放行；重试通过后放行', async () => {
+  let reachable = false;
   const verify = vi.fn(async () => reachable);
   const states: string[] = [];
   const gate = new NetworkGate(verify, state => states.push(state));
-  expect(await gate.check()).toBe(true);
+  expect(await gate.check()).toBe(false);
+  expect(await gate.allows('install:run')).toBe(false);
+  expect(await gate.allows('codex:open')).toBe(false);
   expect(await gate.allows('wallet:get')).toBe(true);
   expect(verify).toHaveBeenCalledTimes(1);
-  reachable = false;
-  expect(await gate.allows('install:run')).toBe(false);
-  expect(verify).toHaveBeenCalledTimes(2);
-  expect(gate.state).toBe('offline');
   reachable = true;
-  expect(await gate.allows('codex:open')).toBe(false);
   expect(await gate.check()).toBe(true);
-  expect(states).toEqual(['online', 'offline', 'online']);
-  expect(new NetworkGate(verify, () => {}).state).toBe('checking');
+  expect(await gate.allows('install:run')).toBe(true);
+  expect(states).toEqual(['offline', 'online']);
 });
 
-test('N-04 系统已断网时立即拒绝，不把系统的在线标志当作成功验证', async () => {
+test('N-04 启动检查通过后，用到一半断网不再拦操作，也不再检查', async () => {
+  let reachable = true;
   let systemOnline = true;
-  const verify = vi.fn(async () => true);
+  const verify = vi.fn(async () => reachable);
   const gate = new NetworkGate(verify, () => {}, () => systemOnline);
   expect(await gate.check()).toBe(true);
+  reachable = false;
   systemOnline = false;
-  expect(await gate.allows('wallet:get')).toBe(false);
-  expect(await gate.check()).toBe(false);
+  expect(await gate.allows('switch:start')).toBe(true);
+  expect(await gate.check()).toBe(true);
+  expect(gate.state).toBe('online');
   expect(verify).toHaveBeenCalledTimes(1);
 });
 
-test('N-04 旧请求不能在断网后或新重试后重新放行，重复检查共用一次请求', async () => {
-  let resolveOld!: (result: boolean) => void;
-  const verify = vi.fn<() => Promise<boolean>>().mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; })).mockResolvedValue(true);
+test('N-04 系统报告断网时启动检查直接失败，不发请求；重复检查共用一次请求', async () => {
+  const verify = vi.fn(async () => true);
+  expect(await new NetworkGate(verify, () => {}, () => false).check()).toBe(false);
+  expect(verify).not.toHaveBeenCalled();
   const gate = new NetworkGate(verify, () => {});
-  const old = gate.check();
-  expect(gate.check()).toBe(old);
-  await Promise.resolve();
-  gate.block();
-  expect(await gate.check()).toBe(true);
-  resolveOld(true);
-  expect(await old).toBe(false);
-  expect(gate.state).toBe('online');
+  expect(gate.check()).toBe(gate.check());
 });
 
 test('N-03 检测异常也必须拒绝', async () => {
   const gate = new NetworkGate(async () => { throw new Error('probe failed'); }, () => {});
   expect(await gate.check()).toBe(false);
   expect(gate.state).toBe('offline');
+  expect(await gate.allows('install:run')).toBe(false);
 });
 
 test('N-05 正式包清除测试地址、公钥和沙盒环境变量，开发测试保留', () => {

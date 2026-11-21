@@ -110,6 +110,34 @@ describe('right-side browser', () => {
     expect(states).toEqual([]);
   });
 
+  test('A-03 安装弹窗把浏览器放在自己右半边：之后打开的登录、扫码和 GitHub 页面都留在那里，窗口不加宽', async () => {
+    rb.place({ x: 0, y: 0, width: 0, height: 0 });
+    expect(made).toBe(0);
+    await rb.open('https://bigmodel.cn/login', { mode: 'expanded' });
+    expect(host.bounds).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+    expect(host.size.width).toBe(980);
+    expect(rb.state()).toMatchObject({ open: true, mode: 'inline', width: 0 });
+    rb.place({ x: 440.4, y: 120, width: 466, height: 440 });
+    expect(host.bounds).toEqual({ x: 440, y: 120, width: 466, height: 440 });
+    expect(host.zoom).toBeCloseTo(466 / 820);
+    rb.setMode('pip');
+    rb.show('expanded');
+    await rb.open('https://github.com/hhwyt/codex-buddy', { mode: 'pip' });
+    expect(host.bounds).toEqual({ x: 440, y: 120, width: 466, height: 440 });
+    expect(host.size.width).toBe(980);
+    rb.close();
+    expect(rb.state()).toMatchObject({ open: false, mode: 'pip' });
+    await rb.open('https://bigmodel.cn/keys', { mode: 'pip' });
+    expect(rb.state().mode).toBe('pip');
+  });
+
+  test('A-03 放大着的浏览器被放进弹窗时，窗口缩回原来的宽度', async () => {
+    await rb.open('https://bigmodel.cn/login', { mode: 'expanded' });
+    expect(host.size.width).toBe(980 + 480);
+    rb.place({ x: 400, y: 100, width: 460, height: 400 });
+    expect(host.size.width).toBe(980);
+  });
+
   test('B-01 后台自动操作时显示画中画（右下角）', async () => {
     await rb.open('https://bigmodel.cn/keys', { mode: 'pip' });
     expect(host.bounds).toEqual({ x: 980 - 17 - 318, y: 680 - 17 - 208 + 31, width: 318, height: 177 });

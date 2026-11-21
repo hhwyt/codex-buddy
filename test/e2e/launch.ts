@@ -151,7 +151,7 @@ export async function launch(opts: LaunchOptions = {}): Promise<Launched> {
 
 export const sandboxApps = (sandbox: string) => path.join(sandbox, 'Applications');
 export const codexHome = (sandbox: string) => path.join(sandbox, 'home', '.codex');
-export const cloneHome = (sandbox: string, slug: string) => path.join(sandbox, 'home', `.codex-${slug}`);
+export const cloneHome = (sandbox: string, slug: string) => path.join(sandbox, 'home', `.codex-codexbuddy-${slug}`);
 export const codexDataDir = (sandbox: string) => process.platform === 'win32'
   ? path.join(sandbox, 'home', 'AppData', 'Roaming', 'Codex')
   : path.join(sandbox, 'home', 'Library', 'Application Support', 'Codex');

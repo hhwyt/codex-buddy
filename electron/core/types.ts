@@ -114,7 +114,9 @@ export interface RemoteConfig {
   latest: { version: string; notes: string; macUrl: string; winUrl: string; macSha256?: string; winSha256?: string };
   models: Partial<Record<BuiltinVendorId, ModelEntry[]>>;
   community: { qrUrl: string; text: string };
-  switches: { hiddenVendors: string[]; hideZh: boolean; hideClone: boolean };
+  /** starVerify: the check after the first install, with the 「给 CodexBuddy 点个 Star」 box (A-01); off unless the
+   *  signed config turns it on */
+  switches: { hiddenVendors: string[]; hideZh: boolean; hideClone: boolean; starVerify?: boolean };
   /** Forced upgrade: a running version below this is blocked until updated ('0.0.0' when the file does not say) */
   minVersion: string;
 }

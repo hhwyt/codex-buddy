@@ -52,14 +52,7 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .dialog p { margin: 0 0 6px; color: var(--ink-2); line-height: 1.6; }
 .dialog .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .network-content { height: 100%; }
-.network-screen { position: fixed; inset: 0; z-index: 1000; background: var(--bg); }
-.network-brand { position: absolute; top: 25px; left: 28px; display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 650; -webkit-app-region: drag; }
-.network-body { height: 100%; display: grid; place-items: center; }
-.network-loading { text-align: center; outline: none; }
-.network-loading h2 { font-size: 21px; margin: 27px 0 12px; }
-.network-loading p { font-size: 13px; color: var(--ink-2); }
-.network-spinner { width: 39px; height: 39px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: network-spin 1s linear infinite; margin: auto; }
-.network-logo { width: 62px; height: 62px; opacity: .45; }
+.network-screen { position: fixed; inset: 0; z-index: 1000; }
 .network-scrim { position: absolute; inset: 0; display: grid; place-items: center; background: var(--scrim); }
 .network-dialog { width: 440px; padding: 30px; }
 .network-dialog h2 { font-size: 22px; margin: 0 0 12px; }
@@ -68,9 +61,10 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .network-dialog .btn { padding: 10px 18px; border-radius: 10px; }
 .network-dialog .btn.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-ink); }
 .network-error-icon { width: 46px; height: 46px; display: grid; place-items: center; color: var(--red); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 23px; }
-.network-error-icon svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.network-retry-spin { display: inline-block; width: 13px; height: 13px; margin-right: 7px; vertical-align: -2px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: network-spin 1s linear infinite; }
 @keyframes network-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .network-spinner { animation-duration: 2s; } }
+@media (prefers-reduced-motion: reduce) { .network-retry-spin { animation-duration: 2s; } }
+.network-error-icon svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .restart-dialog { width: 440px; padding: 30px; }
 .restart-dialog h2 { font-size: 22px; margin-bottom: 12px; }
 .restart-dialog p { font-size: 14px; line-height: 1.8; }
@@ -199,3 +193,21 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 
 .restart-saved { width: 43px; height: 43px; border: 1px solid var(--line); border-radius: 13px; display: grid; place-items: center; font-size: 25px; color: var(--accent); margin-bottom: 19px; }
 .restart-dialog .restart-consequence { font-size: 12px; margin-top: 14px; }
+
+/* A-01..A-06: install with the check (design/install-verify.html#v2): one dialog; the GitHub page (the right-side
+   browser view, pinned by the main process) fills its right half once it opens */
+.iv-scrim { z-index: 40; }
+.iv-dialog { width: 400px; -webkit-app-region: no-drag; }
+.iv-dialog.wide { width: min(900px, calc(100vw - 48px)); display: grid; grid-template-columns: 360px 1fr; gap: 22px; }
+.iv-dialog h2 { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 20px; }
+.iv-steps .progress { min-width: 0; }
+.iv-steps .progress-row small { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+.iv-page { display: none; }
+.iv-dialog.wide .iv-page { display: block; min-height: 440px; border: 1px solid var(--line); border-radius: 12px; background: var(--side); }
+.verify-star { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; }
+.verify-star label { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.verify-star input { margin: 0; width: 16px; height: 16px; accent-color: var(--accent-fill); }
+.verify-star p { display: flex; gap: 8px; align-items: center; margin: 0; color: var(--ink); }
+.iv-dialog .verify-reason { margin: 14px 0 0; color: var(--red); font-size: 14px; }
+.verify-star .verify-reason { margin-top: 8px; font-size: 13px; }
+.iv-dialog .restart-consequence { margin: 16px 0 0; font-size: 12px; color: var(--ink-3); }

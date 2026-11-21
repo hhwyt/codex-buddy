@@ -129,7 +129,6 @@ export const TID = {
   // shared components
   network: {
     root: 'network-root',
-    loading: 'network-loading',
     error: 'network-error',
     retry: 'network-retry',
     community: 'network-community', // 去社群问问
@@ -140,6 +139,20 @@ export const TID = {
     later: 'restart-later',
     now: 'restart-now',
     notice: 'restart-notice',
+  },
+  // A-01..A-06: install with the check (ui/pages/install-verify.ts)
+  verify: {
+    root: 'iv-dialog',
+    title: 'iv-title',
+    test: 'iv-test-sub', // 尝试打开本项目的 GitHub Repo
+    page: 'iv-page', // the dialog's right half
+    star: 'iv-star', // 给 CodexBuddy 点个 Star
+    starDone: 'iv-star-done', // ✓ 已点 Star
+    reason: 'iv-reason',
+    later: 'iv-later', // 稍后再试
+    retry: 'iv-retry', // 重试 / 再试一次
+    close: 'iv-close', // 稍后
+    open: 'iv-open', // 打开 ChatGPT / 重启 ChatGPT
   },
   dialog: {
     root: 'dialog',

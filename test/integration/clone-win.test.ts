@@ -51,12 +51,12 @@ beforeEach(() => {
 describe('分身 Windows', () => {
   test('C-01 做成分身：带自己 AppUserModelID 的启动器，桌面和开始菜单各一个', async () => {
     const info = await make().make(spec());
-    expect(info).toEqual({ slug: 'deepseek', appPath: path.join(platform.paths.appsDir, 'deepseek'), codexHome: path.join(root, 'home', '.codex-deepseek') });
+    expect(info).toEqual({ slug: 'deepseek', appPath: path.join(platform.paths.appsDir, 'deepseek'), codexHome: path.join(root, 'home', '.codex-codexbuddy-deepseek') });
     const lnks = [path.join(platform.paths.desktopDir, 'DeepSeek.lnk'), path.join(platform.paths.startMenuDir, 'DeepSeek.lnk')];
     for (const lnk of lnks) {
       expect(shortcuts.get(lnk)).toMatchObject({ target: 'wscript.exe', args: `"${path.join(info.appPath, 'launch.vbs')}"`, appUserModelId: 'CodexBuddy.Deepseek' });
     }
-    expect(await make().list()).toEqual([info]);
+    expect(await make().list()).toEqual([{ ...info, ownsHome: true }]);
   });
 
   test('C-05 分身的名字和图标是厂商自己的', async () => {
@@ -73,7 +73,7 @@ describe('分身 Windows', () => {
   test('C-04 分身用自己的 CODEX_HOME 和数据目录，经 Codex 的启动别名打开（不是 app\\Codex.exe 空壳）', async () => {
     const info = await make().make(spec({ slug: 'zhipu', displayName: '智谱' }));
     const vbs = readVbs(info.appPath);
-    const userData = path.join(root, 'home', 'AppData', 'Roaming', 'Codex (智谱)');
+    const userData = path.join(root, 'home', 'AppData', 'Roaming', 'Codex (CodexBuddy 智谱)');
     expect(vbs).toContain(`env("CODEX_HOME") = "${info.codexHome}"`);
     expect(vbs).toContain(`sh.Run """${alias}"" --user-data-dir=""${userData}""", 1, False`);
     expect(vbs).not.toContain('Codex.exe');
@@ -101,7 +101,7 @@ describe('分身 Windows', () => {
     expect(fs.existsSync(path.join(platform.paths.desktopDir, 'DeepSeek.lnk'))).toBe(false);
     expect(fs.existsSync(path.join(platform.paths.startMenuDir, 'DeepSeek.lnk'))).toBe(false);
     expect(fs.readFileSync(path.join(info.codexHome, 'sessions', 'chat.jsonl'), 'utf8')).toBe('chat');
-    expect(fs.existsSync(path.join(root, 'home', 'AppData', 'Roaming', 'Codex (DeepSeek)'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'home', 'AppData', 'Roaming', 'Codex (CodexBuddy DeepSeek)'))).toBe(true);
   });
 
   test('C-08 再做同名分身接上原来的记录；改了名字时旧快捷方式换掉', async () => {
@@ -204,5 +204,35 @@ describe('分身 Windows', () => {
     fs.mkdirSync(path.join(platform.paths.appsDir, 'bad'), { recursive: true });
     fs.writeFileSync(path.join(platform.paths.appsDir, 'bad', 'clone.json'), '{');
     return expect(make().list()).resolves.toEqual([]);
+  });
+  // K-01, K-02 (platform/clone-home.ts)
+  const legacy = () => path.join(root, 'home', '.codex-deepseek');
+  const legacyData = () => path.join(root, 'home', 'AppData', 'Roaming', 'Codex (DeepSeek)');
+
+  test('K-01 别人建的 ~/.codex-deepseek 不沿用、不改：分身用 CodexBuddy 自己的目录', async () => {
+    fs.mkdirSync(legacy(), { recursive: true });
+    fs.writeFileSync(path.join(legacy(), 'config.toml'), 'model = "mine"\n');
+    const info = await make({ bornAt: (f: string) => (f === legacy() ? 1 : f === platform.paths.buddyDir ? 2 : null) }).make(spec());
+    expect(info.codexHome).toBe(path.join(root, 'home', '.codex-codexbuddy-deepseek'));
+    expect(JSON.parse(fs.readFileSync(path.join(info.appPath, 'clone.json'), 'utf8')).userData).toBe(path.join(root, 'home', 'AppData', 'Roaming', 'Codex (CodexBuddy DeepSeek)'));
+    expect(fs.existsSync(path.join(info.codexHome, '.codexbuddy-clone'))).toBe(true);
+    expect(fs.readdirSync(legacy())).toEqual(['config.toml']);
+  });
+
+  test('K-02 旧版 CodexBuddy 建的 ~/.codex-deepseek 分身继续沿用；比 CodexBuddy 还早的不算', async () => {
+    let legacyBorn = 5;
+    const clone = make({ bornAt: (f: string) => (f === legacy() ? legacyBorn : f === platform.paths.buddyDir ? 2 : null) });
+    const first = await clone.make(spec());
+    const metaFile = path.join(first.appPath, 'clone.json');
+    fs.writeFileSync(metaFile, JSON.stringify({ ...JSON.parse(fs.readFileSync(metaFile, 'utf8')), codexHome: legacy(), userData: legacyData() }));
+    fs.mkdirSync(path.join(legacy(), 'sessions'), { recursive: true });
+    expect((await clone.list())[0]).toMatchObject({ codexHome: legacy(), ownsHome: true });
+    expect((await clone.make(spec())).codexHome).toBe(legacy());
+    expect(JSON.parse(fs.readFileSync(metaFile, 'utf8')).userData).toBe(legacyData());
+    // The same older clone, but the folder predates CodexBuddy: someone else's
+    fs.rmSync(path.join(legacy(), '.codexbuddy-clone'));
+    legacyBorn = 1;
+    expect((await clone.list())[0]).toMatchObject({ ownsHome: false });
+    expect((await clone.make(spec())).codexHome).toBe(path.join(root, 'home', '.codex-codexbuddy-deepseek'));
   });
 });

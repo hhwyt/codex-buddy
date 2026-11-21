@@ -21,7 +21,7 @@ export function winPaths(home = os.homedir()): Paths {
   const startMenuDir = path.join(appData, 'Microsoft', 'Windows', 'Start Menu', 'Programs');
   return {
     home, codexHome,
-    cloneHome: slug => path.join(home, `.codex-${slug}`),
+    cloneHome: slug => path.join(home, `.codex-codexbuddy-${slug}`),
     appsDir: path.join(localAppData, 'CodexBuddy', 'apps'),
     buddyDir: path.join(localAppData, 'CodexBuddy'),
     codexAppDataDirs,

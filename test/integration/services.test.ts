@@ -68,11 +68,12 @@ function fakeZh(paths: ReturnType<typeof sandboxPaths>): ZhLauncher {
   };
 }
 
-const fakeBrowser = (): BrowserDriver & { close(): void; closed: number; opens: string[] } => {
+const fakeBrowser = (): BrowserDriver & { close(): void; reload(): void; closed: number; reloads: number; opens: string[]; at: string } => {
   const b = {
-    closed: 0, opens: [] as string[],
-    open: async (url: string) => { b.opens.push(url); },
-    url: () => '', evaluate: async <T,>() => undefined as T, waitForResponse: async () => '',
+    closed: 0, reloads: 0, opens: [] as string[], at: '',
+    open: async (url: string) => { b.opens.push(url); b.at = url; },
+    reload: () => { b.reloads++; },
+    url: () => b.at, evaluate: async <T,>() => undefined as T, waitForResponse: async () => '',
     waitForUrl: async () => true, setMode: () => {}, close: () => { b.closed++; }, hasCookie: async () => true,
   };
   return b;
@@ -87,17 +88,18 @@ function fakeVendors(): Record<BuiltinVendorId, Vendor> {
   } satisfies Vendor])) as unknown as Record<BuiltinVendorId, Vendor>;
 }
 
-function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | 'win'; remoteUrls?: string[]; balance?: Parameters<typeof createServices>[0]['balance'] } = {}) {
+function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | 'win'; remoteUrls?: string[]; balance?: Parameters<typeof createServices>[0]['balance'];
+  ghStar?: ServiceDeps['ghStar']; bridgeRemove?: () => Promise<void>; clone?: Clone; forceStarVerify?: boolean } = {}) {
   const paths = sandboxPaths(root, 'mac');
   const base = createMacPlatform(paths);
   const platform = sandboxPlatform(base, { root, env: opts.env ?? env(), open: async t => { opened.push(t); }, reveal: async t => { opened.push(`reveal:${t}`); } });
-  const clone = sandboxClone(fakeClone(paths), async t => { opened.push(t); });
+  const clone = sandboxClone(opts.clone ?? fakeClone(paths), async t => { opened.push(t); });
   const zh = sandboxZh(fakeZh(paths), opts.env ?? env());
   const browser = fakeBrowser();
   const upstreams: Record<string, string> = {};
   const svc = createServices({
     platform, clone, zh, providers: PROVIDERS, vendors: fakeVendors(), browser,
-    bridge: { baseUrlFor: (v, u) => { upstreams[v] = u; return `http://127.0.0.1:4555/${v}/v1`; }, isBridgeUrl: u => u.startsWith('http://127.0.0.1:4555') },
+    bridge: { baseUrlFor: (v, u) => { upstreams[v] = u; return `http://127.0.0.1:4555/${v}/v1`; }, isBridgeUrl: u => u.startsWith('http://127.0.0.1:4555'), ...(opts.bridgeRemove ? { remove: opts.bridgeRemove } : {}) },
     cipher: aesCipher(opts.key ?? new Uint8Array(32).fill(7)),
     // The fake answers config.json; its .sig is signed with the test key, like the real release script does
     fetchText: url => (url.endsWith('.sig') ? (forgedSig !== null ? Promise.resolve(forgedSig) : fetchText(url.slice(0, -4)).then(testSign)) : fetchText(url)), fetchBytes: (url, onProgress) => fetchBytes(url, onProgress),
@@ -110,6 +112,8 @@ function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | '
     logoPng: v => `/logos/${v}.png`,
     runInstaller: async f => { installed.push(f); },
     ...(opts.balance ? { balance: opts.balance } : {}),
+    ...(opts.ghStar ? { ghStar: opts.ghStar } : {}),
+    ...(opts.forceStarVerify ? { forceStarVerify: true } : {}),
   });
   return { svc, h: svc.handlers as Required<typeof svc.handlers>, paths, platform, browser, clone, upstreams };
 }
@@ -737,12 +741,13 @@ describe('security, community, update, restore', () => {
     });
   });
 
-  test('V-02 运行中重新校验，抬高下限即拦截后台操作，断网也拦截，恢复网络再放行', async () => {
+  test('V-02 N-04 运行中重新校验，抬高下限即拦截后台操作；用到一半断网不拦截', async () => {
     const b = build();
     expect(await b.svc.versionAllowed()).toBe(true);
     fetchText = async () => { throw new Error('offline'); };
     clock += 60_000;
-    expect(await b.h['clone:open']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'version-required' });
+    expect(await b.svc.versionAllowed()).toBe(true);
+    expect(events.filter(e => e.event === 'versionStatus').at(-1)?.payload).toBe('allowed');
     fetchText = async () => JSON.stringify(bundled);
     await b.svc.checkVersion();
     expect(await b.svc.versionAllowed()).toBe(true);
@@ -921,5 +926,119 @@ describe('配置生效与重启确认', () => {
     expect((await b.h['zh:set']({ on: true })).restartRequired).not.toBe(true);
     fs.unlinkSync(path.join(root, 'fake-codex-running'));
     expect((await b.h['app:state'](undefined as never)).restartRequired).toBe(false);
+  });
+});
+
+describe('装好后验证与点 Star', () => {
+  const starOn = () => JSON.stringify({ ...bundled, switches: { ...bundled.switches, starVerify: true } } satisfies RemoteConfig);
+
+  test('A-01 开关默认关：安装用原来的样子', async () => {
+    const b = build();
+    expect((await b.h['app:state'](undefined as never)).starVerify).toBe(false);
+  });
+
+  test('A-01 签名配置打开开关：安装换成带验证的弹窗', async () => {
+    fetchText = async () => starOn();
+    const b = build();
+    expect((await b.h['app:state'](undefined as never)).starVerify).toBe(true);
+  });
+
+  test('A-01 沙盒实测可以不经签名配置打开（发布版会删掉这个环境变量）', async () => {
+    const b = build({ forceStarVerify: true });
+    expect((await b.h['app:state'](undefined as never)).starVerify).toBe(true);
+  });
+
+  test('A-02 验证：Codex 用刚配好的模型答出本项目地址算通过；答非所问、Key 不对、连不上各有一句原因', async () => {
+    const b = build();
+    await installed_(b);
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    expect(await b.h['verify:run'](undefined as never)).toEqual({ ok: true, answer: 'https://github.com/hhwyt/codex-buddy' });
+    const log = fs.readFileSync(path.join(b.paths.buddyDir, 'install.log'), 'utf8');
+    expect(log).toContain('verify deepseek: ok');
+    scenario('no-url');
+    expect(await b.h['verify:run'](undefined as never)).toEqual({ ok: false, reason: 'DeepSeek 回答了，但没答出地址' });
+    scenario('401');
+    expect(await b.h['verify:run'](undefined as never)).toEqual({ ok: false, reason: 'DeepSeek 说 Key 不对' });
+    scenario('unreachable');
+    expect(await b.h['verify:run'](undefined as never)).toEqual({ ok: false, reason: '连不上 DeepSeek，可能是网络问题' });
+    scenario('ok');
+    expect((await b.h['verify:run'](undefined as never)).ok).toBe(true);
+  });
+
+  test('A-02 验证问的是 ~/.codex 里刚写好的配置', async () => {
+    const log = path.join(root, 'fake-codex.log');
+    const b = build({ env: env({ FAKE_CODEX_LOG: log }) });
+    await installed_(b);
+    await b.h['switch:start']({ vendor: 'kimi' });
+    await b.h['verify:run'](undefined as never);
+    expect(fs.readFileSync(log, 'utf8').trim().split('\n').map(l => JSON.parse(l) as { args: string[]; provider: string }).at(-1)).toMatchObject({ provider: 'kimi' });
+  }, 30_000);
+
+  test('A-03 通过后右侧浏览器展开打开本项目 GitHub 页面；没打开时报打开失败', async () => {
+    const b = build();
+    await installed_(b);
+    expect(await b.h['verify:open-repo'](undefined as never)).toEqual({ ok: true });
+    expect(b.browser.opens.at(-1)).toBe(SOURCE_URL);
+    b.browser.open = async () => { b.browser.at = 'chrome-error://chromewebdata/'; };
+    expect(await b.h['verify:open-repo'](undefined as never)).toMatchObject({ ok: false });
+  });
+
+  test('A-05 gh 已登录：用 gh 点 Star，右边页面刷新；之前点过就说已点过', async () => {
+    let answer: 'starred' | 'already' | null = 'starred';
+    const b = build({ ghStar: async () => answer });
+    await installed_(b);
+    await b.h['verify:open-repo'](undefined as never);
+    expect(await b.h['star:run'](undefined as never)).toEqual({ ok: true, already: false });
+    expect(b.browser.reloads).toBe(1);
+    answer = 'already';
+    expect(await b.h['star:run'](undefined as never)).toEqual({ ok: true, already: true });
+  });
+
+  test('A-05 gh 没登录：改在右侧浏览器里点 Star', async () => {
+    const b = build({ ghStar: async () => null });
+    await installed_(b);
+    let starred = false;
+    b.browser.evaluate = (async (script: string) => {
+      if (script.includes('b.click()')) { starred = true; return true; }
+      return { ready: true, login: true, starred, button: !starred };
+    }) as typeof b.browser.evaluate;
+    expect(await b.h['star:run'](undefined as never)).toEqual({ ok: true, already: false });
+    expect(b.browser.opens).toContain(SOURCE_URL);
+  });
+
+  test('A-01 落后的版本不能用验证和点 Star（功能接口都过版本检查）', async () => {
+    fetchText = async () => { throw new Error('offline'); };
+    const b = build();
+    for (const channel of ['verify:run', 'verify:open-repo', 'star:run'] as const) {
+      expect(await b.h[channel](undefined as never)).toMatchObject({ ok: false, kind: 'version-required' });
+    }
+  });
+});
+
+describe('转发服务与分身目录', () => {
+  test('D-05 一键还原：删掉转发服务和它的开机启动项', async () => {
+    const removed: string[] = [];
+    const b = build({ bridgeRemove: async () => { removed.push('bridge'); } });
+    await installed_(b);
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    expect(await b.h['restore:run'](undefined as never)).toEqual({ ok: true });
+    expect(removed).toEqual(['bridge']);
+  });
+
+  test('K-02 转发地址只改 CodexBuddy 自己的分身目录，别人建的 ~/.codex-<名字> 不改', async () => {
+    const paths = sandboxPaths(root, 'mac');
+    const foreignHome = path.join(paths.home, '.codex-deepseek');
+    fs.mkdirSync(foreignHome, { recursive: true });
+    const foreignConfig = 'model_provider = "deepseek"\n\n[model_providers.deepseek]\nbase_url = "http://127.0.0.1:1/deepseek/v1"\n';
+    fs.writeFileSync(path.join(foreignHome, 'config.toml'), foreignConfig);
+    const inner = fakeClone(paths);
+    const clone: Clone = { ...inner, list: async () => [...await inner.list(), { slug: 'deepseek', appPath: '/x/DeepSeek.app', codexHome: foreignHome, ownsHome: false }] };
+    const b = build({ clone });
+    await installed_(b);
+    await b.h['switch:start']({ vendor: 'kimi' });
+    fs.writeFileSync(path.join(b.paths.codexHome, 'config.toml'), configOf(b.paths.codexHome).replace(/127\.0\.0\.1:4555/g, '127.0.0.1:1'));
+    await b.svc.refreshBridgeUrls();
+    expect(configOf(b.paths.codexHome)).toContain('127.0.0.1:4555/kimi');
+    expect(fs.readFileSync(path.join(foreignHome, 'config.toml'), 'utf8')).toBe(foreignConfig);
   });
 });
