@@ -168,7 +168,7 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .shop-more-arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .shop-more:hover .shop-more-arrow { transform: translate(2px, -2px); }
 .shop-card.hl, .shop-more.hl { animation: shop-glow 1.2s ease 2; }
-@keyframes shop-glow { 0% { box-shadow: 0 0 0 0 #0c8df666; } 70% { box-shadow: 0 0 0 10px #0c8df600; } 100% { box-shadow: 0 0 0 3px #0c8df622; } }
+@keyframes shop-glow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); } 70% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent); } 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); } }
 .brand-wechat { color: var(--wechat); }
 .brand-xhs { color: var(--xhs); }
 .xhs-chip { background: var(--xhs); color: var(--on-ink); font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 6px; }
