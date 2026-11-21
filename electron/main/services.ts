@@ -119,6 +119,9 @@ const FAIL_KIND: Partial<Record<FailureCode, string>> = {
   balance: 'no-balance', 'rate-limit': 'rate-limited', auth: 'key-failed', 'no-reply': 'codex-broken', 'bad-reply': 'codex-broken',
 };
 
+/** An upgrade step that failed, with the sentence the upgrade dialog shows */
+class UpgradeFailure extends Error {}
+
 export function createServices(d: ServiceDeps) {
   const { platform, cipher } = d;
   const { fs, paths } = platform;
@@ -487,7 +490,7 @@ export function createServices(d: ServiceDeps) {
     const suffix = d.os === 'mac' ? '.dmg' : '.exe';
     const release = new URL(url);
     if (!expected || !/^[a-f0-9]{64}$/.test(expected) || release.protocol !== 'https:' || release.hostname !== 'github.com'
-      || !release.pathname.startsWith(`/hhwyt/codex-buddy-releases/releases/download/v${version}/`) || !release.pathname.endsWith(suffix)) throw new Error('invalid release metadata');
+      || !release.pathname.startsWith(`/hhwyt/codex-buddy-releases/releases/download/v${version}/`) || !release.pathname.endsWith(suffix)) throw new UpgradeFailure('更新包的信息不对，请稍后再试。');
     const digest = (data: Uint8Array) => createHash('sha256').update(data).digest('hex');
     const file = installerPath(version);
     const cached = fs.readBytes(file);
@@ -503,14 +506,14 @@ export function createServices(d: ServiceDeps) {
         const mb = (n: number) => (n / 1048576).toFixed(1);
         emit({ id: 'download', state: 'start', text: `${percent}% · ${mb(received)}${total > 0 ? ' / ' + mb(total) : ''} MB` });
       });
-      if (digest(data) !== expected) throw new Error('installer checksum mismatch');
+      if (digest(data) !== expected) throw new UpgradeFailure('下载的更新包不完整，请再试一次。');
       fs.mkdirp(path.dirname(file));
       fs.writeBytes(file, data);
       emit({ id: 'download', state: 'done', text: '100%' });
       return file;
     } catch (error) {
       emit({ id: 'download', state: 'fail', text: '更新包下载或校验失败' });
-      throw error;
+      throw error instanceof UpgradeFailure ? error : new UpgradeFailure('更新包没下载下来，请检查网络后重试。');
     }
   };
 
@@ -686,15 +689,17 @@ export function createServices(d: ServiceDeps) {
 
     'upgrade:run': async () => {
       await refreshRemote();
-      if (!online) return { ok: false, reason: '连不上网，请检查网络后重试' };
+      // The dialog shows the reason as is: one sentence for each way this can fail
+      if (!online) return { ok: false, reason: '连不上网，请检查网络后重试。' };
       const u = upgradeRequired();
-      if (!u) return { ok: false, reason: '当前版本无需升级' };
-      if (remote.latest.version !== u.version) return { ok: false, reason: '更新包版本不符合要求，请稍后重试' };
-      try {
-        const file = await prepareInstaller(u.version, u.url, step('upgrade'));
-        await d.runInstaller(file);
-        return { ok: true };
-      } catch { return { ok: false, reason: '更新包下载、校验或安装失败，请重试' }; }
+      if (!u) return { ok: false, reason: '当前版本不用升级。' };
+      if (remote.latest.version !== u.version) return { ok: false, reason: `${u.version} 还没发布，请稍后再试。` };
+      let file: string;
+      try { file = await prepareInstaller(u.version, u.url, step('upgrade')); } catch (error) {
+        return { ok: false, reason: error instanceof UpgradeFailure ? error.message : '更新包没下载下来，请检查网络后重试。' };
+      }
+      try { await d.runInstaller(file); } catch { return { ok: false, reason: '安装程序没能打开，请再试一次。' }; }
+      return { ok: true };
     },
 
     'restore:plan': async () => ({ lines: describeRestore((await restoreSteps()).map(s => (s.kind === 'remove-clone' ? { ...s, vendor: cloneName(s.vendor) } : s))) }),

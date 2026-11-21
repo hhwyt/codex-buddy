@@ -50,7 +50,7 @@ export function showUpgrade(api: BuddyApi, root: HTMLElement, info: UpgradeRequi
       progress.hidden = downloaded;
       progress.value = 0;
       const result = await api.invoke('upgrade:run');
-      if (!result.ok) throw new Error();
+      if (!result.ok) throw new Error(result.reason);
       downloaded = true;
       progress.hidden = true;
       if (opts.os === 'mac') {
@@ -61,9 +61,9 @@ export function showUpgrade(api: BuddyApi, root: HTMLElement, info: UpgradeRequi
         title.textContent = '正在安装更新';
         now.hidden = true;
       }
-    } catch {
+    } catch (error) {
       title.textContent = info ? '升级没成功' : '网络问题';
-      message.textContent = '请检查网络后重试。';
+      message.textContent = (info && error instanceof Error && error.message) || '请检查网络后重试。';
       progress.hidden = true;
       now.textContent = info ? '再试一次' : '重试';
       addCommunity();

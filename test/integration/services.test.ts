@@ -721,6 +721,25 @@ describe('security, community, update, restore', () => {
       expect(fs.existsSync(path.join(b.paths.buddyDir, 'downloads', 'CodexBuddy-0.3.0.exe'))).toBe(false);
     });
 
+    test('V-05 失败原因按实际情况返回，弹窗照写', async () => {
+      const b = build({ os: 'win' });
+      const reason = async () => (await b.h['upgrade:run'](undefined as never)).reason;
+      release({ version: '0.1.5' });
+      expect(await reason()).toBe('0.2.0 还没发布，请稍后再试。');
+      release({ winSha256: undefined });
+      expect(await reason()).toBe('更新包的信息不对，请稍后再试。');
+      release();
+      fetchBytes = async () => { throw new Error('timeout'); };
+      expect(await reason()).toBe('更新包没下载下来，请检查网络后重试。');
+      fetchBytes = async () => ({ type: 'application/octet-stream', data: new Uint8Array([9]) });
+      expect(await reason()).toBe('下载的更新包不完整，请再试一次。');
+      fetchBytes = async () => ({ type: 'application/octet-stream', data: bytes });
+      installed.push = () => { throw new Error('blocked'); };
+      expect(await reason()).toBe('安装程序没能打开，请再试一次。');
+      fetchText = async () => { throw new Error('offline'); };
+      expect(await reason()).toBe('连不上网，请检查网络后重试。');
+    });
+
     test('V-05 下载中断后可重试，不保留损坏安装包', async () => {
       release();
       const b = build({ os: 'win' });
