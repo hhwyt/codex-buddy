@@ -4,7 +4,7 @@
 
 ## 先签 CLA
 
-CodexBuddy 按 [CC BY-NC-SA 4.0](LICENSE) 公开源代码（不允许商用，改了要按同一协议公开），版权方是北京序变科技有限公司。为了以后还能把项目以别的协议发布（包括商业授权），**每一位贡献者在第一次提交代码前都要签一份《个人贡献者许可协议》（[CLA.md](CLA.md)）**。没签 CLA 的 Pull Request 不会被合并。
+CodexBuddy 按 [CC BY-NC-SA 4.0](LICENSE) 公开源代码（不允许商用，改了要按同一协议公开），版权方是 [hhwyt](https://github.com/hhwyt)。为了以后还能把项目以别的协议发布（包括商业授权），**每一位贡献者在第一次提交代码前都要签一份《个人贡献者许可协议》（[CLA.md](CLA.md)）**。没签 CLA 的 Pull Request 不会被合并。
 
 签法：在你的第一个 Pull Request 的描述里写上下面这一句（用你自己的名字和 GitHub 账号）：
 

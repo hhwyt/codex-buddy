@@ -108,6 +108,6 @@ npm run dist:mac     # macOS：release/CodexBuddy-<版本>.dmg（Intel 和 Apple
 
 ## 协议
 
-[CC BY-NC-SA 4.0](LICENSE)，Copyright (C) 2026 北京序变科技有限公司。
+[CC BY-NC-SA 4.0](LICENSE)，Copyright (C) 2026 [hhwyt](https://github.com/hhwyt)。
 
 **不允许商用。** 可以为个人学习和其他非商业目的阅读、运行、修改 CodexBuddy；拿去卖、打包进收费的产品或服务、用于公司经营，都不允许，需要商用请先联系版权方取得商业授权。改了 CodexBuddy 再发布的，必须注明出自本项目，并按同一协议公开。

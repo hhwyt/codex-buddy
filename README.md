@@ -108,6 +108,6 @@ Builds are not signed with a paid certificate yet. On Windows, SmartScreen may s
 
 ## License
 
-[CC BY-NC-SA 4.0](LICENSE). Copyright (C) 2026 北京序变科技有限公司.
+[CC BY-NC-SA 4.0](LICENSE). Copyright (C) 2026 [hhwyt](https://github.com/hhwyt).
 
 **No commercial use.** You may read, run and modify CodexBuddy for personal and other noncommercial purposes. Selling it, bundling it into a paid product or service, or using it in a business is not permitted without a separate commercial license from the copyright holder. If you modify CodexBuddy and share it, you must credit the original and release your version under this same license.
