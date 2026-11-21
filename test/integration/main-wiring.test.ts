@@ -89,9 +89,9 @@ describe('ipc', () => {
   test('W-02 事件只发给还开着的窗口', () => {
     const sent: unknown[] = [];
     const win = { isDestroyed: () => false, webContents: { send: (...a: unknown[]) => sent.push(a) } };
-    sendEvent(win as never, 'wallet', { order: [], active: null, cards: [], mode: 'switch' });
-    sendEvent({ ...win, isDestroyed: () => true } as never, 'wallet', { order: [], active: null, cards: [], mode: 'switch' });
-    sendEvent(null, 'wallet', { order: [], active: null, cards: [], mode: 'switch' });
+    sendEvent(win as never, 'wallet', { order: [], active: null, cards: [], mode: 'switch', openaiSignedIn: false });
+    sendEvent({ ...win, isDestroyed: () => true } as never, 'wallet', { order: [], active: null, cards: [], mode: 'switch', openaiSignedIn: false });
+    sendEvent(null, 'wallet', { order: [], active: null, cards: [], mode: 'switch', openaiSignedIn: false });
     expect(sent).toHaveLength(1);
   });
 });

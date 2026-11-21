@@ -38,10 +38,10 @@ const MIN_FIT_ZOOM = 0.7;
 
 export const renderModels: Page = async ({ api, root, go }) => {
   const [view, state] = await Promise.all([api.invoke('wallet:get'), api.invoke('app:state')]);
-  return mountModels(api, root, view, { codexMissing: state?.codexInstalled === false, onCodexMissing: () => go('models') });
+  return mountModels(api, root, view, { codexMissing: state?.codexInstalled === false, onCodexMissing: () => go('models'), goShop: item => go('shop', { highlight: item }) });
 };
 
-export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletView, opts: { codexMissing?: boolean; onCodexMissing?: () => void } = {}): () => void {
+export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletView, opts: { codexMissing?: boolean; onCodexMissing?: () => void; goShop?: (item: 'sms' | 'gpt') => void } = {}): () => void {
   let wallet = initial;
   let order: VendorKey[] = initial.order.slice();
   let mode = initial.mode;
@@ -125,6 +125,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     const isFront = mode === 'switch' && i === 0;
     el.replaceChildren(...cardFace(c, {
       front: isFront, inUse: !opts.codexMissing && wallet.active === v, state: isFront ? front : null, cloneState: mode === 'clone' ? cloneState(c) : null, actions: actionsFor(v),
+      shopHint: isFront && v === 'openai' && !wallet.openaiSignedIn && opts.goShop ? { sms: () => opts.goShop!('sms'), gpt: () => opts.goShop!('gpt') } : null,
     }));
     el.classList.toggle('whole', isFront);
     el.classList.toggle('cur', isFront && wallet.active === v);

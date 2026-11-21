@@ -14,7 +14,7 @@ export function cardOf(vendor: string, over: Partial<CardView> = {}): CardView {
 }
 
 export function walletOf(over: Partial<WalletView> = {}, cards: Partial<Record<string, Partial<CardView>>> = {}): WalletView {
-  return { order: ORDER.slice(), active: null, mode: 'switch', cards: ORDER.map(v => cardOf(v, cards[v])), ...over };
+  return { order: ORDER.slice(), active: null, mode: 'switch', openaiSignedIn: true, cards: ORDER.map(v => cardOf(v, cards[v])), ...over };
 }
 
 type Handler = (args: any) => any;

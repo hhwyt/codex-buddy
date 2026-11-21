@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>官方卡上的商城提示</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#17191d;background:#fff;--line:#e8eaee;--muted:#737982;--blue:#0a77d1;--accent:#0c8df6}
+*{box-sizing:border-box}body{margin:0;padding:26px 30px}
+header,.bar1,.frame,.note{max-width:1200px;margin-left:auto;margin-right:auto}
+h1{font-size:24px;margin:0 0 6px}header p,.note{font-size:13px;color:var(--muted);line-height:1.8;margin:0}
+button{font:inherit;cursor:pointer}
+.bar1{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px auto 14px;font-size:13px;color:var(--muted)}
+.bar1 .v{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 13px;color:#30353d}
+.bar1 .v[aria-pressed=true]{background:#eef5fd;border-color:#cfe3f7;color:var(--blue);font-weight:650}
+.bar1 .sep{flex:1}.bar1 b{color:#17191d}.bar1 .small{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 9px;font-size:12px}
+.frame{height:620px;position:relative;border:1px solid #e0e3e8;border-radius:17px;overflow:hidden;box-shadow:0 16px 50px #1522390b;display:flex}
+.brand{position:absolute;top:20px;left:22px;font-weight:650;display:flex;gap:8px;align-items:center;z-index:2}.brand img{width:22px}
+.side{width:170px;background:#f7f7f8;border-right:1px solid var(--line);padding:60px 12px;display:flex;flex-direction:column;gap:4px}
+.side button{text-align:left;border:none;background:none;padding:9px 12px;border-radius:9px;font-size:14px;color:#30353d}
+.side button[aria-current=page]{background:#e9e9ec;font-weight:650}
+.page{flex:1;padding:56px 40px;overflow:auto;min-width:0}
+.browser{width:0;transition:width .35s;border-left:1px solid var(--line);background:#fafafa;overflow:hidden}
+.browser.open{width:400px}
+.bbar{height:40px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;font-size:12px;color:var(--muted);background:#fff}
+.bbar button{margin-left:auto;border:none;background:none;font-size:16px;color:var(--muted)}
+.site{padding:44px 34px;text-align:center}.site h3{margin:0 0 18px}
+.site input{width:100%;padding:11px 12px;border:1px solid #d5d8dd;border-radius:8px;margin-bottom:10px;font:inherit}
+.site .go{width:100%;padding:11px;border-radius:8px;border:none;background:#10a37f;color:#fff;font-weight:600}
+h2{font-size:26px;margin:0 0 6px}.sub{color:var(--muted);font-size:14px;margin:0 0 22px}
+.stack{max-width:400px;margin:20px auto 0}
+.card{border-radius:16px;padding:16px 18px;color:#fff;margin-bottom:-14px;position:relative;display:flex;align-items:center;gap:10px;box-shadow:0 -4px 14px #0002;cursor:pointer;min-height:64px}
+.card b{flex:1;font-size:16px}.card small{opacity:.85;font-size:13px}
+.card.front{min-height:180px;flex-direction:column;align-items:stretch;justify-content:space-between;cursor:default}
+.card .top{display:flex;align-items:center;gap:10px;position:relative}
+.openai{background:#2b2d31}.zhipu{background:#1d1d1f}.deepseek{background:#4d6bfe}.kimi{background:#111}
+.arrive{animation:lift .45s cubic-bezier(.2,.8,.2,1)}
+/* v1: one strip */
+.strip{font-size:13px;background:#ffffff1f;border-radius:9px;padding:9px 10px;display:flex;align-items:center;gap:8px;animation:fade .4s}
+.strip button{margin-left:auto;border:none;background:#fff;color:#17191d;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:650;white-space:nowrap}
+/* v2: two chips */
+.chips{display:flex;gap:8px;animation:fade .4s}
+.chips button{flex:1;border:1px solid #ffffff40;background:#ffffff14;color:#fff;border-radius:10px;padding:9px 10px;font-size:13px;text-align:left}
+.chips button:hover{background:#ffffff26}.chips button small{display:block;opacity:.75;font-size:11px;margin-top:2px}
+/* v3: info dot + popover */
+.info{border:none;background:#ffffff26;color:#fff;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700;margin-left:6px;animation:pulse 1.6s ease 2}
+.pop{position:absolute;right:-6px;top:30px;width:270px;background:#fff;color:#17191d;border-radius:12px;box-shadow:0 14px 40px #18243633;padding:12px;z-index:3;animation:pop .2s ease}
+.pop p{margin:0 0 10px;font-size:13px;color:#30353d;line-height:1.6}
+.pop button{display:flex;width:100%;align-items:center;border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 10px;margin-top:6px;font-size:13px;text-align:left}
+.pop button span{margin-left:auto;color:var(--blue);font-weight:600}
+.scard{border:1px solid #d9dce1;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;max-width:560px;background:#fff;cursor:pointer}
+.scard.hl{border-color:var(--accent);animation:glow 1.2s ease 2}
+.scard b{display:block;font-size:16px}.scard span{color:var(--muted);font-size:13px}.scard .price{margin-left:auto;font-weight:700}
+.more{margin-top:18px;border:none;background:none;padding:4px 6px;margin-left:-6px;color:var(--muted);font-size:12px;font-weight:650;border-radius:6px}
+.more.hl{color:var(--blue);animation:glow 1.2s ease 2}
+.ring{display:inline-block;width:14px;height:14px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+.note{margin-top:12px;min-height:44px}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translateY(-4px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes lift{from{transform:translateY(60px);opacity:.6}to{transform:none;opacity:1}}
+@keyframes glow{0%{box-shadow:0 0 0 0 #0c8df666}70%{box-shadow:0 0 0 10px #0c8df600}100%{box-shadow:0 0 0 3px #0c8df622}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #ffffff66}50%{box-shadow:0 0 0 6px #ffffff00}}
+</style>
+<header><h1>官方卡上的商城提示</h1><p>可点击原型 · 规则一样：这台电脑还没成功登录过 OpenAI 时，OpenAI 卡一到最上面就在卡上提示；登录成功一次后再也不提示。三版只是卡上的样子不同。</p></header>
+<div class="bar1"><button class="v" data-v="1">第 1 版 · 一行提示 + 去商城</button><button class="v" data-v="2">第 2 版 · 两个入口分开</button><button class="v" data-v="3">第 3 版 · 小圆点，点开再看</button><span class="sep"></span>这台电脑登录过 OpenAI：<b id="signed">没有</b><button class="small" id="forget">清除登录记录</button></div>
+<section class="frame">
+  <div class="brand"><img src="../ui/assets/icon.svg" alt="">CodexBuddy</div>
+  <nav class="side" id="side"></nav>
+  <div class="page" id="page"></div>
+  <aside class="browser" id="browser"></aside>
+</section>
+<p class="note" id="note"></p>
+<script>
+const $=id=>document.getElementById(id);
+const CARDS=[['zhipu','智谱','免费'],['deepseek','DeepSeek','按用量付费'],['kimi','Kimi','按用量付费'],['openai','OpenAI 官方账号','需要登录']];
+let v=1,page='模型',active='zhipu',signed=false,everSignedIn=false,switching=false,popOpen=false,hl='';
+const note=t=>{$('note').textContent=t;};
+function side(){$('side').innerHTML=['模型','设置','社群','商城'].map(n=>`<button data-n="${n}" ${n===page?'aria-current="page"':''}>${n}</button>`).join('');$('side').querySelectorAll('button').forEach(b=>b.onclick=()=>{page=b.dataset.n;hl='';render();});}
+function hint(){
+  if(active!=='openai'||everSignedIn||switching) return '';
+  if(v===1) return `<div class="strip">📱 注册、登录要手机验证码，订阅更强的 GPT，都在商城<button data-go="sms">去商城</button></div>`;
+  if(v===2) return `<div class="chips"><button data-go="sms">📱 收不到验证码<small>¥35 买一个号码</small></button><button data-go="gpt">✦ 更强的 GPT<small>官方订阅</small></button></div>`;
+  return '';
+}
+function models(){
+  const order=[active,...CARDS.map(c=>c[0]).filter(c=>c!==active)];
+  $('page').innerHTML=`<h2>模型</h2><p class="sub">正在用：${CARDS.find(c=>c[0]===active)[1]}</p><div class="stack">${order.map((id,i)=>{const c=CARDS.find(x=>x[0]===id);
+    if(i===0){const status=switching?'<span class="ring"></span>正在切换':id==='openai'&&!signed?'需要登录':'✓ 正在用';
+      const dot=v===3&&id==='openai'&&!everSignedIn&&!switching?`<button class="info" id="info" aria-label="验证码和订阅">i</button>`:'';
+      const pop=popOpen&&dot?`<div class="pop"><p>注册、登录 OpenAI 要手机验证码；想用更强的 GPT 可以订阅。都在商城。</p><button data-go="sms">📱 收不到验证码 · ¥35<span>去商城 ›</span></button><button data-go="gpt">✦ 订阅更强的 GPT<span>去商城 ›</span></button></div>`:'';
+      return `<div class="card front ${id}${switching?' arrive':''}"><div class="top"><b>${c[1]}</b><small>${status}</small>${dot}${pop}</div>${hint()}<small>MODEL ${id==='openai'?'gpt-5.5':id==='zhipu'?'glm-4.5-flash':'deepseek-chat'}</small></div>`;}
+    return `<div class="card ${id}" data-card="${id}"><b>${c[1]}</b><small>${c[2]}</small></div>`;}).join('')}</div>`;
+  $('page').querySelectorAll('[data-card]').forEach(el=>el.onclick=()=>switchTo(el.dataset.card));
+  $('page').querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>goShop(el.dataset.go));
+  const i=$('info'); if(i) i.onclick=e=>{e.stopPropagation();popOpen=!popOpen;render();note(popOpen?'点小圆点展开：两件事分开，各自「去商城」。点别处收起。':'');};
+}
+function shop(){
+  $('page').innerHTML=`<h2>商城</h2><p class="sub">微信 / 支付宝付款，付完自动发货</p>
+    <div class="scard${hl==='sms'?' hl':''}" id="sms"><div>📱</div><div><b>注册要手机验证码</b><span>注册、登录 OpenAI 官方账号时收短信用，收不到可换号</span></div><div class="price">¥35</div></div>
+    <button class="more${hl==='gpt'?' hl':''}" id="gpt">购买更强的官方 GPT 模型 ›</button>`;
+  $('sms').onclick=()=>openBrowser('shop.humanslive.ai/products/codex-sms');$('gpt').onclick=()=>openBrowser('shop.humanslive.ai/categories/chatgpt');
+}
+function render(){side();if(page==='模型')models();else if(page==='商城')shop();else $('page').innerHTML=`<h2>${page}</h2><p class="sub">（原型只演示模型和商城）</p>`;}
+function openBrowser(url){const b=$('browser');b.classList.add('open');
+  if(url){b.innerHTML=`<div class="bbar">🔒 ${url}<button>×</button></div><div class="site"><h3>商品页</h3><p style="color:#737982">付款在这里完成</p></div>`;}
+  else{b.innerHTML=`<div class="bbar">🔒 auth.openai.com<button>×</button></div><div class="site"><h3>登录 OpenAI</h3><input placeholder="邮箱或手机号"><input placeholder="验证码"><button class="go" id="login">继续</button></div>`;
+    $('login').onclick=e=>{const t=e.currentTarget;t.disabled=true;t.innerHTML='<span class="ring"></span>正在登录';setTimeout(()=>{signed=true;everSignedIn=true;b.classList.remove('open');$('signed').textContent='登录过（不再提示）';render();note('登录成功：这台电脑记下「登录过 OpenAI」，卡上的提示消失，以后再挪到最上面也不出现。');},1000);};}
+  b.querySelector('.bbar button').onclick=()=>b.classList.remove('open');}
+function switchTo(id){active=id;popOpen=false;switching=true;render();setTimeout(()=>{switching=false;render();
+  if(id==='openai'){ if(!signed) openBrowser(''); note(everSignedIn?'这台电脑登录过 OpenAI：卡上没有提示。':'OpenAI 卡到了最上面，还没登录过：卡上出现提示，右侧打开登录页。点「去商城」或在右边登录试试。');}
+  else note('切走了。再把 OpenAI 卡点回最上面看看。');},800);}
+function goShop(which){popOpen=false;$('browser').classList.remove('open');page='商城';hl=which;render();note(which==='sms'?'跳到商城，验证码那张卡闪一下高亮。':'跳到商城，「购买更强的官方 GPT 模型」那行闪一下高亮。');}
+document.addEventListener('click',e=>{if(popOpen&&!e.target.closest('.pop')&&e.target.id!=='info'){popOpen=false;render();}});
+$('forget').onclick=()=>{everSignedIn=false;signed=false;$('signed').textContent='没有';page='模型';active='zhipu';render();note('已清除登录记录，回到智谱。点 OpenAI 卡重新开始。');};
+function pick(n){v=n;document.querySelectorAll('.v').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v==n));page='模型';active='zhipu';signed=false;everSignedIn=false;$('signed').textContent='没有';popOpen=false;hl='';$('browser').classList.remove('open');render();note('从「模型」页点最下面的「OpenAI 官方账号」卡开始。');}
+document.querySelectorAll('.v').forEach(b=>b.onclick=()=>pick(+b.dataset.v));
+pick(1);
+</script>
+</html>

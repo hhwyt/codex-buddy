@@ -27,6 +27,8 @@ export interface WalletView {
   active: VendorKey | null;
   cards: CardView[];
   mode: 'switch' | 'clone';
+  /** OpenAI has been signed in on this computer at least once (the 官方 card's shop entries hide after that) */
+  openaiSignedIn: boolean;
 }
 
 export interface AppStateView {

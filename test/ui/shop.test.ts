@@ -14,6 +14,18 @@ async function mount(fake: ReturnType<typeof fakeApi>) {
 
 afterEach(() => { document.body.innerHTML = ''; });
 
+describe('F-08 从官方卡跳来', () => {
+  it('高亮对应的那一项', async () => {
+    const fake = fakeApi();
+    document.body.innerHTML = '<div id="root"></div>';
+    await renderShop({ api: fake.api, root: document.getElementById('root')!, go: vi.fn(), highlight: 'sms' });
+    expect($(TID.shop.sms)!.classList.contains('hl')).toBe(true);
+    expect($(TID.shop.subscriptions)!.classList.contains('hl')).toBe(false);
+    await renderShop({ api: fake.api, root: document.getElementById('root')!, go: vi.fn(), highlight: 'gpt' });
+    expect($(TID.shop.subscriptions)!.classList.contains('hl')).toBe(true);
+  });
+});
+
 describe('商城页（P-01..P-03）', () => {
   it('P-01 标题「商城」，一张验证码大卡和一行「购买更强的官方 GPT 模型 ›」，别的不放', async () => {
     await mount(fakeApi());

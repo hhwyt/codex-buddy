@@ -389,7 +389,7 @@ export function createServices(d: ServiceDeps) {
         note: st.rateLimited.includes(v) ? '被限速' : null,
       };
     });
-    return { order, active: st.active && order.includes(st.active) ? st.active : null, cards, mode: st.mode };
+    return { order, active: st.active && order.includes(st.active) ? st.active : null, cards, mode: st.mode, openaiSignedIn: !!st.openaiAuth };
   };
 
   /** M-28: Codex's own model menu changed config.toml → the card follows */

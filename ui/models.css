@@ -56,6 +56,10 @@
 .card .st.ok { color: var(--face-ink); font-weight: 500; } /* white on a brand face, as in model-page-final.html */
 .face-zhipu .st.ok, .face-kimi .st.ok { color: var(--face-ok-dark); }
 .card.light .st.ok { color: var(--blue); }
+.shop-chips { margin-top: auto; display: flex; gap: 8px; }
+.shop-chip { flex: 1; text-align: left; border: 1px solid color-mix(in srgb, var(--face-ink) 25%, transparent); background: color-mix(in srgb, var(--face-ink) 8%, transparent); color: var(--face-ink); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.shop-chip:hover { background: color-mix(in srgb, var(--face-ink) 16%, transparent); }
+.shop-chip small { display: block; opacity: .75; font-size: 11px; margin-top: 2px; }
 .card .num { margin-top: auto; font: 500 18px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .14em; display: flex; align-items: center; gap: 12px; }
 .card .bot { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 14px; }
 .card .lbl { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; opacity: .6; }

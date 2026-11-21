@@ -49,6 +49,8 @@ export interface FaceOptions {
   /** 分身 mode: where this card's clone stands (the face stays the 切换 bank card, only the actions differ); null in 切换 */
   cloneState: 'made' | 'making' | 'todo' | 'orig' | null;
   actions: CardActions;
+  /** F-08: the OpenAI card on top before OpenAI was ever signed in here: two ways into the 商城 instead of the card number */
+  shopHint?: { sms(): void; gpt(): void } | null;
 }
 
 export const faceClass = (vendor: string): string => `face-${BUILTIN.includes(vendor) ? vendor : 'custom'}`;
@@ -132,6 +134,15 @@ function cloneRow(c: CardView, o: FaceOptions): HTMLElement {
   }
 }
 
+function shopChips(go: { sms(): void; gpt(): void }): HTMLElement {
+  const chip = (testid: string, title: string, sub: string, onclick: () => void) => h('button', {
+    class: 'shop-chip', type: 'button', 'data-testid': testid, onclick: (e: Event) => { e.stopPropagation(); onclick(); },
+  }, h('span', {}, title), h('small', {}, sub));
+  return h('div', { class: 'shop-chips' },
+    chip(TID.models.shopSms, '📱 收不到验证码', '¥35 买一个号码', go.sms),
+    chip(TID.models.shopGpt, '✦ 更强的 GPT', '官方订阅', go.gpt));
+}
+
 /** Children of one card element (the element itself is owned by the page so it can animate) */
 export function cardFace(c: CardView, o: FaceOptions): Node[] {
   const showKeyActions = o.front && o.inUse && c.vendor !== 'openai';
@@ -139,7 +150,7 @@ export function cardFace(c: CardView, o: FaceOptions): Node[] {
   const pay = c.paid && !c.free && (o.cloneState ? o.cloneState === 'made' : o.front && o.inUse && o.state?.kind !== 'balance');
   return [
     h('div', { class: 'top' }, logo(c), h('span', { class: 'name' }, c.name), h('span', { class: 'st-wrap' }, status(c, o))),
-    h('div', { class: 'num' },
+    o.shopHint && o.front ? shopChips(o.shopHint) : h('div', { class: 'num' },
       c.keyTail ? `sk-•••• •••• ${c.keyTail}` : '•••• •••• ••••',
       showKeyActions ? btn('换', TID.models.changeKey(c.vendor), o.actions.changeKey) : null),
     alertRow(c, o),

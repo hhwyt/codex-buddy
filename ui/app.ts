@@ -27,7 +27,7 @@ const NAV: { route: Route; label: string; testid: string }[] = [
 ];
 
 export interface App {
-  go(route: Route, opts?: { copied?: boolean }): Promise<void>;
+  go(route: Route, opts?: { copied?: boolean; highlight?: 'sms' | 'gpt' }): Promise<void>;
   route(): Route | null;
 }
 
@@ -140,7 +140,7 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi, restoreNetwo
         if (b.dataset.route === route) b.setAttribute('aria-current', 'page');
         else b.removeAttribute('aria-current');
       }
-      cleanup = await PAGES[route]({ api, root: page, go: r => { void app.go(r); }, copied: opts?.copied });
+      cleanup = await PAGES[route]({ api, root: page, go: (r, o) => { void app.go(r, o); }, copied: opts?.copied, highlight: opts?.highlight });
     },
     route: () => current,
   };

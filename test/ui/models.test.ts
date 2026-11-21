@@ -1062,6 +1062,31 @@ describe('卡面', () => {
     expect(noted.map(n => n.textContent).join('')).toContain('快到上限了');
   });
 
+  it('F-08 没登录过 OpenAI：官方卡在最上面时卡上有两个去商城的入口，点了带上要高亮的那一项', () => {
+    const goShop = vi.fn();
+    const order = ['openai', 'zhipu', 'deepseek', 'kimi', 'qwen', 'minimax', 'hunyuan'] as never;
+    const off = mountModels(fakeApi(walletOf()), root, walletOf({ order, openaiSignedIn: false }), { goShop });
+    const sms = document.querySelector<HTMLElement>(`[data-testid="${TID.models.shopSms}"]`)!;
+    expect(sms.textContent).toContain('收不到验证码');
+    expect(document.querySelector(`[data-testid="${TID.models.shopGpt}"]`)!.textContent).toContain('更强的 GPT');
+    sms.click();
+    expect(goShop).toHaveBeenCalledWith('sms');
+    document.querySelector<HTMLElement>(`[data-testid="${TID.models.shopGpt}"]`)!.click();
+    expect(goShop).toHaveBeenCalledWith('gpt');
+    off();
+  });
+
+  it('F-08 登录过 OpenAI，或官方卡不在最上面：不显示商城入口', () => {
+    const order = ['openai', 'zhipu', 'deepseek', 'kimi', 'qwen', 'minimax', 'hunyuan'] as never;
+    let off = mountModels(fakeApi(walletOf()), root, walletOf({ order, openaiSignedIn: true }), { goShop: vi.fn() });
+    expect(document.querySelector(`[data-testid="${TID.models.shopSms}"]`)).toBeNull();
+    off();
+    root.innerHTML = '';
+    off = mountModels(fakeApi(walletOf()), root, walletOf({ openaiSignedIn: false }), { goShop: vi.fn() });
+    expect(document.querySelector(`[data-testid="${TID.models.shopSms}"]`)).toBeNull();
+    off();
+  });
+
   it('M-02 mountModels 也能直接挂载', () => {
     const a = fakeApi(walletOf());
     const off = mountModels(a, root, walletOf());

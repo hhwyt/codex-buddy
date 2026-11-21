@@ -34,6 +34,8 @@ export const TID = {
     modeClone: 'mode-clone', // 分身 C-09
     card: (v: string) => `card-${v}`,
     cardModel: (v: string) => `card-model-${v}`, // M-28 display only
+    shopSms: 'card-shop-sms', // F-08 收不到验证码
+    shopGpt: 'card-shop-gpt', // F-08 更强的 GPT
     changeKey: (v: string) => `card-change-key-${v}`, // 换 M-17
     recharge: (v: string) => `card-recharge-${v}`, // 余额 · 去充值 › M-18
     pasteKey: (v: string) => `card-paste-key-${v}`, // hidden level-3 fallback
