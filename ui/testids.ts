@@ -75,7 +75,7 @@ export const TID = {
   shop: {
     root: 'shop-root',
     sms: 'shop-sms', // 手机验证码大卡
-    subscriptions: 'shop-subscriptions', // 「官方模型订阅 ›」
+    subscriptions: 'shop-subscriptions', // 「购买更强的官方 GPT 模型 ›」
   },
   // H-02: 社群 page
   community: {

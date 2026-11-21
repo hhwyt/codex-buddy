@@ -23,5 +23,5 @@ export const renderShop: Page = ({ api, root }) => {
       h('span', { class: 'shop-card-price' }, `¥${SMS_PRICE_YUAN}`)),
     h('div', {},
       h('button', { class: 'shop-more', type: 'button', 'data-testid': TID.shop.subscriptions, onclick: () => { void api.invoke('shop:open', { item: 'subscriptions' }); } },
-        '官方模型订阅 ›'))));
+        '购买更强的官方 GPT 模型 ›'))));
 };
