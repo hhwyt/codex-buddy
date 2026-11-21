@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>出错时去社群咨询</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#17191d;background:#fff;--line:#e8eaee;--muted:#737982;--blue:#0a77d1;--accent:#0c8df6;--red:#c82f39}
+*{box-sizing:border-box}body{margin:0;padding:28px 34px}
+header,.wrap,.note{max-width:1320px;margin-left:auto;margin-right:auto}
+h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}header p,.note{font-size:13px;color:var(--muted);line-height:1.8;margin:0}
+button,select{font:inherit}
+button{cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 18px;font-size:14px;font-weight:550;color:#25282e}
+button:hover{background:#f6f7f8}button:disabled{opacity:.6;cursor:wait}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.primary{background:var(--blue);border-color:var(--blue);color:#fff}.primary:hover{background:#0868ba}
+.wrap{display:flex;gap:22px;margin-top:20px;align-items:flex-start}
+.list{width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:4px}
+.list small{color:var(--muted);font-size:12px;margin:10px 0 2px}
+.list button{text-align:left;border:none;padding:8px 10px;font-size:13px;font-weight:500;color:#30353d;border-radius:8px}
+.list button[aria-current=true]{background:#eef5fd;color:var(--blue);font-weight:650}
+.frame{flex:1;min-width:0;height:640px;position:relative;border:1px solid #e0e3e8;border-radius:17px;background:#fff;overflow:hidden;box-shadow:0 16px 50px #1522390b}
+.brand{position:absolute;top:25px;left:28px;display:flex;gap:10px;align-items:center;font-weight:650;font-size:16px;z-index:1}
+.brand img{width:27px;height:27px}
+.window{position:absolute;right:22px;top:21px;display:flex;gap:26px;color:#7f8590;font-size:18px;z-index:1}
+.app{padding:100px 48px;display:flex;height:100%;gap:44px}
+.nav{width:100px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.nav button{border:none;background:none;padding:8px 0;color:var(--muted);font-size:14px;font-weight:500}
+.nav button[aria-current=page]{color:#17191d;font-weight:650}
+.workspace{flex:1;min-width:0}.workspace h2{font-size:26px;margin:0 0 8px}.now{font-size:14px;color:var(--muted);margin:0 0 22px}
+.cards{display:flex;flex-direction:column;gap:12px;max-width:430px}
+.card{border:1px solid var(--line);border-radius:15px;padding:16px 18px;display:flex;align-items:center;gap:12px}
+.card img{width:26px;height:26px}.card b{flex:1;font-size:15px}.card.active{border-color:var(--accent)}.tag{color:var(--blue);font-size:13px}
+.card button{padding:7px 13px;font-size:13px}
+.rows{display:flex;flex-direction:column;gap:0;max-width:470px}
+.rows div{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line);font-size:14px}
+.rows button{padding:7px 13px;font-size:13px}
+.cols{display:flex;gap:40px;flex-wrap:wrap}.col{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.col img{width:180px;height:180px;border:1px solid var(--line);border-radius:14px;object-fit:contain;padding:8px}
+.col b{font-size:15px}.xhs{background:#ff2442;color:#fff;font-size:11px;padding:2px 6px;border-radius:5px;margin-right:4px;vertical-align:2px}.col small{color:var(--muted);font-size:13px}
+.scrim{position:absolute;inset:0;display:grid;place-items:center;padding:20px;background:#171c2426;z-index:2}
+.dialog{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 60px #18243619;padding:28px;width:480px;max-width:100%}
+.dialog h3{font-size:21px;margin:0 0 10px;letter-spacing:-.4px;display:flex;align-items:center;gap:9px}.dialog p{font-size:14px;line-height:1.8;color:#30353d;margin:0}
+.err{color:var(--red)}
+.steps{list-style:none;padding:0;margin:14px 0 0;font-size:14px;line-height:2.1}.steps .ok{color:var(--blue)}
+.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;flex-wrap:wrap}
+.actions{align-items:center}
+.help{margin-right:auto;border:none;background:none;padding:6px 2px;font-size:13px;font-weight:500;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.help:hover{background:none;color:#30353d;text-decoration:underline;text-underline-offset:3px}
+.help svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}
+.copied-note{display:inline-flex;align-items:center;gap:8px;background:#eef5fd;color:#0a5fa8;font-size:13px;padding:7px 12px;border-radius:9px;margin:0 0 20px}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid #9aa0a866;border-top-color:#30353d;border-radius:50%;animation:spin 1s linear infinite;vertical-align:-2px;margin-right:7px}
+.primary .spin{border-color:#ffffff66;border-top-color:#fff}
+.toast{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);background:#fff;border:1px solid var(--line);box-shadow:0 10px 32px #1824361a;color:#25282e;font-size:14px;padding:10px 10px 10px 14px;border-radius:12px;display:flex;align-items:center;gap:10px;max-width:calc(100% - 40px);z-index:4;animation:rise .18s ease-out}
+.toast .x{flex-shrink:0;width:20px;height:20px;border-radius:50%;background:#fdecee;color:var(--red);display:grid;place-items:center;font-size:11px;font-weight:700}
+.toast .msg{line-height:1.5}
+.toast .help{margin:0 0 0 6px;flex-shrink:0}
+@keyframes rise{from{opacity:0;transform:translate(-50%,6px)}to{opacity:1;transform:translate(-50%,0)}}
+.done{height:100%;display:grid;place-items:center;text-align:center}.done h2{font-size:22px;margin:0 0 18px}
+.note{margin-top:14px;min-height:46px}
+[hidden]{display:none!important}@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:900px){body{padding:20px 12px;overflow-x:hidden}.wrap{flex-direction:column}.list{width:100%;flex-direction:row;flex-wrap:wrap}.list small{width:100%}.frame{width:100%}.app{gap:14px;padding:100px 18px}.nav{width:56px}}
+@media(prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
+</style>
+<header><h1>出错时去社群咨询</h1><p>可点击原型 · App 里所有报错的地方都带「去社群咨询」，点了跳到左边导航里的「社群」页（和平时点「社群」看到的一样）。左边选场景，右边是 App，按钮都能点。</p></header>
+<div class="wrap">
+  <nav class="list" id="list"></nav>
+  <section class="frame" aria-label="CodexBuddy 原型">
+    <div class="brand"><img src="../ui/assets/icon.svg" alt="">CodexBuddy</div>
+    <div class="window" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>
+    <main id="screen" style="height:100%"></main>
+    <div id="layer"></div>
+  </section>
+</div>
+<p class="note" id="note"></p>
+<script>
+const $=id=>document.getElementById(id);
+const note=t=>{$('note').textContent=t};
+const VENDORS=[['zhipu','智谱'],['deepseek','DeepSeek'],['kimi','Kimi']];
+// kind: lock = 整个 App 被拦住（离开社群页弹窗回来）；所有弹窗按钮一样：［稍后］ 重试（蓝） 去社群咨询（浅色）; dialog = 普通弹窗; toast = 底部提示条
+const S=[
+  {g:'整个 App 被拦住'},
+  {id:'net',name:'打开时连不上网',kind:'lock',page:'模型',title:'网络问题',msg:'请检查网络后重试。'},
+  {id:'upgrade',name:'升级没成功',kind:'lock',skip:'本次先跳过',page:'模型',title:'升级没成功',msg:'更新包没下载下来，请检查网络后重试。'},
+  {g:'弹窗'},
+  {id:'install',name:'安装：没装好',kind:'dialog',page:'模型',title:'没装好',x:true,msg:'下载 Codex 没完成，请检查网络后再试。',steps:true},
+  {id:'test',name:'安装：测试 Codex 没通过',kind:'dialog',page:'模型',title:'没装好',x:true,msg:'Codex 没回答，可能是模型那边暂时连不上。',steps:'test'},
+  {id:'key',name:'创建 Key 没成功',kind:'dialog',page:'模型',title:'Key 没建成',msg:'智谱那边没返回 Key，请重试。'},
+  {id:'restart',name:'重启 ChatGPT 没成功',kind:'dialog',page:'模型',title:'重启 ChatGPT',msg:'请先保存任务并退出 ChatGPT，再重试。'},
+  {g:'提示条'},
+  {id:'switch',name:'切换模型连不上',kind:'toast',page:'模型',msg:'连不上，原来的配置没动'},
+  {id:'swapkey',name:'换 Key 没换成',kind:'toast',page:'模型',msg:'没换成，还在用原来的 Key：这个 Key 用不了'},
+  {id:'clone',name:'分身没做成 / 没删掉',kind:'toast',page:'模型',msg:'没做成分身'},
+  {id:'restore',name:'一键还原没成功',kind:'toast',page:'设置',msg:'没还原成功'},
+  {id:'lang',name:'切回英文 / 去汉化图标没成功',kind:'toast',page:'设置',msg:'没切回英文原版'},
+  {id:'update',name:'检查更新 / 更新没成功',kind:'toast',page:'设置',msg:'连不上网，稍后再试'},
+];
+let cur,page,timer,toastTimer,copied=false;
+function list(){
+  $('list').innerHTML=S.map(s=>s.g?`<small>${s.g}</small>`:`<button data-s="${s.id}" aria-current="${cur&&cur.id===s.id}">${s.name}</button>`).join('');
+  $('list').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>start(S.find(s=>s.id===b.dataset.s)));
+}
+function app(p,locked){
+  page=p;
+  let body='';
+  if(p==='模型')body=`<h2>模型</h2><p class="now">正在用：DeepSeek</p><div class="cards">${VENDORS.map(([id,n])=>`<div class="card${id==='deepseek'?' active':''}"><img src="../ui/assets/logos/${id}.png" alt=""><b>${n}</b>${id==='deepseek'?'<span class="tag">✓ 正在用</span>':'<button data-trigger>用这个</button>'}</div>`).join('')}</div>`;
+  if(p==='设置')body=`<h2>设置</h2><p class="now">语言、更新和还原</p><div class="rows"><div>界面语言<button data-trigger>切回英文</button></div><div>CodexBuddy 0.2.5<button data-trigger>检查更新</button></div><div>把电脑恢复成用 CodexBuddy 之前的样子<button data-trigger>一键还原</button></div></div>`;
+  if(p==='社群')body=`<h2>社群</h2>${copied?'<p class="copied-note">✓ 日志已复制（Key 已打码），加微信后粘贴发给我们</p>':'<p class="now">&nbsp;</p>'}<div class="cols"><div class="col"><img src="../ui/assets/wechat-qr.png" alt="微信二维码"><b>有问题？加我微信</b><small>扫码加好友，拉你进交流群</small></div><div class="col"><b>关注我，和我一起用 AI 改变世界</b><img src="../ui/assets/xhs-qr.png" alt="小红书二维码"><b><span class="xhs">小红书</span> 黄金金不AI</b><small>AI 产品 · 机器工作，人类生活</small></div></div>`;
+  if(p==='商城')body=`<h2>商城</h2><p class="now">（原型只演示模型、设置、社群）</p>`;
+  $('screen').innerHTML=`<div class="app"${locked?' inert':''}><nav class="nav">${['模型','设置','社群','商城'].map(n=>`<button data-nav="${n}"${n===p?' aria-current="page"':''}>${n}</button>`).join('')}</nav><section class="workspace">${body}</section></div>`;
+  $('screen').querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));
+  $('screen').querySelectorAll('[data-trigger]').forEach(b=>b.onclick=()=>{ if(cur.kind==='toast'&&cur.page===page)toast(); else if(cur.kind==='dialog'&&page==='模型')dialog(); });
+}
+function nav(p){
+  if(cur.kind==='lock'&&p!=='社群'){app(p,true);lock();note('版本或网络问题还在：点社群以外的页面，弹窗又回来。');return;}
+  app(p);clearToast();
+  if(p==='社群')note(cur.kind==='lock'?'社群页可以正常看，其他页面还被拦着。点模型、设置或商城，弹窗回来。':'跳到了「社群」页，左边导航高亮「社群」。点其他页面照常用。');
+}
+function community(){ $('layer').innerHTML='';clearToast();copied=true;app('社群');copied=false;note(cur.kind==='lock'?'弹窗收起，跳到左边导航里的「社群」页：加微信进群问，或关注小红书。其他页面还被拦着，点了弹窗会回来。':'弹窗或提示收起，跳到左边导航里的「社群」页，左边高亮「社群」。'); }
+function busy(b,label){b.disabled=true;b.innerHTML=`<span class="spin"></span>${label}`;}
+function lock(){
+  $('layer').innerHTML=`<div class="scrim"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="t"><h3 id="t">${cur.title}</h3><p>${cur.msg}</p>
+  <div class="actions"><button class="help" data-a="community"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 4 4Z"/></svg>去社群咨询</button>${cur.skip?`<button data-a="skip">${cur.skip}</button>`:''}<button class="primary" data-a="retry">重试</button></div></section></div>`;
+  wire();
+}
+function dialog(){
+  const steps=cur.steps?`<ul class="steps"><li class="ok">✓ 检查电脑</li>${cur.steps==='test'?'<li class="ok">✓ 下载 Codex</li><li class="ok">✓ 装进应用程序</li><li class="err">✗ 测试 Codex</li>':'<li class="err">✗ 下载 Codex</li><li>○ 装进应用程序</li><li>○ 测试 Codex</li>'}</ul>`:'';
+  $('layer').innerHTML=`<div class="scrim"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="t"><h3 id="t">${cur.x?'<span class="err">✕</span>':''}${cur.title}</h3>${steps}<p style="margin-top:${steps?'12px':'0'}">${cur.msg}</p>
+  <div class="actions"><button class="help" data-a="community"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 4 4Z"/></svg>去社群咨询</button><button class="primary" data-a="retry">重试</button></div></section></div>`;
+  wire();
+}
+function toast(){
+  clearToast();
+  $('layer').insertAdjacentHTML('beforeend',`<div class="toast" id="toast" role="status"><span class="x" aria-hidden="true">✕</span><span class="msg">${cur.msg}</span><button class="help" data-a="community"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 4 4Z"/></svg>去社群咨询</button></div>`);
+  wire();toastTimer=setTimeout(clearToast,8000);
+  note('出错的提示条：✕ 原因，后面一个灰色文字「去社群咨询」（点了顺手复制日志），停 8 秒；不点就自己消失，页面照常用。');
+}
+function clearToast(){clearTimeout(toastTimer);$('toast')?.remove();}
+function wire(){
+  $('layer').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
+    const a=b.dataset.a;
+    if(a==='community')community();
+    if(a==='skip'){$('layer').innerHTML='';cur={...cur,kind:'skipped'};app('模型');note('本次先跳过：弹窗收起，这次可以照常用，用的过程中不再弹升级。下次打开 CodexBuddy 时再要求升级，到时再试。');}
+    if(a==='later'){$('layer').innerHTML='';note('关掉弹窗，回到模型页。');}
+    if(a==='quit'){$('layer').innerHTML='';$('screen').innerHTML='<div class="done"><div><h2>CodexBuddy 已退出</h2><button class="primary" id="re">重新打开</button></div></div>';$('re').onclick=()=>start(cur);note('原型模拟退出。');}
+    if(a==='retry'){busy(b,b.textContent);timer=setTimeout(()=>{cur.kind==='lock'?lock():dialog();note('重试还是失败：弹窗留着，原因照写，可以去社群咨询。');},900);}
+  });
+}
+function start(s){
+  cur=s;clearTimeout(timer);clearToast();$('layer').innerHTML='';list();
+  if(s.kind==='lock'){app(s.page,true);lock();note('整个 App 被拦住：弹窗里没有「退出」，要走就点窗口右上角的 ×（Mac 是左上角红点），App 直接退出。右边蓝色「重试」是重点，左下角灰色文字「去社群咨询」：点了顺手复制日志，跳到「社群」页。');}
+  if(s.kind==='dialog'){app(s.page);dialog();note('所有弹窗一个排法：左下角灰色文字「去社群咨询」，右边蓝色「重试」是唯一的重点。点「去社群咨询」会顺手复制日志，跳到社群页。不想重试就按 Esc 或点弹窗外面关掉。');}
+  if(s.kind==='toast'){app(s.page);toast();}
+}
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;e.preventDefault();if(cur.kind==='dialog'&&$('layer').querySelector('.scrim')){$('layer').innerHTML='';note('按 Esc 关掉弹窗，回到模型页。');}});
+$('layer').addEventListener('click',e=>{if(cur.kind==='dialog'&&e.target.classList.contains('scrim')){$('layer').innerHTML='';note('点弹窗外面关掉弹窗，回到模型页。');}});
+start(S[1]);
+</script>
+</html>
