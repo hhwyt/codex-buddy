@@ -470,5 +470,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   const autoFirst = autoFirstSwitch.pending;
   autoFirstSwitch.pending = false;
   if (autoFirst && !wallet.active && order[0]) { void switchTo(order[0]); }
+  // Codex just installed but a model is already in use (a reinstall, or 演示模式): open it straight away, as after a first switch
+  else if (autoFirst && wallet.active) { void api.invoke('codex:open', {}); }
   return () => { for (const off of offs) off(); window.removeEventListener('resize', onResize); document.documentElement.classList.remove('scan-waiting'); };
 }
