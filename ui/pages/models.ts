@@ -180,7 +180,6 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
   /** Zoom on .models so its content fits the page area; measured at full size against the stage's target height
    *  (it animates), never below MIN_FIT_ZOOM; a taller window gives full size back */
   function fitHeight(): void {
-    if (opts.codexMissing) return; // Keep the cards aligned with the shared 380px installation entry.
     const scroller = root.closest<HTMLElement>('.page') ?? root;
     if (!scroller.clientHeight) return; // not on screen (tests, hidden)
     page.style.zoom = '1';
