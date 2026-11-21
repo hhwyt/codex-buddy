@@ -1,6 +1,6 @@
 # CodexBuddy
 
-[English](README.md) | 简体中文
+[English](README.md) | **简体中文**
 
 **一键装好 OpenAI 的 Codex，用国产大模型。**
 
@@ -37,7 +37,11 @@ Codex 的英文原版和汉化版一键切换，不用重装。
 
 **社群**
 
-「社群」页有企业微信群的二维码，有问题可以进群问；还有作者的小红书账号。
+「社群」页有作者的微信二维码（加好友后拉你进交流群）和小红书账号。每个报错都带「去社群咨询」：点了会复制日志（Key 已打码），再打开这一页。
+
+**更新**
+
+普通发布只在左侧导航最下面亮起「有新版本」，想更新时再点。强制发布只在旧版已经用不了或不安全时使用，会要求先更新再继续用；更新失败可以「本次先跳过」，下次打开再提示。更新只下载安装包里变了的部分，通常一两 MB，断网后接着下。
 
 ## 隐私和安全
 
@@ -90,7 +94,7 @@ npm run dist         # Windows 安装包：release/CodexBuddy-Setup-<版本>.exe
 npm run dist:mac     # macOS：release/CodexBuddy-<版本>.dmg（Intel 和 Apple 芯片通用）
 ```
 
-暂时还没有用付费证书签名。Windows 上 SmartScreen 可能提示「Windows 已保护你的电脑」：点「更多信息 → 仍要运行」。macOS 上第一次打开时，右键 App 选「打开」。发版流程见 [docs/release.md](docs/release.md)。
+暂时还没有用付费证书签名。Windows 上 SmartScreen 可能提示「Windows 已保护你的电脑」：点「更多信息 → 仍要运行」。macOS 上第一次打开时，右键 App 选「打开」。版本号是「年.月.当月第几个」（26.11.1 是 2026 年 11 月第一个版本）。发版流程见 [docs/release.md](docs/release.md)。
 
 ## 协议
 

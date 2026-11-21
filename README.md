@@ -1,6 +1,6 @@
 # CodexBuddy
 
-English | [简体中文](README.zh-CN.md)
+**English** | [简体中文](README.zh-CN.md)
 
 **Use OpenAI's Codex with China's own AI models, set up in one click.**
 
@@ -37,7 +37,11 @@ Put everything back the way it was before CodexBuddy: your Codex configuration, 
 
 **Community**
 
-The 社群 page has a WeChat Work group QR code for questions, and the author's Xiaohongshu account.
+The 社群 page has the author's WeChat QR code (add it and you are invited to the user group) and Xiaohongshu account. Every error message has a 去社群咨询 (ask the community) link: it copies the log with keys masked and opens this page.
+
+**Updates**
+
+A normal release only lights up 有新版本 (new version) at the bottom of the sidebar; update when you like. A forced release, used only when older versions stop working or are unsafe, asks you to update before going on; if that update fails you can skip it until the next start. Updates download only the parts of the installer that changed, usually 1–2 MB, and resume after a dropped connection.
 
 ## Privacy and security
 
@@ -90,7 +94,7 @@ npm run dist         # Windows installer: release/CodexBuddy-Setup-<version>.exe
 npm run dist:mac     # macOS: release/CodexBuddy-<version>.dmg (Intel + Apple silicon)
 ```
 
-Builds are not signed with a paid certificate yet. On Windows, SmartScreen may say "Windows protected your PC": choose More info → Run anyway. On macOS, right-click the app and choose Open the first time. Releasing is described in [docs/release.md](docs/release.md).
+Builds are not signed with a paid certificate yet. On Windows, SmartScreen may say "Windows protected your PC": choose More info → Run anyway. On macOS, right-click the app and choose Open the first time. Versions are year.month.n (26.11.1 is the first release of November 2026). Releasing is described in [docs/release.md](docs/release.md).
 
 ## License
 
