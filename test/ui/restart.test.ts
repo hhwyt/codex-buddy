@@ -38,7 +38,7 @@ test('M-21 确认后只调用一次重启，完成前禁止重复点击和关闭
   expect(query(TID.restart.root)).toBeNull();
 });
 
-test('M-21 重启失败保留弹窗、稍后和重试入口，不宣称已生效', async () => {
+test('M-21 重启失败保留弹窗、去社群咨询和重试入口，不宣称已生效', async () => {
   const api = fakeApi(walletOf());
   let attempts = 0;
   api.handle('codex:restart', () => ({ ok: ++attempts > 1 }));
@@ -46,7 +46,9 @@ test('M-21 重启失败保留弹窗、稍后和重试入口，不宣称已生效
   query(TID.restart.now).click();
   await settle();
   expect(query(TID.restart.root).textContent).toContain('没能重启 ChatGPT');
-  expect(query(TID.restart.now).textContent).toBe('再试一次');
+  expect(query(TID.restart.now).textContent).toBe('重试');
+  expect(query(TID.restart.later).hidden).toBe(true);
+  expect(query(TID.help)!.hidden).toBe(false);
   expect(query(TID.restart.root).textContent).not.toContain('已生效');
   query(TID.restart.now).click();
   expect(await pending).toBe(true);

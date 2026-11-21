@@ -62,7 +62,7 @@ describe('一个弹窗走完安装和验证', () => {
     expect(title()).toBe('✓装好了');
   });
 
-  test('A-02 第 4 步失败：一句原因 +「稍后再试」「重试」，重试只重做第 4 步', async () => {
+  test('A-02 第 4 步失败：一句原因 +「重试」，重试只重做第 4 步', async () => {
     let n = 0;
     const { fake, went } = mount({ 'verify:run': () => (++n === 1 ? { ok: false, reason: 'DeepSeek 说 Key 不对' } : { ok: true }) });
     await settle();
@@ -78,12 +78,14 @@ describe('一个弹窗走完安装和验证', () => {
     expect(went).toEqual([]);
   });
 
-  test('A-02 配不上第一张卡、安装失败：同样给原因；稍后再试回到模型页', async () => {
+  test('A-02 配不上第一张卡、安装失败：同样给原因；Esc 回到模型页', async () => {
     const { went } = mount({ 'install:run': { ok: false, reason: '下载没成功，检查一下网络再试' } });
     await settle();
     expect(get(TID.verify.reason)?.textContent).toBe('下载没成功，检查一下网络再试');
-    expect(get(TID.verify.retry)?.textContent).toBe('再试一次');
-    click(TID.verify.later);
+    expect(get(TID.verify.retry)?.textContent).toBe('重试');
+    expect(get(TID.verify.later)).toBeNull();
+    expect(get(TID.help)).not.toBeNull();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(went).toEqual(['models']);
     const second = mount({ 'switch:start': { ok: false, reason: '没拿到 Key' } });
     await settle();

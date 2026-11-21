@@ -24,7 +24,7 @@ describe('社群页（H-02）', () => {
     const root = $(TID.community.root)!;
     expect(root.querySelector('h1')!.textContent).toBe('社群');
     expect([...root.querySelectorAll('p')].map(p => p.textContent)).toEqual([
-      '有问题？加我微信', '扫码加好友，拉你进交流群', '小红书关注小红书', '「黄金金不AI」，看更多 Codex 用法',
+      ' ', '有问题？加我微信', '扫码加好友，拉你进交流群', '关注我，和我一起用 AI 改变世界', '小红书黄金金不AI', 'AI 产品 · 机器工作，人类生活',
     ]);
     expect(root.querySelectorAll('img')).toHaveLength(2);
     expect(root.querySelector('.brand-wechat')!.textContent).toBe('微信');

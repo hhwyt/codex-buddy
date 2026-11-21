@@ -67,7 +67,7 @@ test('O-03 失败保留提示条和进度，重试复用同一个抽屉；帮助
   get(TID.onboarding.retry)!.click();
   await settle();
   expect(fake.called('install:run')).toHaveLength(2);
-  get(TID.onboarding.toCommunity)!.click();
+  get(TID.help)!.click();
   await settle();
   expect(get(TID.onboarding.root)).toBeNull();
   expect(get(TID.community.root)).not.toBeNull();

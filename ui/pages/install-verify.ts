@@ -6,6 +6,7 @@
 // starVerify is on; otherwise onboarding.ts is the install drawer as before.
 import type { Outcome, StepView } from '../../electron/main/ipc-contract.js';
 import { createProgress } from '../components/progress.js';
+import { helpLink } from '../components/help.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
 import { MAC_STEPS } from './onboarding.js';
@@ -42,7 +43,9 @@ export function renderInstallVerify({ api, root, go }: PageContext): () => void 
   const left = h('div', { class: 'iv-left' }, title, h('div', { class: 'iv-steps' }, progress.el), starBox, tail);
   const pageSlot = h('div', { class: 'iv-page', 'data-testid': TID.verify.page });
   const box = h('section', { class: 'dialog iv-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'iv-title', 'data-testid': TID.verify.root }, left, pageSlot);
-  root.replaceChildren(h('div', { class: 'scrim iv-scrim' }, box));
+  const scrim = h('div', { class: 'scrim iv-scrim' }, box);
+  scrim.addEventListener('click', (e: Event) => { if (e.target === scrim && failed) leave(); });
+  root.replaceChildren(scrim);
 
   /** The right half: where the pinned browser view goes (window coordinates) */
   const sendPlace = () => {
@@ -51,6 +54,8 @@ export function renderInstallVerify({ api, root, go }: PageContext): () => void 
     void api.invoke('browser:place', pageOpen ? { x: r.left + 1, y: r.top + 1, width: r.width - 2, height: r.height - 2 } : { x: 0, y: 0, width: 0, height: 0 });
   };
   const onResize = () => { if (pageOpen) sendPlace(); };
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && failed) leave(); };
+  window.addEventListener('keydown', onKey);
   window.addEventListener('resize', onResize);
   // The right half's box settles after the dialog widens: place the page again whenever it changes
   const slotSize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize);
@@ -80,8 +85,8 @@ export function renderInstallVerify({ api, root, go }: PageContext): () => void 
     if (failed) {
       tail.replaceChildren(h('p', { class: 'verify-reason', role: 'alert', 'data-testid': TID.verify.reason }, failed.reason),
         h('div', { class: 'row' },
-          h('button', { class: 'btn', type: 'button', 'data-testid': TID.verify.later, onclick: () => leave() }, '稍后再试'),
-          h('button', { class: 'btn primary', type: 'button', 'data-testid': TID.verify.retry, onclick: () => void (failed!.at === 'install' ? install() : test()) }, failed.at === 'install' ? '再试一次' : '重试')));
+          helpLink(),
+          h('button', { class: 'btn primary', type: 'button', 'data-testid': TID.verify.retry, onclick: () => void (failed!.at === 'install' ? install() : test()) }, '重试')));
     } else if (stage === 'done') {
       const now = h('button', { class: 'btn primary', type: 'button', 'data-testid': TID.verify.open, onclick: () => void openChatGPT() },
         opening ? (restartRequired ? '正在重启' : '正在打开') : openError ? '再试一次' : restartRequired ? '重启 ChatGPT' : '打开 ChatGPT');
@@ -170,5 +175,5 @@ export function renderInstallVerify({ api, root, go }: PageContext): () => void 
     if (document.documentElement.classList.contains('os-mac')) progress.el.append(testRow);
     void install();
   });
-  return () => { alive = false; slotSize?.disconnect(); window.removeEventListener('resize', onResize); for (const off of offs) off(); };
+  return () => { alive = false; slotSize?.disconnect(); window.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize); for (const off of offs) off(); };
 }

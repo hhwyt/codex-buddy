@@ -341,7 +341,7 @@ test('H-02 社群页：远程未设置社群码时显示内置的个人微信码
   run = await run.relaunch();
   await finishOnboarding(run.page);
   await nav.community(run.page);
-  await expect(run.page.getByTestId(TID.community.root)).toHaveText('社群有问题？加我微信扫码加好友，拉你进交流群小红书关注小红书「黄金金不AI」，看更多 Codex 用法');
+  await expect(run.page.getByTestId(TID.community.root)).toHaveText('社群 有问题？加我微信扫码加好友，拉你进交流群关注我，和我一起用 AI 改变世界小红书黄金金不AIAI 产品 · 机器工作，人类生活');
   await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', 'assets/wechat-qr.png');
   await expect(run.page.getByTestId(TID.community.xhsQr)).toBeVisible();
 });

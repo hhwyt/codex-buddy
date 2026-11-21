@@ -76,11 +76,11 @@ export function confirmRemoveClone(name: string, root?: HTMLElement): Promise<bo
   });
 }
 
-/** M-10: key creation failed → reason +「再试一次」 */
+/** M-10: key creation failed → reason +「重试」+ 去社群咨询 */
 export function keyFailed(reason: string | undefined, root?: HTMLElement): Promise<boolean> {
   return dialog({
     title: '没拿到 Key',
     lines: [reason ?? '登录后没能自动建 Key'],
-    confirm: '再试一次', cancel: '先不了', root,
+    confirm: '重试', help: true, root,
   });
 }

@@ -6,7 +6,9 @@ export type Route = 'models' | 'settings' | 'community' | 'shop';
 export interface PageContext {
   api: BuddyApi;
   root: HTMLElement;
-  go(route: Route): void;
+  /** Set when the page is reached from 去社群咨询 and the log was copied (E-02) */
+  copied?: boolean;
+  go(route: Route, opts?: { copied?: boolean }): void;
 }
 
 export type Page = (ctx: PageContext) => void | (() => void) | Promise<void | (() => void)>;

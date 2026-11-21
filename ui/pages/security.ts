@@ -50,7 +50,7 @@ export function openSecurity(api: BuddyApi, root: HTMLElement): HTMLElement {
   const askAi = async () => { // S-06
     const { text } = await api.invoke('security:ask-ai');
     try { await navigator.clipboard.writeText(text); toast('已复制，粘到你自己的 AI 里问问'); }
-    catch { toast('没复制成功，再试一次', { error: true }); }
+    catch { toast('没复制成功，再试一次', { error: true, help: false }); }
   };
 
   const panel = h('aside', { class: 'security', role: 'dialog', 'aria-label': '安全', 'data-testid': TID.security.root },

@@ -8,7 +8,14 @@
   --ink: #0d0d0d;
   --ink-2: #5d5d5d;
   --ink-3: #8f8f8f;
+  --muted: #8f8f8f;
   --on-ink: #fff;
+  --toast-card: #fff;
+  --toast-card-ink: #0d0d0d;
+  --toast-shadow: #1824361a;
+  --error-bg: #fdecee;
+  --community-copied-bg: #eef5fd;
+  --community-copied-text: #0a5fa8;
   --qr-bg: #fff;         /* QR codes stay on white in every theme so they scan */
   --blue: #0285ff;         /* only「正在用 / ✓ 能用」and selected */
   --accent: #0c8df6;

@@ -73,23 +73,20 @@ test('V-01 断网阻止界面和后台操作，联网重试后恢复使用', asy
   await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('网络问题');
   const result = await run.page.evaluate(() => (window as any).buddy.invoke('codex:open', {}));
   expect(result.ok).toBe(false);
-  // 断网的升级弹窗也有「去社群问问」；社群页盖住 App，返回后还是同一个弹窗
-  const community = run.page.getByTestId(TID.upgrade.community);
-  await expect(community).toBeVisible();
-  await expect(community).toHaveText('去社群问问');
-  await community.click();
-  const full = run.page.getByTestId(TID.community.full);
-  await expect(full).toBeVisible();
+  // 断网的升级弹窗也有「去社群咨询」；点它到社群页并复制日志，离开社群页弹窗回来
+  const help = run.page.getByTestId(TID.help);
+  await expect(help).toBeVisible();
+  await expect(help).toHaveText('去社群咨询');
+  await help.click();
+  await expect(run.page.getByTestId(TID.community.root)).toBeVisible();
+  await expect(run.page.getByTestId(TID.community.copied)).toBeVisible();
   await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', /wechat-qr\.png$/);
-  const blocked = await run.page.evaluate(() => (window as any).buddy.invoke('codex:open', {}));
-  expect(blocked.ok).toBe(false);
-  await run.page.getByTestId(TID.community.back).click();
-  await expect(full).toHaveCount(0);
+  await run.page.getByTestId(TID.shell.navModels).click();
   await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('网络问题');
   run.config.setMode('jsdelivr', 'ok'); run.config.setMode('github', 'ok');
   await run.page.getByRole('button', { name: '重试' }).click();
   await expect(run.page.getByTestId(TID.upgrade.root)).toBeHidden();
-  await expect(run.page.getByTestId(TID.models.root)).toBeVisible();
+  await expect(run.page.getByTestId(TID.community.root)).toBeVisible();
 });
 
 test('V-02 运行中每分钟校验，服务端提高最低版本后自动拦截', async () => {

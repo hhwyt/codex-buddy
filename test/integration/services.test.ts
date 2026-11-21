@@ -1061,3 +1061,25 @@ describe('转发服务与分身目录', () => {
     expect(fs.readFileSync(path.join(foreignHome, 'config.toml'), 'utf8')).toBe(foreignConfig);
   });
 });
+
+  test('E-04 升级失败前 skip 返回先点立即升级；失败后 skip 放行，重启后又要求升级', async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    fetchText = async () => JSON.stringify({ ...bundled, minVersion: '0.2.0', latest: { ...bundled.latest, version: '0.3.0',
+      macUrl: 'https://github.com/hhwyt/codex-buddy-releases/releases/download/v0.3.0/CodexBuddy-0.3.0.dmg',
+      winUrl: 'https://github.com/hhwyt/codex-buddy-releases/releases/download/v0.3.0/CodexBuddy-Setup-0.3.0.exe',
+      macSha256: sha256, winSha256: sha256 } });
+
+    const b = build({ os: 'win' });
+    fetchBytes = async () => { throw new Error('timeout'); };
+
+    expect(await b.h['upgrade:skip'](undefined as never)).toEqual({ ok: false, reason: '先点立即升级' });
+    expect(await b.h['upgrade:run'](undefined as never)).toMatchObject({ ok: false });
+    expect(await b.h['upgrade:skip'](undefined as never)).toEqual({ ok: true });
+
+    expect((await b.h['app:state'](undefined as never)).upgradeRequired).toBeNull();
+    expect(await b.svc.versionAllowed()).toBe(true);
+
+    // 模拟重启：新实例有自己的内存，upgradeSkipped 不保留，又要求升级
+    expect((await build({ os: 'win' }).h['app:state'](undefined as never)).upgradeRequired).not.toBeNull();
+  });

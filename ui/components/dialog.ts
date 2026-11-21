@@ -2,6 +2,7 @@
 // Owner: Base. At most one black primary button per screen (UI-02): the dialog's confirm is that button while open.
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
+import { helpLink } from './help.js';
 
 export interface DialogOptions {
   title: string;
@@ -14,6 +15,8 @@ export interface DialogOptions {
   root?: HTMLElement;
   /** Red confirm for destructive actions */
   danger?: boolean;
+  /** Put 去社群咨询 on the left of the button row */
+  help?: boolean;
 }
 
 export function dialog(opts: DialogOptions): Promise<boolean> {
@@ -26,6 +29,7 @@ export function dialog(opts: DialogOptions): Promise<boolean> {
       ...(opts.lines ?? []).map(l => h('p', {}, l)),
       opts.body ?? null,
       h('div', { class: 'row' },
+        opts.help ? (() => { const help = helpLink(); help.addEventListener('click', () => close(false), { capture: true }); return help; })() : null,
         opts.cancel ? h('button', { class: 'btn', type: 'button', 'data-testid': TID.dialog.cancel, onclick: () => close(false) }, opts.cancel) : null,
         h('button', { class: opts.danger ? 'btn primary danger' : 'btn primary', type: 'button', 'data-testid': TID.dialog.confirm, onclick: () => close(true) }, opts.confirm)));
     const scrim = h('div', { class: 'scrim', onclick: (e: Event) => { if (e.target === scrim) close(false); } }, box);

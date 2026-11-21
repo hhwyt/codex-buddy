@@ -1,6 +1,7 @@
 import type { BuddyApi } from '../api.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
+import { helpLink } from './help.js';
 
 const prompts = new WeakMap<BuddyApi, Promise<boolean>>();
 
@@ -22,6 +23,9 @@ export function promptRestart(api: BuddyApi, open = false, vendorName?: string):
       resolve(restarted);
     };
     const later = h('button', { class: 'btn', type: 'button', 'data-testid': TID.restart.later, onclick: () => close(false) }, '稍后');
+    const help = helpLink();
+    help.hidden = true;
+    help.addEventListener('click', () => close(false), { capture: true });
     const now = h('button', { class: 'btn primary', type: 'button', 'data-testid': TID.restart.now, onclick: async () => {
       if (busy) return;
       busy = true;
@@ -38,19 +42,23 @@ export function promptRestart(api: BuddyApi, open = false, vendorName?: string):
         text.textContent = '配置已保存，重启 ChatGPT 后生效。';
         error.textContent = '请先保存任务并退出 ChatGPT，再试一次。';
         error.hidden = false;
-        now.textContent = '再试一次';
+        now.textContent = '重试';
+        later.hidden = true;
+        help.hidden = false;
         later.disabled = now.disabled = false;
         now.focus();
       } finally { busy = false; }
     } }, open ? '打开 ChatGPT' : '立即重启');
     const box = h('div', { class: 'dialog restart-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'restart-title', 'data-testid': TID.restart.root },
-      ...(open ? [h('div', { class: 'restart-saved', 'aria-hidden': 'true' }, '✓')] : []), title, text, ...(open ? [h('p', { class: 'restart-consequence' }, '如果 ChatGPT 已在运行，会先退出再打开，正在进行的任务会中断。')] : []), error, h('div', { class: 'row' }, later, now));
+      ...(open ? [h('div', { class: 'restart-saved', 'aria-hidden': 'true' }, '✓')] : []), title, text, ...(open ? [h('p', { class: 'restart-consequence' }, '如果 ChatGPT 已在运行，会先退出再打开，正在进行的任务会中断。')] : []), error, h('div', { class: 'row' }, help, later, now));
     const scrim = h('div', { class: 'scrim' }, box);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); if (!busy) close(false); }
       if (event.key === 'Tab') {
         event.preventDefault();
-        if (!busy) (document.activeElement === later ? now : later).focus();
+        if (busy) return;
+        const buttons = later.hidden ? [help, now] : [later, now];
+        buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + 1) % buttons.length].focus();
       }
     };
     document.addEventListener('keydown', onKey);

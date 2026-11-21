@@ -4,6 +4,7 @@ import { mountBrowser } from './components/pip.js';
 import { restartNotice } from './components/restart.js';
 import { mountNetwork } from './components/network.js';
 import { clearToasts } from './components/toast.js';
+import { copyLog } from './components/help.js';
 import { h } from './dom.js';
 import { renderCommunity } from './pages/community.js';
 import { renderModels } from './pages/models.js';
@@ -26,28 +27,41 @@ const NAV: { route: Route; label: string; testid: string }[] = [
 ];
 
 export interface App {
-  go(route: Route): Promise<void>;
+  go(route: Route, opts?: { copied?: boolean }): Promise<void>;
   route(): Route | null;
 }
 
 export async function createApp(root: HTMLElement, api: BuddyApi): Promise<App> {
   const content = h('div', { class: 'network-content' });
   root.replaceChildren(content);
-  let connected: App | null = null;
-  let mounting: Promise<App> | null = null;
+  let connected: App & { prepareForHelp(): void } | null = null;
+  let mounting: Promise<App & { prepareForHelp(): void }> | null = null;
   const network = mountNetwork(api, root, content, async () => {
     if (connected) return;
-    mounting ??= createConnectedApp(content, network.api);
+    mounting ??= createConnectedApp(content, network.api, () => network.restoreIfHelped());
     try { connected = await mounting; } catch (error) { mounting = null; throw error; }
+  }, copied => {
+    if (!connected) return false;
+    connected.prepareForHelp();
+    network.hideForHelp();
+    void connected.go('community', { copied });
+    return true;
+  });
+  window.addEventListener('codexbuddy:help', () => {
+    void (async () => {
+      const copied = await copyLog(api);
+      clearToasts();
+      network.onHelp(copied);
+    })();
   });
   await network.start();
   return {
-    async go(route) { if (network.online()) await connected?.go(route); },
+    async go(route, opts) { if (network.online()) await connected?.go(route, opts); },
     route: () => network.online() ? connected?.route() ?? null : null,
   };
 }
 
-async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App> {
+async function createConnectedApp(root: HTMLElement, api: BuddyApi, restoreNetworkLock: () => boolean): Promise<App & { prepareForHelp(): void }> {
   const state = await api.invoke('app:state');
   /** A-01: refreshed on every page change (the signed config may arrive after the first app:state) */
   let starVerify = !!state.starVerify;
@@ -98,11 +112,20 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
   let required = state.upgradeRequired;
   let gate: HTMLElement | null = null;
   let gateKey = '';
+  let upgradeHidden = false;
   const app: App = {
-    async go(route) {
-      if (blocked) return;
+    async go(route, opts) {
+      if (route !== 'community') restoreNetworkLock();
+      if (blocked && route !== 'community') {
+        if (upgradeHidden && gate) { upgradeHidden = false; gate.hidden = false; shell.inert = true; }
+        return;
+      }
       const fresh = await api.invoke('app:state');
-      if (blocked) return;
+      if (route !== 'community') restoreNetworkLock();
+      if (blocked && route !== 'community') {
+        if (upgradeHidden && gate) { upgradeHidden = false; gate.hidden = false; shell.inert = true; }
+        return;
+      }
       banner.hidden = fresh.codexInstalled;
       starVerify = !!fresh.starVerify;
       if (typeof cleanup === 'function') cleanup();
@@ -111,7 +134,7 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
         if (b.dataset.route === route) b.setAttribute('aria-current', 'page');
         else b.removeAttribute('aria-current');
       }
-      cleanup = await PAGES[route]({ api, root: page, go: r => { void app.go(r); } });
+      cleanup = await PAGES[route]({ api, root: page, go: r => { void app.go(r); }, copied: opts?.copied });
     },
     route: () => current,
   };
@@ -126,6 +149,7 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
     gate?.dispatchEvent(new Event('dispose'));
     gate?.remove();
     gate = null;
+    upgradeHidden = false;
     if (blocked) {
       clearToasts();
       void api.invoke('browser:close');
@@ -138,7 +162,10 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
   mountBrowser(api, root);
   synchronizeGate();
   if (!blocked && !current) await app.go('models');
-  return app;
+  return { ...app, prepareForHelp: () => {
+    closeInstall?.();
+    if (blocked && gate) { upgradeHidden = true; gate.hidden = true; shell.inert = false; }
+  } };
 }
 
 if (typeof window !== 'undefined' && window.buddy) {

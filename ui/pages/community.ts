@@ -24,23 +24,26 @@ export function communityQr(fresh: string | null): string | null {
 function communityCols(qr: string): HTMLElement[] {
   return [
     h('div', { class: 'community-col' },
+      h('p', { class: 'community-line community-top', 'aria-hidden': 'true' }, ' '),
       h('img', { class: 'community-qr', src: qr, alt: '微信二维码', 'data-testid': TID.community.qr }),
       h('div', {},
         h('p', { class: 'community-line' }, h('span', {}, '有问题？加我', h('span', { class: 'brand-wechat' }, '微信'))),
         h('p', { class: 'community-sub' }, '扫码加好友，拉你进交流群'))),
     h('div', { class: 'community-col' },
+      h('p', { class: 'community-line' }, '关注我，和我一起用 AI 改变世界'),
       h('img', { class: 'community-qr', src: XHS_QR, alt: '小红书二维码', 'data-testid': TID.community.xhsQr }),
       h('div', {},
-        h('p', { class: 'community-line' }, h('span', { class: 'xhs-chip' }, '小红书'), '关注小红书'),
-        h('p', { class: 'community-sub' }, '「黄金金不AI」，看更多 Codex 用法'))),
+        h('p', { class: 'community-line' }, h('span', { class: 'xhs-chip' }, '小红书'), '黄金金不AI'),
+        h('p', { class: 'community-sub' }, 'AI 产品 · 机器工作，人类生活'))),
   ];
 }
 
-export const renderCommunity: Page = async ({ api, root }) => {
+export const renderCommunity: Page = async ({ api, root, copied }) => {
   const state = await api.invoke('app:state');
   const qr = communityQr(state.community.qrUrl) ?? BUNDLED_QR;
   root.replaceChildren(h('div', { class: 'community', 'data-testid': TID.community.root },
     h('h1', {}, '社群'),
+    ...(copied ? [h('p', { class: 'community-copied', 'data-testid': TID.community.copied }, '✓ 日志已复制（Key 已打码），加微信后粘贴发给我们')] : []),
     h('div', { class: 'community-body' }, ...communityCols(qr))));
 };
 

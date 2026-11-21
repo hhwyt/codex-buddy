@@ -159,7 +159,7 @@ describe('汉化（L）', () => {
     expect(msg()).toContain('没切回去');
   });
 
-  it('L-04 去不掉时提示，「再试一次」重新去掉；正在去的时候再点不重复', async () => {
+  it('L-04 去不掉时提示，「重试」重新去掉；正在去的时候再点不重复', async () => {
     let n = 0;
     const fake = fakeApi({ 'app:state': appState({ zh: { on: false, launcherExists: true, supported: true, hidden: false } }), 'zh:remove': () => ({ ok: ++n > 1 }) });
     await mount(fake);
@@ -169,7 +169,7 @@ describe('汉化（L）', () => {
     expect(fake.called('zh:remove')).toHaveLength(1);
     expect(msg()).toContain('图标没去掉');
     expect($(TID.settings.zhTrash)).not.toBeNull();
-    click(button('再试一次'));
+    click(button('重试'));
     await settle();
     expect(fake.called('zh:remove')).toHaveLength(2);
     expect($(TID.settings.zhTrash)).toBeNull(); // only there while the launcher exists
@@ -211,7 +211,7 @@ describe('汉化（L）', () => {
     expect(msg()).toBe('');
   });
 
-  it('T-01 切回英文失败时提示原因，「再试一次」重新切', async () => {
+  it('T-01 切回英文失败时提示原因，「重试」重新切', async () => {
     let n = 0;
     const fake = fakeApi({ 'app:state': appState({ zh: { on: true, launcherExists: true, supported: true, hidden: false } }), 'zh:set': () => (++n > 1 ? { ok: true } : { ok: false }) });
     await mount(fake);
@@ -219,7 +219,7 @@ describe('汉化（L）', () => {
     await settle(80);
     expect($(TID.settings.zhCard)!.classList.contains('on')).toBe(true);
     expect(msg()).toContain('没切回英文原版');
-    click(button('再试一次'));
+    click(button('重试'));
     await settle(80);
     expect($(TID.settings.enCard)!.classList.contains('on')).toBe(true);
   });
@@ -258,7 +258,7 @@ describe('版本和检查更新（T-02）', () => {
     await mount(fakeApi({ 'update:check': { kind: 'offline' } }));
     click($(TID.settings.checkUpdate));
     await settle();
-    expect($(TID.toast)!.textContent).toBe('连不上网，稍后再试');
+    expect($(TID.toast)!.textContent).toContain('连不上网，稍后再试');
     expect($(TID.toast)!.classList.contains('error')).toBe(true);
   });
 });
@@ -302,7 +302,7 @@ describe('一键还原（T-03）', () => {
     click($(TID.dialog.confirm));
     await settle();
     expect(go).not.toHaveBeenCalled();
-    expect($(TID.toast)!.textContent).toBe('有个文件正被占用');
+    expect($(TID.toast)!.textContent).toContain('有个文件正被占用');
   });
 
   it('T-03 还原失败没给原因时也有提示', async () => {
@@ -311,7 +311,7 @@ describe('一键还原（T-03）', () => {
     await settle();
     click($(TID.dialog.confirm));
     await settle();
-    expect($(TID.toast)!.textContent).toBe('没还原成功，再试一次');
+    expect($(TID.toast)!.textContent).toContain('没还原成功');
   });
 });
 

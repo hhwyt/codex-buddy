@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { showUpgrade } from '../../ui/pages/upgrade';
-import { BUNDLED_QR } from '../../ui/pages/community';
 import { TID } from '../../ui/testids';
 import { click, fakeApi, settle } from './settings.fake';
 
@@ -14,22 +13,17 @@ beforeEach(() => { document.body.innerHTML = '<div id="app"></div>'; localStorag
 afterEach(() => { const gate = $(TID.upgrade.root); gate?.dispatchEvent(new Event('dispose')); document.body.innerHTML = ''; });
 
 describe('简洁强制升级', () => {
-  it('V-03 仅显示标题、目标版本和两个按钮，不能用 Escape 跳过', () => {
+  it('V-03 仅显示标题、目标版本和一个蓝色「立即升级」，不能用 Escape 跳过', () => {
     const fake = fakeApi();
     showUpgrade(fake.api, root(), INFO, OPTIONS);
-    expect(text()).toBe('升级后继续使用请升级到 0.2.0退出 CodexBuddy立即升级');
-    expect($(TID.upgrade.community)).toBeNull();
+    expect(text()).toContain('升级后继续使用');
+    expect(text()).toContain('请升级到 0.2.0');
+    expect(text()).toContain('立即升级');
+    expect($(TID.help)!.hidden).toBe(true);
+    expect($(TID.upgrade.skip)!.hidden).toBe(true);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect($(TID.upgrade.root)).not.toBeNull();
-    expect(document.activeElement?.textContent).toBe('退出 CodexBuddy');
-  });
-
-  it('V-03 退出调用工具退出接口', async () => {
-    const fake = fakeApi();
-    showUpgrade(fake.api, root(), INFO, OPTIONS);
-    (document.querySelector('.version-dialog button') as HTMLButtonElement).click();
-    await settle();
-    expect(fake.called('app:quit')).toHaveLength(1);
+    expect(document.activeElement?.textContent).toBe('立即升级');
   });
 
   it('V-05 下载时去重，显示进度，完成后进入安装状态', async () => {
@@ -45,14 +39,16 @@ describe('简洁强制升级', () => {
     expect($(TID.upgrade.download)!.hidden).toBe(true);
   });
 
-  it('V-05 下载或安装失败可重试，并出现去社群问问', async () => {
+  it('V-05 下载或安装失败可重试，并出现去社群咨询和本次先跳过', async () => {
     const fake = fakeApi({ 'upgrade:run': { ok: false } });
     showUpgrade(fake.api, root(), INFO, OPTIONS);
-    expect($(TID.upgrade.community)).toBeNull();
+    expect($(TID.help)!.hidden).toBe(true);
+    expect($(TID.upgrade.skip)!.hidden).toBe(true);
     click($(TID.upgrade.download)); await settle();
     expect(text()).toContain('升级没成功');
-    expect($(TID.upgrade.download)!.textContent).toBe('再试一次');
-    expect($(TID.upgrade.community)).not.toBeNull();
+    expect($(TID.upgrade.download)!.textContent).toBe('重试');
+    expect($(TID.help)!.hidden).toBe(false);
+    expect($(TID.upgrade.skip)!.hidden).toBe(false);
     click($(TID.upgrade.download)); await settle();
     expect(fake.called('upgrade:run')).toHaveLength(2);
   });
@@ -65,41 +61,14 @@ describe('简洁强制升级', () => {
     expect(fake.called('upgrade:run')).toHaveLength(1);
   });
 
-  it('V-05 下载失败后去社群问问打开社群页，返回回到同一个升级弹窗', async () => {
-    const fake = fakeApi({ 'upgrade:run': { ok: false } });
-    showUpgrade(fake.api, root(), INFO, OPTIONS);
-    click($(TID.upgrade.download)); await settle();
-    const community = $(TID.upgrade.community)!;
-    community.click();
-    expect($(TID.community.full)).not.toBeNull();
-    expect($(TID.community.back)!.textContent).toBe('← 返回');
-    $(TID.community.back)!.click();
-    expect($(TID.community.full)).toBeNull();
-    expect(text()).toContain('升级没成功');
-    expect(document.activeElement).toBe(community);
-  });
-
-  it('V-01 断网只允许重新连接或退出；校验中不提供继续入口', async () => {
+  it('V-01 断网只允许去社群咨询或重试；校验中不提供继续入口', async () => {
     const fake = fakeApi();
     showUpgrade(fake.api, root(), null, { ...OPTIONS, status: 'offline' });
     expect(text()).toContain('网络问题');
-    expect($(TID.upgrade.community)).not.toBeNull();
+    expect($(TID.help)!.hidden).toBe(false);
+    expect($(TID.upgrade.skip)!.hidden).toBe(true);
     click($(TID.upgrade.download)); await settle();
     expect(fake.called('update:check')).toHaveLength(1);
-  });
-
-  it('V-01 断网时去社群问问显示自带群码且不读后端，返回回到同一个弹窗', async () => {
-    const fake = fakeApi();
-    showUpgrade(fake.api, root(), null, { ...OPTIONS, status: 'offline' });
-    const community = $(TID.upgrade.community)!;
-    community.click();
-    expect($(TID.community.full)).not.toBeNull();
-    expect($(TID.community.qr)!.getAttribute('src')).toBe(BUNDLED_QR);
-    expect(fake.called('app:state')).toHaveLength(0);
-    $(TID.community.back)!.click();
-    expect($(TID.community.full)).toBeNull();
-    expect(text()).toContain('网络问题');
-    expect(document.activeElement).toBe(community);
   });
 
   it('V-05 Mac 下载后提示替换应用，允许再次打开安装包', async () => {

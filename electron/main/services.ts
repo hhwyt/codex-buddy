@@ -148,11 +148,15 @@ export function createServices(d: ServiceDeps) {
   let versionStatus: 'checking' | 'offline' | 'allowed' = 'checking';
   let lastVersionCheck = 0;
   let remoteRefresh: Promise<RemoteConfig> | null = null;
+  // E-04: a failed forced upgrade can be skipped for this run only (memory, gone on restart)
+  let upgradeFailed = false;
+  let upgradeSkipped = false;
   // Forced upgrade: the floor rises with every signed config we accept and never drops (a later, lower minVersion or
   // being offline cannot lower it). Only a fresh signed response permits use
   const savedFloor = (): string | null => { try { return st.minVersionFloor ? dec(st.minVersionFloor) : null; } catch { return null; } };
   const floor = () => raiseFloor(savedFloor(), st.lastRemote?.minVersion);
   const upgradeRequired = (): UpgradeRequiredView | null => {
+    if (upgradeSkipped) return null;
     const r = requiredUpgrade(d.version, floor(), remote.latest);
     return r && { version: r.version, notes: r.notes, url: d.os === 'mac' ? r.macUrl : r.winUrl };
   };
@@ -690,14 +694,23 @@ export function createServices(d: ServiceDeps) {
     'upgrade:run': async () => {
       await refreshRemote();
       // The dialog shows the reason as is: one sentence for each way this can fail
-      if (!online) return { ok: false, reason: '连不上网，请检查网络后重试。' };
+      if (!online) { upgradeFailed = true; return { ok: false, reason: '连不上网，请检查网络后重试。' }; }
       const u = upgradeRequired();
       if (!u) return { ok: false, reason: '当前版本不用升级。' };
       let file: string;
       try { file = await prepareInstaller(u.version, u.url, step('upgrade')); } catch (error) {
+        upgradeFailed = true;
         return { ok: false, reason: error instanceof UpgradeFailure ? error.message : '更新包没下载下来，请检查网络后重试。' };
       }
-      try { await d.runInstaller(file); } catch { return { ok: false, reason: '安装程序没能打开，请再试一次。' }; }
+      try { await d.runInstaller(file); } catch { upgradeFailed = true; return { ok: false, reason: '安装程序没能打开，请再试一次。' }; }
+      return { ok: true };
+    },
+
+    'upgrade:skip': async () => {
+      if (!upgradeFailed) return { ok: false, reason: '先点立即升级' };
+      upgradeSkipped = true;
+      lastUpgradeSent = 'null';
+      d.emit('upgradeRequired', null);
       return { ok: true };
     },
 

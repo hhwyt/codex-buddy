@@ -51,6 +51,9 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .dialog h2 { margin: 0 0 8px; font-size: 17px; }
 .dialog p { margin: 0 0 6px; color: var(--ink-2); line-height: 1.6; }
 .dialog .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.help-link { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0; color: var(--muted); font-size: 13px; cursor: pointer; margin-right: auto; }
+.help-link:hover { text-decoration: underline; }
+.help-link svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .network-content { height: 100%; }
 .network-screen { position: fixed; inset: 0; z-index: 1000; }
 .network-scrim { position: absolute; inset: 0; display: grid; place-items: center; background: var(--scrim); }
@@ -76,7 +79,10 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 
 /* Toast */
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--on-ink); padding: 8px 16px; border-radius: var(--pill); z-index: 60; }
-.toast.error { background: var(--red); }
+.toast.error { background: var(--toast-card); color: var(--toast-card-ink); border: 1px solid var(--line); box-shadow: 0 10px 32px var(--toast-shadow); border-radius: 12px; max-width: calc(100% - 40px); display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-wrap: wrap; }
+.toast-x { width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--error-bg); color: var(--red); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.toast .msg { line-height: 1.5; }
+.toast .help-link { margin: 0 0 0 6px; flex-shrink: 0; }
 
 /* ---- pages: each page agent adds its block below ---- */
 
@@ -137,6 +143,8 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 .community-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .community-qr { width: 220px; height: 220px; display: block; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--line); padding: 8px; background: var(--qr-bg); image-rendering: pixelated; }
 .community-line { font-size: 17px; font-weight: 600; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.community-top { visibility: hidden; }
+.community-copied { background: var(--community-copied-bg); color: var(--community-copied-text); font-size: 13px; border-radius: 9px; padding: 7px 12px; margin: 0 0 16px; }
 /* 商城 (design/shop-entry.html 5B): one big card for the SMS code, one quiet line for the subscriptions */
 .shop-lead { font-size: 14px; color: var(--ink-2); margin: 0 0 22px; }
 .shop-card { display: flex; align-items: center; gap: 16px; width: 100%; max-width: 520px; padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg); color: var(--ink); text-align: left; cursor: pointer; font: inherit; }

@@ -5,16 +5,31 @@ import { type ArgsOf, type Channel, type ResultOf } from '../../electron/main/ip
 import type { BuddyApi } from '../api.js';
 import { h } from '../dom.js';
 import { showCommunityOverlay } from '../pages/community.js';
+import { helpLink } from './help.js';
 import { TID } from '../testids.js';
 
 /** While the dialog is up, check again this often (N-04) */
 export const NETWORK_RETRY_MS = 3000;
 const ICON = '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23a6 6 0 0 1-1-11 9 9 0 0 1 17-2 7 7 0 0 1 3 13"/><path d="m12 18 8 8m0-8-8 8"/></svg>';
 
+export interface NetworkController {
+  api: BuddyApi;
+  start(): Promise<void>;
+  online(): boolean;
+  /** The global help listener called here with the copied flag; jumps to 社群 or shows the full-page overlay. */
+  onHelp(copied: boolean): void;
+  /** Hide the lock because the user went to 社群 via 去社群咨询 (only while locked). */
+  hideForHelp(): void;
+  /** Bring the lock back after the user leaves 社群; true when it actually restored. */
+  restoreIfHelped(): boolean;
+}
+
 export function mountNetwork(
   raw: BuddyApi, root: HTMLElement, content: HTMLElement, ready: () => Promise<void>,
-): { api: BuddyApi; start(): Promise<void>; online(): boolean } {
+  showCommunity: (copied: boolean) => boolean,
+): NetworkController {
   let locked = false;
+  let helped = false;
   let checking: Promise<boolean> | null = null;
   let timer: ReturnType<typeof setInterval> | undefined;
   let community: ReturnType<typeof showCommunityOverlay> | null = null;
@@ -24,9 +39,9 @@ export function mountNetwork(
 
   function openCommunity(): void {
     community?.close();
-    community = showCommunityOverlay(api, root, { offline: true }, () => {
+    community = showCommunityOverlay(raw, root, { offline: true }, () => {
       community = null;
-      screen.querySelector<HTMLButtonElement>(`[data-testid="${TID.network.community}"]`)?.focus();
+      screen.querySelector<HTMLButtonElement>(`[data-testid="${TID.help}"]`)?.focus();
     });
   }
 
@@ -42,6 +57,7 @@ export function mountNetwork(
   function unlock(): void {
     if (!locked) return;
     locked = false;
+    helped = false;
     clearInterval(timer);
     community?.close();
     community = null;
@@ -54,22 +70,41 @@ export function mountNetwork(
     const retry = screen.querySelector<HTMLButtonElement>(`[data-testid="${TID.network.retry}"]`);
     if (locked) { if (retry) { retry.disabled = false; retry.replaceChildren('重试'); } return; }
     locked = true;
+    helped = false;
     content.inert = true;
     screen.hidden = false;
     const icon = h('div', { class: 'network-error-icon' });
     icon.innerHTML = ICON;
-    const quit = h('button', { class: 'btn', type: 'button', 'data-testid': TID.network.quit, onclick: () => void raw.invoke('app:quit') }, '退出');
-    const communityBtn = h('button', { class: 'btn', type: 'button', 'data-testid': TID.network.community, onclick: () => openCommunity() }, '去社群问问');
+    const help = helpLink();
     const again: HTMLButtonElement = h('button', { class: 'btn primary', type: 'button', 'data-testid': TID.network.retry, onclick: () => {
       again.disabled = true;
       again.replaceChildren(h('span', { class: 'network-retry-spin', 'aria-hidden': 'true' }), '重试');
       void check();
     } }, '重试');
     screen.replaceChildren(h('div', { class: 'network-scrim' }, h('div', { class: 'dialog network-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'network-title', 'data-testid': TID.network.error },
-      icon, h('h2', { id: 'network-title' }, '网络问题'), h('p', {}, '请检查网络后重试。'), h('div', { class: 'row' }, quit, communityBtn, again))));
-    quit.focus();
+      icon, h('h2', { id: 'network-title' }, '网络问题'), h('p', {}, '请检查网络后重试。'), h('div', { class: 'row' }, help, again))));
+    again.focus();
     clearInterval(timer);
     timer = setInterval(() => { if (!checking) void check(); }, NETWORK_RETRY_MS);
+  }
+
+  function hideForHelp(): void {
+    if (!locked) return;
+    helped = true;
+    screen.hidden = true;
+    content.inert = false;
+  }
+
+  function restoreIfHelped(): boolean {
+    if (!helped) return false;
+    helped = false;
+    content.inert = true;
+    screen.hidden = false;
+    return true;
+  }
+
+  function onHelp(copied: boolean): void {
+    if (!showCommunity(copied)) openCommunity();
   }
 
   const api: BuddyApi = {
@@ -96,5 +131,8 @@ export function mountNetwork(
     api,
     start: async () => { await Promise.all([ready().catch(() => { lock(); }), check()]); },
     online: () => !locked,
+    onHelp,
+    hideForHelp,
+    restoreIfHelped,
   };
 }

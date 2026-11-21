@@ -98,7 +98,7 @@ describe('onboarding', () => {
     expect(fixing.hidden).toBe(true);
   });
 
-  test('O-03 安装失败 → 故障屏 →「再试一次」从失败的那一步接着做', async () => {
+  test('O-03 安装失败 → 故障屏 →「重试」从失败的那一步接着做', async () => {
     const outcomes: Outcome[] = [{ ok: false, reason: '网络断了，下载没完成' }, { ok: true }];
     const f = setup(() => outcomes.shift()!);
     f.emit('step', step('check', 'done', '检测电脑'));
@@ -122,56 +122,6 @@ describe('onboarding', () => {
     setup(() => { throw new Error('boom'); });
     await flush();
     expect(get(TID.onboarding.failure).textContent).toContain('安装没完成，请再试一次');
-  });
-
-  test('O-04 故障屏「复制日志」：先预览，Key 已打码，确认后才复制', async () => {
-    const writeText = vi.fn(async () => {});
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    setup(() => ({ ok: false }), 'POST https://api.deepseek.com key=sk-abcdef1234567890\nAuthorization: Bearer abcdefghijkl');
-    await flush();
-    get(TID.onboarding.copyLog).click();
-    await flush();
-    const preview = get(TID.onboarding.logPreview);
-    expect(preview.textContent).toContain('sk-••••');
-    expect(preview.textContent).not.toContain('abcdef1234567890');
-    expect(preview.textContent).not.toContain('abcdefghijkl');
-    expect(writeText).not.toHaveBeenCalled();
-    get(TID.dialog.confirm).click();
-    await flush();
-    expect(writeText).toHaveBeenCalledWith(preview.textContent);
-    expect(get(TID.toast).textContent).toBe('已复制');
-  });
-
-  test('O-04 预览后点「先不了」不复制', async () => {
-    const writeText = vi.fn(async () => {});
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    setup(() => ({ ok: false }), 'log');
-    await flush();
-    get(TID.onboarding.copyLog).click();
-    await flush();
-    get(TID.dialog.cancel).click();
-    await flush();
-    expect(writeText).not.toHaveBeenCalled();
-  });
-
-  test('O-04 剪贴板不可用 → 红色提示「没复制成功」', async () => {
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => { throw new Error('denied'); } }, configurable: true });
-    setup(() => ({ ok: false }), 'log');
-    await flush();
-    get(TID.onboarding.copyLog).click();
-    await flush();
-    get(TID.dialog.confirm).click();
-    await flush();
-    const t = get(TID.toast);
-    expect(t.textContent).toBe('没复制成功');
-    expect(t.className).toContain('error');
-  });
-
-  test('O-05 故障屏「进群发给我们」→ 社群页', async () => {
-    const f = setup(() => ({ ok: false }));
-    await flush();
-    get(TID.onboarding.toCommunity).click();
-    expect(f.go).toHaveBeenCalledWith('community');
   });
 
   test('O-07 离开引导后不再响应进度，也不再跳页', async () => {

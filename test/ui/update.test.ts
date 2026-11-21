@@ -84,7 +84,7 @@ describe('更新弹窗', () => {
     click($(TID.update.now));
     await settle();
     expect($(TID.update.root)).toBeNull();
-    expect($(TID.toast)!.textContent).toBe('下载断了');
+    expect($(TID.toast)!.textContent).toContain('下载断了');
     expect(fake.listeners('step')).toBe(0);
   });
 
@@ -92,7 +92,7 @@ describe('更新弹窗', () => {
     showUpdate(fakeApi({ 'update:install': { ok: false } }).api, document.body, INFO);
     click($(TID.update.now));
     await settle();
-    expect($(TID.toast)!.textContent).toBe('没更新成功，稍后再试');
+    expect($(TID.toast)!.textContent).toContain('没更新成功，稍后再试');
   });
 
   it('U-03 Mac 没签名：立即更新改成在右侧浏览器打开下载页', async () => {

@@ -38,7 +38,7 @@ test('N-01 打开直接显示平常界面，后台检查真实请求，超时弹
   await run.page.screenshot({ path: path.join(folder, `network-connected-${process.platform}.png`) });
 });
 
-test('N-02 N-03 缓存不放行，Esc 和背景不能跳过，后台拒绝修改配置，退出关闭应用', async () => {
+test('N-02 N-03 缓存不放行，Esc 和背景不能跳过，后台拒绝修改配置', async () => {
   await offline();
   const before = configToml(run.sandbox);
   await run.page.keyboard.press('Escape');
@@ -53,28 +53,22 @@ test('N-02 N-03 缓存不放行，Esc 和背景不能跳过，后台拒绝修改
   });
   for (const result of results) expect(result).toEqual({ ok: false, kind: 'network', reason: '网络问题' });
   expect(configToml(run.sandbox)).toBe(before);
-  const child = run.app.process();
-  await run.page.getByTestId(TID.network.quit).click();
-  await expect.poll(() => child.exitCode !== null || child.signalCode !== null).toBe(true);
 });
 
-test('N-02 网络问题弹窗有去社群问问，社群页盖住 App，返回回到同一个弹窗，后台不放行', async () => {
+test('N-02 网络问题弹窗有去社群咨询，点它到社群页并复制日志，离开社群页弹窗回来', async () => {
   await offline();
-  const community = run.page.getByTestId(TID.network.community);
-  await expect(community).toBeVisible();
-  await expect(community).toHaveText('去社群问问');
-  await community.click();
-  const full = run.page.getByTestId(TID.community.full);
-  await expect(full).toBeVisible();
-  await expect(run.page.getByTestId(TID.community.back)).toHaveText('← 返回');
+  const help = run.page.getByTestId(TID.help);
+  await expect(help).toBeVisible();
+  await expect(help).toHaveText('去社群咨询');
+  await help.click();
+  await expect(run.page.getByTestId(TID.community.root)).toBeVisible();
+  await expect(run.page.getByTestId(TID.community.copied)).toBeVisible();
   await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', /wechat-qr\.png$/);
-  // 社群页开着，后台功能接口仍然被拒绝，不能借社群页绕过网络检查
+  // 离开社群页（点「模型」），锁重新盖上；后台功能接口仍被拒绝
+  await run.page.getByTestId(TID.shell.navModels).click();
+  await expect(error()).toBeVisible();
   const blocked = await run.page.evaluate(() => (window as unknown as { buddy: { invoke(c: string, a?: unknown): Promise<unknown> } }).buddy.invoke('install:run'));
   expect(blocked).toEqual({ ok: false, kind: 'network', reason: '网络问题' });
-  await run.page.getByTestId(TID.community.back).click();
-  await expect(full).toHaveCount(0);
-  await expect(error()).toBeVisible();
-  await expect(run.page.getByTestId(TID.network.community)).toBeVisible();
 });
 
 test('N-04 启动检查通过后用到一半断网不弹窗，界面照常', async () => {

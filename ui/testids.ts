@@ -84,6 +84,7 @@ export const TID = {
     back: 'community-back', // 返回原弹窗
     qr: 'community-qr', // 个人微信码
     xhsQr: 'community-xhs-qr', // 小红书码
+    copied: 'community-copied',
   },
   // S-01..S-08: security panel
   security: {
@@ -125,6 +126,7 @@ export const TID = {
     qrClose: 'upgrade-qr-close',
     reopen: 'upgrade-reopen', // Mac: 再打开安装包
     quit: 'upgrade-quit', // Mac: 退出
+    skip: 'upgrade-skip',
   },
   // shared components
   network: {
@@ -160,4 +162,5 @@ export const TID = {
     cancel: 'dialog-cancel', // 先不了 T-03
   },
   toast: 'toast',
+  help: 'error-help',
 } as const;

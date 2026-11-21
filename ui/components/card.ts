@@ -94,7 +94,7 @@ function alertRow(c: CardView, o: FaceOptions): HTMLElement | null {
   const row = (text: string, ...buttons: HTMLElement[]) => h('div', { class: 'alert' }, h('span', { class: 'alert-text' }, text), ...buttons);
   switch (o.state?.kind) {
     case 'balance':
-      return row('充完再试', btn('去充值', TID.models.recharge(c.vendor), a.recharge), btn('再试一次', null, a.retry, 'act strong'));
+      return row('充完再试', btn('去充值', TID.models.recharge(c.vendor), a.recharge), btn('重试', null, a.retry, 'act strong'));
     case 'rate':
       return row(rateText(c), btn('换个模型', TID.models.rateLimitSwap(c.vendor), a.swapModel, 'act strong'));
     case 'broken':

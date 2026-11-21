@@ -1,6 +1,7 @@
 // settings page. Owner: A6. T-01..T-03, L-01..L-07: 汉化两张预览图（照 ui-design/language-final.html）、版本和检查更新、一键还原
 import { dialog } from '../components/dialog.js';
 import { toast } from '../components/toast.js';
+import { helpLink } from '../components/help.js';
 import { promptRestart } from '../components/restart.js';
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
@@ -116,7 +117,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
         say(bad(), ' 这个版本的 Codex 暂时汉化不了，已经退回英文原版，Codex 照常能用 ', btn('知道了', () => say()));
       } else {
         mark(lang);
-        say(bad(), ` ${res.reason ?? '没切回英文原版'} `, btn('再试一次', () => void choose('en')));
+        say(bad(), ` ${res.reason ?? '没切回英文原版'} `, btn('重试', () => void choose('en')), helpLink());
       }
       setBusy(false);
       return;
@@ -155,7 +156,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
       showTrash();
       say(ok(), ' 已去掉「ChatGPT 汉化版」图标。Codex 和聊天记录都没动；以后想用中文，再点「汉化版」就会重新加上');
     } else {
-      say(bad(), ' 「ChatGPT 汉化版」图标没去掉，从原来的 ChatGPT 打开已经是英文了 ', btn('再试一次', () => void removeZh()));
+      say(bad(), ' 「ChatGPT 汉化版」图标没去掉，从原来的 ChatGPT 打开已经是英文了 ', btn('重试', () => void removeZh()), helpLink());
     }
     setBusy(false);
   }
@@ -186,7 +187,7 @@ export const renderSettings: Page = async ({ api, root, go }) => {
     if (!yes) return;
     const res = await api.invoke('restore:run');
     if (res.ok) go('models');
-    else toast(res.reason ?? '没还原成功，再试一次', { error: true });
+    else toast(res.reason ?? '没还原成功', { error: true });
   }
 
   root.replaceChildren(h('div', { class: 'settings', 'data-testid': TID.settings.root },

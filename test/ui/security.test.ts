@@ -95,7 +95,8 @@ describe('安全面板', () => {
     await open(fakeApi({ 'security:get': DATA, 'security:ask-ai': { text: 'x' } }));
     click($(TID.security.askAi));
     await settle();
-    expect($(TID.toast)!.textContent).toBe('没复制成功，再试一次');
+    expect($(TID.toast)!.textContent).toContain('没复制成功，再试一次');
+    expect($(TID.toast)!.querySelector(`[data-testid="${TID.help}"]`)).toBeNull();
   });
 
   it('S-07 查看源代码', async () => {

@@ -288,7 +288,7 @@ describe('叠卡', () => {
     await settle();
     expect(card('openai').classList.contains('shake')).toBe(true);
     expect(text('openai')).toContain('✗ 连不上');
-    expect(toastText()).toBe('连不上，原来的配置没动');
+    expect(toastText()).toContain('连不上，原来的配置没动');
     await new Promise(r => setTimeout(r, 450));
     expect(card('openai').classList.contains('shake')).toBe(false);
     expect(rowOf('openai')).toBe(6);
@@ -301,7 +301,7 @@ describe('叠卡', () => {
     api.handle('switch:start', () => { throw new Error('boom'); });
     tap(card('kimi'));
     await settle();
-    expect(toastText()).toBe('boom');
+    expect(toastText()).toContain('boom');
   });
 
   it('M-08 没有 Key 的卡先显示扫码登录，进度事件改成测试连通', async () => {
@@ -354,7 +354,7 @@ describe('叠卡', () => {
     expect(api.callsOf('wallet:reorder')).toEqual([]);
   });
 
-  it('M-10 建 Key 失败 → 弹窗写原因 →「再试一次」', async () => {
+  it('M-10 建 Key 失败 → 弹窗写原因 →「重试」', async () => {
     await mount(walletOf({ active: 'deepseek' }));
     let n = 0;
     api.handle('switch:start', () => (++n === 1 ? { ok: false, kind: 'key-failed', reason: '官网没让建 Key' } : { ok: true }));
@@ -368,14 +368,15 @@ describe('叠卡', () => {
     expect(text('zhipu')).toContain('✓ 能用');
   });
 
-  it('M-10 建 Key 失败后选「先不了」', async () => {
+  it('M-10 建 Key 失败后没有「先不了」，只有「重试」和去社群咨询', async () => {
     await mount();
     api.handle('switch:start', () => ({ ok: false, kind: 'key-failed' }));
     tap(card('zhipu'));
     await settle();
     expect(q(TID.dialog.root)?.textContent).toContain('登录后没能自动建 Key');
-    click(TID.dialog.cancel);
-    await settle();
+    expect(q(TID.dialog.cancel)).toBeNull();
+    expect(q(TID.dialog.confirm)?.textContent).toBe('重试');
+    expect(q(TID.help)).not.toBeNull();
     expect(api.callsOf('switch:start').length).toBe(1);
   });
 
@@ -399,7 +400,7 @@ describe('叠卡', () => {
     expect(q(TID.models.tryLater)).toBeNull();
   });
 
-  it('M-13 余额不够 → 去充值 → 充完「再试一次」', async () => {
+  it('M-13 余额不够 → 去充值 → 充完「重试」', async () => {
     await mount(walletOf({ active: 'zhipu', order: ['zhipu', 'deepseek', 'kimi', 'qwen', 'minimax', 'hunyuan', 'openai'] }));
     let n = 0;
     api.handle('switch:start', () => (++n === 1 ? { ok: false, kind: 'no-balance' } : { ok: true }));
@@ -408,7 +409,7 @@ describe('叠卡', () => {
     expect(text('deepseek')).toContain('余额不够');
     click(TID.models.recharge('deepseek'));
     expect(api.callsOf('recharge:open')).toEqual([{ vendor: 'deepseek' }]);
-    const retry = [...card('deepseek').querySelectorAll('button')].find(b => b.textContent === '再试一次')!;
+    const retry = [...card('deepseek').querySelectorAll('button')].find(b => b.textContent === '重试')!;
     retry.click();
     await settle();
     expect(api.callsOf('switch:start').length).toBe(2);
@@ -463,7 +464,7 @@ describe('叠卡', () => {
     await settle();
     click(TID.models.repair);
     await settle();
-    expect(toastText()).toBe('修不好');
+    expect(toastText()).toContain('修不好');
     expect(api.callsOf('switch:start').length).toBe(1);
   });
 
@@ -499,7 +500,7 @@ describe('叠卡', () => {
     api.handle('key:replace', () => ({ ok: false, reason: '新 Key 没测通' }));
     click(TID.models.changeKey('deepseek'));
     await settle();
-    expect(toastText()).toBe('没换成，还在用原来的 Key：新 Key 没测通');
+    expect(toastText()).toContain('没换成，还在用原来的 Key：新 Key 没测通');
     api.handle('key:replace', () => { throw new Error(''); });
     click(TID.models.changeKey('deepseek'));
     await settle();
@@ -687,7 +688,7 @@ describe('叠卡', () => {
     input.value = 'bad';
     click(TID.models.pasteKey('hunyuan'));
     await settle();
-    expect(toastText()).toBe('这个 Key 用不了');
+    expect(toastText()).toContain('这个 Key 用不了');
     card('hunyuan').querySelector<HTMLInputElement>('.paste-input')!.value = 'sk-x';
     click(TID.models.pasteKey('hunyuan'));
     await settle();
@@ -733,7 +734,7 @@ describe('叠卡：边角情况', () => {
     api.handle('switch:start', () => ({ ok: false }));
     tap(card('kimi'));
     await settle();
-    expect(toastText()).toBe('连不上，原来的配置没动');
+    expect(toastText()).toContain('连不上，原来的配置没动');
     api.handle('switch:start', () => ({ ok: true }));
     api.handle('wallet:get', () => walletOf({ active: 'qwen', order: [] }));
     tap(card('qwen'));
@@ -749,11 +750,11 @@ describe('叠卡：边角情况', () => {
     await settle();
     click(TID.models.repair);
     await settle();
-    expect(toastText()).toBe('没修好');
+    expect(toastText()).toContain('没修好');
     api.handle('codex:repair', () => { throw new Error('修复程序坏了'); });
     click(TID.models.repair);
     await settle();
-    expect(toastText()).toBe('修复程序坏了');
+    expect(toastText()).toContain('修复程序坏了');
   });
 
   it('C-09 分身模式下点卡、按回车都不切换', async () => {
@@ -774,7 +775,7 @@ describe('叠卡：边角情况', () => {
     expect(api.callsOf('clone:make')).toHaveLength(1);
     gate.resolve({ ok: false });
     await settle();
-    expect(toastText()).toBe('没做成分身');
+    expect(toastText()).toContain('没做成分身');
   });
 });
 
@@ -961,12 +962,12 @@ describe('分身', () => {
     api.handle('clone:make', () => ({ ok: false, reason: '空间不够' }));
     click(TID.models.cloneMake('qwen'));
     await settle();
-    expect(toastText()).toBe('空间不够');
+    expect(toastText()).toContain('空间不够');
     expect(q(TID.models.cloneMake('qwen'))).toBeTruthy();
     api.handle('clone:make', () => { throw new Error('坏了'); });
     click(TID.models.cloneMake('qwen'));
     await settle();
-    expect(toastText()).toBe('坏了');
+    expect(toastText()).toContain('坏了');
   });
 
   it('C-02 做好的卡显示「打开」，点了打开那个分身', async () => {
@@ -980,7 +981,7 @@ describe('分身', () => {
     api.handle('clone:open', () => ({ ok: false }));
     click(TID.models.cloneOpen('deepseek'));
     await settle();
-    expect(toastText()).toBe('没打开');
+    expect(toastText()).toContain('没打开');
   });
 
   it('C-02 做好分身的付费卡右下角也有「余额 · 去充值 ›」，和切换页那张卡一样（design/clone-recharge）', async () => {
@@ -1024,7 +1025,7 @@ describe('分身', () => {
     await settle();
     click(TID.dialog.confirm);
     await settle();
-    expect(toastText()).toBe('没删掉');
+    expect(toastText()).toContain('没删掉');
   });
 
   it('C-09 离开模型页时取消订阅', async () => {

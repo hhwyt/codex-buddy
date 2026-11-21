@@ -94,6 +94,7 @@ export interface IpcChannels {
   'update:dismiss': [{ version: string }, void];                     // U-01
   'update:install': [void, Outcome];                                 // U-02, U-03
   'upgrade:run': [void, Outcome];                                    // forced upgrade: download the required version, then Mac opens the dmg / Windows runs the installer and quits
+  'upgrade:skip': [void, Outcome];                                  // E-04: after a real failure, keep using this run; next start asks again
   'restore:plan': [void, { lines: string[] }];                       // T-03
   'restore:run': [void, Outcome];                                    // T-04, C-10
   'shell:open-external': [{ url: string }, void];
@@ -136,7 +137,7 @@ export const CHANNELS: Channel[] = [
   'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall',
   'clone:make', 'clone:open', 'clone:remove', 'zh:set', 'zh:remove', 'browser:show', 'browser:close', 'browser:back',
   'browser:reload', 'shop:open', 'browser:place', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
-  'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'restore:plan', 'restore:run', 'shell:open-external',
+  'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'upgrade:skip', 'restore:plan', 'restore:run', 'shell:open-external',
   'verify:run', 'verify:open-repo', 'star:run',
 ];
 export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired', 'restartRequired', 'network', 'versionStatus'];
