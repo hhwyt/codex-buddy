@@ -2,6 +2,7 @@
 // L3: update dialog (U-01..U-03). Owner: A6.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { showUpdate, watchUpdates } from '../../ui/pages/update';
+import { createApp } from '../../ui/app';
 import { TID } from '../../ui/testids';
 import { click, fakeApi, settle } from './settings.fake';
 
@@ -12,46 +13,23 @@ beforeEach(() => { localStorage.clear(); document.body.innerHTML = ''; });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('更新弹窗', () => {
-  it('U-01 有新版本时弹窗，列出改了什么', () => {
+  it('U-01 收到更新事件只调用 onNew，不弹窗', () => {
     const fake = fakeApi();
-    watchUpdates(fake.api, document.body);
+    const seen: { version: string; notes: string }[] = [];
+    watchUpdates(fake.api, info => seen.push(info));
     fake.emit('update', INFO);
-    expect($(TID.update.root)!.textContent).toContain('发现新版本 1.1.0');
-    expect([...$(TID.update.root)!.querySelectorAll('li')].map(l => l.textContent)).toEqual(['支持 Kimi', '安装更快']);
-    fake.emit('update', INFO); // already showing: not twice
-    expect(document.querySelectorAll(`[data-testid="${TID.update.root}"]`)).toHaveLength(1);
+    expect($(TID.update.root)).toBeNull();
+    expect(seen).toEqual([INFO]);
+    fake.emit('update', INFO);
+    expect(seen).toHaveLength(2);
   });
 
-  it('U-01「稍后」→ 同一个版本一天内不再弹，过了一天或换了版本再弹', () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-11-13T10:00:00'));
+  it('U-01「稍后」只关弹窗，不再记住版本、不调 update:dismiss', () => {
     const fake = fakeApi();
-    watchUpdates(fake.api, document.body);
-    fake.emit('update', INFO);
+    showUpdate(fake.api, document.body, INFO);
     click($(TID.update.later));
     expect($(TID.update.root)).toBeNull();
-    expect(fake.called('update:dismiss')[0].args).toEqual({ version: '1.1.0' });
-    vi.setSystemTime(new Date('2026-11-14T09:00:00'));
-    fake.emit('update', INFO);
-    expect($(TID.update.root)).toBeNull();
-    fake.emit('update', { version: '1.2.0', notes: '' });
-    expect($(TID.update.root)).not.toBeNull();
-    click($(TID.update.later));
-    vi.setSystemTime(new Date('2026-11-15T11:00:00'));
-    fake.emit('update', { version: '1.2.0', notes: '' });
-    expect($(TID.update.root)).not.toBeNull();
-  });
-
-  it('U-01 本地存储坏了也照样弹', () => {
-    localStorage.setItem('codexbuddy.update.dismissed', '{bad');
-    const fake = fakeApi();
-    watchUpdates(fake.api, document.body);
-    fake.emit('update', INFO);
-    expect($(TID.update.root)).not.toBeNull();
-    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => { throw new Error('off'); } });
-    click($(TID.update.later));
-    expect($(TID.update.root)).toBeNull();
-    vi.unstubAllGlobals();
+    expect(fake.called('update:dismiss')).toHaveLength(0);
   });
 
   it('U-02 立即更新 → 进度 → 重启', async () => {
@@ -110,5 +88,33 @@ describe('更新弹窗', () => {
     showUpdate(fake.api, document.body, { version: '1.2.0', notes: '' });
     expect(document.querySelectorAll(`[data-testid="${TID.update.root}"]`)).toHaveLength(1);
     expect($(TID.update.root)!.textContent).toContain('1.2.0');
+  });
+
+  it('F-02 下载好后标题「下载好了」，按钮只有「稍后」「重启」', async () => {
+    const fake = fakeApi({ 'update:install': { ok: true } });
+    showUpdate(fake.api, document.body, INFO);
+    click($(TID.update.now));
+    await settle();
+    expect($(TID.update.root)!.textContent).toContain('下载好了');
+    expect($(TID.update.later)!.hidden).toBe(false);
+    expect($(TID.update.now)!.textContent).toBe('重启');
+    expect([...$(TID.update.root)!.querySelectorAll('button')].map(b => b.textContent)).toEqual(['稍后', '重启']);
+  });
+
+  it('F-01 有新版本不弹窗，左下角出现「有新版本」，点了出弹窗，稍后后 badge 还在', async () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    const fake = fakeApi({ 'update:check': { kind: 'new', version: '26.11.2', notes: '更新说明' } });
+    await createApp(document.getElementById('app')!, fake.api);
+    await settle();
+    expect($(TID.update.root)).toBeNull();
+    const badge = $(TID.update.badge)!;
+    expect(badge.hidden).toBe(false);
+    expect(badge.textContent).toContain('有新版本');
+    expect(badge.textContent).toContain('26.11.2');
+    click(badge);
+    expect($(TID.update.root)!.textContent).toContain('有新版本 26.11.2');
+    click($(TID.update.later));
+    expect($(TID.update.root)).toBeNull();
+    expect($(TID.update.badge)!.hidden).toBe(false);
   });
 });

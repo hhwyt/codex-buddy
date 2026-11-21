@@ -14,7 +14,7 @@ import { openSecurity } from './pages/security.js';
 import { renderSettings } from './pages/settings.js';
 import { renderShop } from './pages/shop.js';
 import type { Page, Route } from './pages/types.js';
-import { watchUpdates } from './pages/update.js';
+import { showUpdate, watchUpdates } from './pages/update.js';
 import { showUpgrade } from './pages/upgrade.js';
 import { TID } from './testids.js';
 
@@ -74,9 +74,15 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi, restoreNetwo
   const navButtons = NAV.map(n => h('button', {
     class: 'nav-item', type: 'button', 'data-testid': n.testid, 'data-route': n.route, onclick: () => { clearToasts(); void app.go(n.route); },
   }, n.label));
+  let updateInfo: { version: string; notes: string } | null = null;
+  const updateBadge = h('button', {
+    class: 'side-update', type: 'button', 'data-testid': TID.update.badge, hidden: true,
+    onclick: () => { if (updateInfo) showUpdate(api, root, updateInfo); },
+  }, h('span', { class: 'side-update-dot', 'aria-hidden': 'true' }), h('span', {}, '有新版本', h('small', {}, '版本号')));
   const side = h('aside', { class: 'side', 'data-testid': TID.shell.side },
     h('div', { class: 'brand' }, h('img', { src: 'assets/icon.svg', width: 22, height: 22, alt: '' }), h('span', {}, 'CodexBuddy')),
-    h('nav', {}, ...navButtons));
+    h('nav', {}, ...navButtons),
+    updateBadge);
   const page = h('section', { class: 'page', 'data-testid': TID.shell.main });
   const top = h('header', { class: 'top' },
     h('button', { class: 'icon-btn', type: 'button', title: '安全', 'aria-label': '安全', 'data-testid': TID.shell.security, onclick: () => openSecurity(api, root) }, '🛡'),
@@ -158,7 +164,12 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi, restoreNetwo
   };
   api.on('upgradeRequired', info => { required = info; synchronizeGate(); });
   api.on('versionStatus', status => { versionStatus = status; synchronizeGate(); });
-  watchUpdates(api, root);
+  watchUpdates(api, info => {
+    updateInfo = info;
+    const small = updateBadge.querySelector('small');
+    if (small) small.textContent = info.version;
+    updateBadge.hidden = false;
+  });
   mountBrowser(api, root);
   synchronizeGate();
   if (!blocked && !current) await app.go('models');

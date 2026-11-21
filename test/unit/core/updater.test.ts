@@ -53,4 +53,10 @@ describe('updater', () => {
       expect(raiseFloor(null, undefined)).toBeNull();
     });
   });
+  test('F-05 年月版本号和旧版本号比较', () => {
+    expect(compareVersions('26.11.1', '0.2.2')).toBeGreaterThan(0);
+    expect(compareVersions('26.11.2', '26.11.1')).toBeGreaterThan(0);
+    expect(compareVersions('26.12.1', '26.11.9')).toBeGreaterThan(0);
+    expect(requiredUpgrade('0.2.2', '26.11.1', { version: '26.11.1', notes: '', macUrl: '', winUrl: '' })?.version).toBe('26.11.1');
+  });
 });

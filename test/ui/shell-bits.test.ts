@@ -67,15 +67,15 @@ describe('确认弹窗', () => {
 });
 
 describe('启动时查更新', () => {
-  it('主进程比页面先发了通知：页面自己问一次，有新版就弹；问失败不报错', async () => {
-    const fake = fakeApi({ 'update:check': { kind: 'new', version: '2.0.0', notes: '新' } });
-    watchUpdates(fake.api, document.body);
+  it('F-01 主进程比页面先发了通知：页面自己问一次，有新版就告诉侧栏，不弹窗；问失败不报错', async () => {
+    const seen: string[] = [];
+    watchUpdates(fakeApi({ 'update:check': { kind: 'new', version: '2.0.0', notes: '新' } }).api, info => seen.push(info.version));
     await settle();
-    expect($(TID.update.root)!.textContent).toContain('2.0.0');
-    document.body.innerHTML = '';
-    watchUpdates(fakeApi({ 'update:check': () => Promise.reject(new Error('offline')) }).api, document.body);
-    watchUpdates(fakeApi({ 'update:check': { kind: 'latest' } }).api, document.body);
-    await settle();
+    expect(seen).toEqual(['2.0.0']);
     expect($(TID.update.root)).toBeNull();
+    watchUpdates(fakeApi({ 'update:check': () => Promise.reject(new Error('offline')) }).api, info => seen.push(info.version));
+    watchUpdates(fakeApi({ 'update:check': { kind: 'latest' } }).api, info => seen.push(info.version));
+    await settle();
+    expect(seen).toEqual(['2.0.0']);
   });
 });

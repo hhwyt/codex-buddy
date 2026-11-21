@@ -9,18 +9,38 @@ export const DISTRIBUTION_REPO = 'hhwyt/codex-buddy-releases';
 export const sha256 = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 
 /** Fixed release URLs and hashes of the exact installers being published. */
-export function releaseMetadata(config, version, directory) {
+export function releaseMetadata(config, version, directory, { force = false } = {}) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Invalid release version');
   const winName = `CodexBuddy-Setup-${version}.exe`;
   const macName = `CodexBuddy-${version}.dmg`;
   const base = `https://github.com/${DISTRIBUTION_REPO}/releases/download/v${version}`;
-  return { ...config, minVersion: version, latest: { ...config.latest, version,
+  return { ...config, minVersion: force ? version : config.minVersion, latest: { ...config.latest, version,
     winUrl: `${base}/${winName}`, macUrl: `${base}/${macName}`,
     winSha256: sha256(path.join(directory, winName)), macSha256: sha256(path.join(directory, macName)) } };
 }
 
 const gh = (args, body) => execFileSync('gh', args, { encoding: 'utf8', input: body === undefined ? undefined : JSON.stringify(body), stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 const api = (endpoint, body) => JSON.parse(gh(['api', endpoint, ...(body === undefined ? [] : ['--method', 'POST', '--input', '-'])], body));
+
+const parts = v => v.trim().replace(/^v/i, '').split(/[.-]/).map(x => parseInt(x, 10) || 0);
+
+/** Same segment-wise numeric comparison as electron/core/updater.compareVersions (kept here so the script stays TS-free). */
+const compare = (a, b) => {
+  const x = parts(a), y = parts(b);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? 0) - (y[i] ?? 0);
+    if (d) return d > 0 ? 1 : -1;
+  }
+  return 0;
+};
+
+/** Online remote/config.json in the distribution repository; null when it cannot be read. */
+export function publishedConfig() {
+  try {
+    const file = JSON.parse(gh(['api', `repos/${DISTRIBUTION_REPO}/contents/remote/config.json`]));
+    return file?.content ? JSON.parse(Buffer.from(file.content, 'base64').toString('utf8')) : null;
+  } catch { return null; }
+}
 
 /** One Git commit publishes config + signature together. No credential is uploaded to the distribution repository. */
 function publishMetadata(files, version) {
@@ -40,9 +60,31 @@ function publishMetadata(files, version) {
   gh(['api', `${prefix}/git/refs/heads/main`, '--method', 'PATCH', '--input', '-'], { sha: commit.sha, force: false });
 }
 
-export function publishRelease(root, directory = path.join(root, 'release')) {
+/** Turn an already-published release into a forced upgrade: raise minVersion and resign, without repackaging. */
+export function forceExisting(root, version) {
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Invalid release version');
+  const published = publishedConfig();
+  if (!published?.minVersion) throw new Error('No published config with a minimum version to force');
+  const release = JSON.parse(gh(['release', 'view', `v${version}`, '--repo', DISTRIBUTION_REPO, '--json', 'isDraft']));
+  if (release.isDraft) throw new Error(`Release v${version} is still a draft`);
+  if (compare(version, published.minVersion) < 0) throw new Error(`Force version ${version} is below the published minimum ${published.minVersion}`);
+  const metadataDir = fs.mkdtempSync(path.join(root, '.force-existing-'));
+  const configPath = path.join(metadataDir, 'config.json');
+  try {
+    fs.writeFileSync(configPath, `${JSON.stringify({ ...published, minVersion: version }, null, 2)}\n`);
+    const signature = signConfigFile(configPath, readPrivateKey(), publicKeyIn(path.join(root, 'electron/core/remote-key.ts')));
+    publishMetadata([['remote/config.json', fs.readFileSync(configPath)], ['remote/config.json.sig', fs.readFileSync(signature)]], version);
+    console.log(`Forced https://github.com/${DISTRIBUTION_REPO}/releases/tag/v${version}`);
+  } finally { fs.rmSync(metadataDir, { recursive: true, force: true }); }
+}
+
+export function publishRelease(root, directory = path.join(root, 'release'), { force = false } = {}) {
   const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version;
-  const metadata = releaseMetadata(JSON.parse(fs.readFileSync(path.join(root, 'remote', 'config.json'))), version, directory);
+  // The repo's config with the minimum version that is live now: a normal release must not change who is locked out
+  const repoConfig = JSON.parse(fs.readFileSync(path.join(root, 'remote', 'config.json')));
+  const published = publishedConfig();
+  const config = published ? { ...repoConfig, minVersion: published.minVersion } : repoConfig;
+  const metadata = releaseMetadata(config, version, directory, { force });
   const metadataDir = fs.mkdtempSync(path.join(directory, '.metadata-'));
   const configPath = path.join(metadataDir, 'config.json');
   try {
@@ -60,7 +102,7 @@ export function publishRelease(root, directory = path.join(root, 'release')) {
           message: 'Initialize distribution repository', branch: 'main', content: Buffer.from('# CodexBuddy\n\n安装包和签名版本配置。\n').toString('base64'),
         });
       }
-      gh(['release', 'create', tag, ...installers, '--repo', DISTRIBUTION_REPO, '--draft', '--target', 'main', '--title', `CodexBuddy ${version}`, '--notes', '联网版本校验、强制升级和安装包校验']);
+      gh(['release', 'create', tag, ...installers, '--repo', DISTRIBUTION_REPO, '--draft', '--target', 'main', '--title', `CodexBuddy ${version}`, '--notes', `CodexBuddy ${version}`]);
     } else {
       for (const file of installers) {
         const asset = release.assets.find(item => item.name === path.basename(file));
@@ -88,5 +130,12 @@ export function publishRelease(root, directory = path.join(root, 'release')) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  publishRelease(root, process.argv[2] ? path.resolve(process.argv[2]) : undefined);
+  const args = process.argv.slice(2);
+  if (args[0] === '--force-existing') {
+    forceExisting(root, args[1]);
+  } else {
+    const forceAt = args.indexOf('--force');
+    const rest = args.filter((_, i) => i !== forceAt);
+    publishRelease(root, rest[0] ? path.resolve(rest[0]) : undefined, { force: forceAt >= 0 });
+  }
 }

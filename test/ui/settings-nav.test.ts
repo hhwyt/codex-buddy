@@ -40,7 +40,8 @@ describe('左栏（W-02）', () => {
     await settle();
     expect($(TID.security.root)).not.toBeNull();
     fake.emit('update', { version: '9.9.9', notes: '' });
-    expect($(TID.update.root)).not.toBeNull();
+    expect($(TID.update.badge)!.hidden).toBe(false);
+    expect($(TID.update.root)).toBeNull();
   });
 
   it('W-02 换页时上一页的提示一起清掉', async () => {

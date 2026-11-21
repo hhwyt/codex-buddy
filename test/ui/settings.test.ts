@@ -242,7 +242,7 @@ describe('版本和检查更新（T-02）', () => {
     click($(TID.settings.checkUpdate));
     expect($(TID.settings.checkUpdate)!.textContent).toBe('正在检查…');
     await settle();
-    expect($(TID.update.root)!.textContent).toContain('发现新版本 1.1.0');
+    expect($(TID.update.root)!.textContent).toContain('有新版本 1.1.0');
     expect($(TID.settings.checkUpdate)!.textContent).toBe('检查更新');
   });
 
@@ -250,7 +250,7 @@ describe('版本和检查更新（T-02）', () => {
     await mount(fakeApi({ 'update:check': { kind: 'latest' } }));
     click($(TID.settings.checkUpdate));
     await settle();
-    expect($(TID.toast)).toBeNull();
+    expect($(TID.toast)!.textContent).toContain('已经是最新版');
     expect($(TID.update.root)).toBeNull();
   });
 

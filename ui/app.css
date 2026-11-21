@@ -12,13 +12,17 @@ button { font: inherit; letter-spacing: inherit; color: inherit; cursor: pointer
 .shell { display: grid; grid-template-columns: var(--side-width) 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }
 
 /* Left column: Mac traffic lights sit in its top (hiddenInset), so it starts with a drag strip */
-.side { background: var(--side); border-right: 1px solid var(--line); padding: 52px 10px 12px; -webkit-app-region: drag; }
+.side { display: flex; flex-direction: column; background: var(--side); border-right: 1px solid var(--line); padding: 52px 10px 12px; -webkit-app-region: drag; }
 .side nav { display: flex; flex-direction: column; gap: 2px; -webkit-app-region: no-drag; }
 .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; padding: 8px 10px 18px; }
 .brand img { flex: none; }
 .nav-item { text-align: left; background: none; border: 0; border-radius: var(--r-sm); padding: 8px 10px; color: var(--ink); }
 .nav-item:hover { background: var(--hover); }
 .nav-item[aria-current="page"] { background: var(--selected); }
+.side-update { margin-top: auto; border: 0; background: none; padding: 8px 10px; text-align: left; display: flex; align-items: center; gap: 7px; color: var(--ink); -webkit-app-region: no-drag; font-size: 13px; }
+.side-update:hover { color: var(--accent); }
+.side-update-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.side-update small { display: block; color: var(--ink-3); font-size: 12px; font-weight: 400; }
 
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; } /* the page scrolls inside the window instead of growing past it */
 header.top { height: var(--top-height); display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 0 12px; -webkit-app-region: drag; }

@@ -33,6 +33,14 @@ describe('社群页（H-02）', () => {
     expect(root.querySelectorAll('button, input, textarea, a')).toHaveLength(0);
   });
 
+  it('E-06 小红书一栏写「关注我，和我一起用 AI 改变世界」「黄金金不AI」「AI 产品 · 机器工作，人类生活」', async () => {
+    await mount(fakeApi());
+    const cols = [...$(TID.community.root)!.querySelectorAll('.community-col')];
+    expect(cols[1]!.textContent).toContain('关注我，和我一起用 AI 改变世界');
+    expect(cols[1]!.textContent).toContain('黄金金不AI');
+    expect(cols[1]!.textContent).toContain('AI 产品 · 机器工作，人类生活');
+  });
+
   it('H-02 一次都没取到：显示 App 自带的个人微信码', async () => {
     await mount(fakeApi());
     expect(src()).toBe(BUNDLED_QR);

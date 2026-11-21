@@ -111,6 +111,7 @@ export const TID = {
   // U-01..U-04: update dialog
   update: {
     root: 'update-root',
+    badge: 'update-badge',
     later: 'update-later', // 稍后
     now: 'update-now', // 立即更新
     progress: 'update-progress',
