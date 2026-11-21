@@ -10,16 +10,18 @@ import { renderModels } from './pages/models.js';
 import { renderOnboarding } from './pages/onboarding.js';
 import { openSecurity } from './pages/security.js';
 import { renderSettings } from './pages/settings.js';
+import { renderShop } from './pages/shop.js';
 import type { Page, Route } from './pages/types.js';
 import { watchUpdates } from './pages/update.js';
 import { showUpgrade } from './pages/upgrade.js';
 import { TID } from './testids.js';
 
-const PAGES: Record<Route, Page> = { models: renderModels, settings: renderSettings, community: renderCommunity };
+const PAGES: Record<Route, Page> = { models: renderModels, settings: renderSettings, community: renderCommunity, shop: renderShop };
 const NAV: { route: Route; label: string; testid: string }[] = [
   { route: 'models', label: '模型', testid: TID.shell.navModels },
   { route: 'settings', label: '设置', testid: TID.shell.navSettings },
   { route: 'community', label: '社群', testid: TID.shell.navCommunity },
+  { route: 'shop', label: '商城', testid: TID.shell.navShop },
 ];
 
 export interface App {

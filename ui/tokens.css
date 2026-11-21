@@ -16,7 +16,8 @@
   --blue-bg: #e5f3ff;
   --green: #00a240;        /* only success */
   --red: #e02e2a;          /* only errors */
-  --xhs: #ff2442;          /* only the 小红书 mark on 社群 */
+  --xhs: #ff2442;          /* only the 小红书 brand word and mark (社群, first success) */
+  --wechat: #07c160;       /* only the 微信 brand word (社群, first success) */
   --hover: rgba(0, 0, 0, 0.04);
   --selected: rgba(0, 0, 0, 0.06); /* left column selected item, no blue bar */
   --shadow: rgba(0, 0, 0, 0.12);

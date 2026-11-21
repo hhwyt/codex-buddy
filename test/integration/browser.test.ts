@@ -69,7 +69,7 @@ vi.mock('electron', async () => {
 });
 
 import { BrowserWindow } from 'electron';
-import {
+import { SHOP_URLS,
   BROWSER_PARTITION, BrowserClosed, browserHandlers, createRightBrowser, electronViewHost, keepOnScreen, openLoginWindows,
   MIN_PAGE_WIDTH, pageZoom, SLIDE_MS, viewBounds, widenBy, type BrowserState, type RightBrowser,
 } from '../../electron/main/browser';
@@ -173,6 +173,19 @@ describe('right-side browser', () => {
     const h = browserHandlers(rb);
     h['browser:show']({ mode: 'expanded' });
     expect(rb.state().mode).toBe('expanded');
+  });
+
+  test('P-02 P-03 商城只打开两个固定的商城页，放大显示；别的名字什么都不开', async () => {
+    const h = browserHandlers(rb);
+    await h['shop:open']({ item: 'sms' });
+    expect(rb.state()).toMatchObject({ open: true, mode: 'expanded' });
+    expect(rb.url()).toBe(SHOP_URLS.sms);
+    await h['shop:open']({ item: 'subscriptions' });
+    expect(rb.url()).toBe(SHOP_URLS.subscriptions);
+    await h['shop:open']({ item: 'https://evil.example/' as never });
+    await h['shop:open']({ item: 'constructor' as never });
+    expect(rb.url()).toBe(SHOP_URLS.subscriptions);
+    expect(SHOP_URLS).toEqual({ sms: 'https://shop.humanslive.ai/products/codex-sms', subscriptions: 'https://shop.humanslive.ai/categories/chatgpt' });
   });
 
   test('B-03 🌐 在关着时也能打开一个空的浏览器', () => {

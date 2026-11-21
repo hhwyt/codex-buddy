@@ -6,6 +6,7 @@ import { renderModels, mountModels } from '../../ui/pages/models';
 import { TID } from '../../ui/testids';
 import { cardFace, faceClass, logoSrc } from '../../ui/components/card';
 import { deferred, drag, fakeApi, settle, tap, walletOf, type FakeApi } from './models-fake';
+import { BUNDLED_QR, XHS_QR } from '../../ui/pages/community';
 
 const q = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 const card = (v: string) => q(TID.models.card(v))!;
@@ -579,7 +580,7 @@ describe('叠卡', () => {
     expect(document.querySelector('.form-error')?.textContent).toBe('没连通，检查一下再试');
   });
 
-  it('M-20 第一次成功：弹窗「从零到能用 N 秒」，有「打开 Codex」和关注行', async () => {
+  it('M-20 第一次成功：弹窗「从零到能用 N 秒」，有「打开 Codex」和两个码（加我微信、关注小红书）', async () => {
     await mount();
     api.handle('switch:start', () => ({ ok: true, firstTime: true, seconds: 47.6 }));
     tap(card('zhipu'));
@@ -587,7 +588,10 @@ describe('叠卡', () => {
     expect(q(TID.firstSuccess.root)).toBeTruthy();
     expect(q(TID.firstSuccess.seconds)?.textContent).toBe('48');
     expect(q(TID.firstSuccess.root)?.textContent).toContain('从零到能用');
-    expect(q(TID.firstSuccess.root)?.textContent).toContain('关注');
+    expect(q(TID.firstSuccess.root)?.textContent).toContain('加我微信');
+    expect(q(TID.firstSuccess.root)?.textContent).toContain('关注小红书');
+    expect(q(TID.firstSuccess.wechatQr)?.getAttribute('src')).toBe(BUNDLED_QR);
+    expect(q(TID.firstSuccess.xhsQr)?.getAttribute('src')).toBe(XHS_QR);
     click(TID.firstSuccess.openCodex);
     expect(api.callsOf('codex:open')).toEqual([{}]);
     expect(q(TID.firstSuccess.root)).toBeNull();

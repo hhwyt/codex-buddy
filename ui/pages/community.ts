@@ -1,14 +1,14 @@
-// 社群 page (ui-design/nav-community.html v1, 小红书 next to it per ui-design/xhs-entry.html v1). Owner: A6. H-02 社群码：在线显示最新的，断网显示上次的，
-// 一次都没取到显示 App 自带的企业微信群码。No group name: a full group is swapped for a new one behind the same code.
+// 社群 page (ui-design/nav-community.html v1, 小红书 next to it per ui-design/xhs-entry.html v1; codes per design/wechat-qr.html v4). Owner: A6.
+// H-02 社群码：在线显示最新的，断网显示上次的，一次都没取到显示 App 自带的个人微信码（扫码加好友，再拉进交流群）。
 import { h } from '../dom.js';
 import { TID } from '../testids.js';
 import type { Page } from './types.js';
 import type { BuddyApi } from '../api.js';
 
 const QR_KEY = 'codexbuddy.community.qr';
-/** The WeCom group join code shipped with the app: it never expires, so it shows even before the remote config is
- *  reachable; a code from the remote config replaces it */
-export const BUNDLED_QR = 'assets/community-qr.png';
+/** The personal WeChat code of 「黄金金不AI」 shipped with the app: it never expires, so it shows even before the remote
+ *  config is reachable; a code from the remote config replaces it */
+export const BUNDLED_QR = 'assets/wechat-qr.png';
 /** The 小红书 account 「黄金金不AI」: a code for its profile page (xiaohongshu.com/user/profile/…) */
 export const XHS_QR = 'assets/xhs-qr.png';
 
@@ -24,10 +24,10 @@ export function communityQr(fresh: string | null): string | null {
 function communityCols(qr: string): HTMLElement[] {
   return [
     h('div', { class: 'community-col' },
-      h('img', { class: 'community-qr', src: qr, alt: '企业微信群二维码', 'data-testid': TID.community.qr }),
+      h('img', { class: 'community-qr', src: qr, alt: '微信二维码', 'data-testid': TID.community.qr }),
       h('div', {},
-        h('p', { class: 'community-line' }, '使用有问题？加群咨询'),
-        h('p', { class: 'community-sub' }, '企业微信群，扫码就进'))),
+        h('p', { class: 'community-line' }, h('span', {}, '有问题？加我', h('span', { class: 'brand-wechat' }, '微信'))),
+        h('p', { class: 'community-sub' }, '扫码加好友，拉你进交流群'))),
     h('div', { class: 'community-col' },
       h('img', { class: 'community-qr', src: XHS_QR, alt: '小红书二维码', 'data-testid': TID.community.xhsQr }),
       h('div', {},

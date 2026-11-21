@@ -82,6 +82,7 @@ export interface IpcChannels {
   'browser:close': [void, void];                                     // B-04, M-09
   'browser:back': [void, void];                                      // B-05
   'browser:reload': [void, void];                                    // B-05
+  'shop:open': [{ item: 'sms' | 'subscriptions' }, void];             // P-02, P-03: opens a fixed shop page, expanded
   'security:get': [void, { keys: { vendor: VendorKey; name: string; keyTail: string; file: string }[]; app: ConnectionView[]; web: ConnectionView[] }]; // S-01, S-04
   'security:reveal': [{ vendor: VendorKey }, void];                  // S-02
   'security:manage': [{ vendor: VendorKey }, void];                  // S-03
@@ -129,7 +130,7 @@ export const CHANNELS: Channel[] = [
   'app:state', 'install:run', 'install:log', 'wallet:get', 'wallet:reorder', 'wallet:mode', 'switch:start', 'switch:cancel',
   'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall',
   'clone:make', 'clone:open', 'clone:remove', 'zh:set', 'zh:remove', 'browser:show', 'browser:close', 'browser:back',
-  'browser:reload', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
+  'browser:reload', 'shop:open', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
   'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'restore:plan', 'restore:run', 'shell:open-external',
 ];
 export const EVENTS: EventName[] = ['step', 'wallet', 'browser', 'connections', 'update', 'upgradeRequired', 'restartRequired', 'network', 'versionStatus'];

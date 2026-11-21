@@ -9,6 +9,7 @@ export const nav = {
   models: (page: Page) => page.getByTestId(TID.shell.navModels).click(),
   settings: (page: Page) => page.getByTestId(TID.shell.navSettings).click(),
   community: (page: Page) => page.getByTestId(TID.shell.navCommunity).click(),
+  shop: (page: Page) => page.getByTestId(TID.shell.navShop).click(),
 };
 
 /** Installs through the shared banner when Codex is missing. */

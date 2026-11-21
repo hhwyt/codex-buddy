@@ -9,6 +9,7 @@ export const TID = {
     navModels: 'nav-models',
     navSettings: 'nav-settings',
     navCommunity: 'nav-community',
+    navShop: 'nav-shop', // P-01
     security: 'top-security', // 🛡 S-01
     browser: 'top-browser', // 🌐 B-03
     main: 'shell-main',
@@ -56,6 +57,8 @@ export const TID = {
     root: 'first-success',
     seconds: 'first-success-seconds',
     openCodex: 'first-success-open-codex',
+    wechatQr: 'first-success-wechat-qr', // 加我微信
+    xhsQr: 'first-success-xhs-qr', // 关注小红书
   },
   // T-01..T-04, L-01..L-07: settings
   settings: {
@@ -68,12 +71,18 @@ export const TID = {
     checkUpdate: 'settings-check-update', // T-02
     restore: 'settings-restore', // 一键还原 T-03
   },
+  // P-01..P-03: 商城 page
+  shop: {
+    root: 'shop-root',
+    sms: 'shop-sms', // 手机验证码大卡
+    subscriptions: 'shop-subscriptions', // 「官方模型订阅 ›」
+  },
   // H-02: 社群 page
   community: {
     root: 'community-root',
     full: 'community-full', // 锁定状态下盖在 App 上的社群页
     back: 'community-back', // 返回原弹窗
-    qr: 'community-qr', // 企业微信群码
+    qr: 'community-qr', // 个人微信码
     xhsQr: 'community-xhs-qr', // 小红书码
   },
   // S-01..S-08: security panel

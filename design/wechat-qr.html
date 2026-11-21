@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>个人微信二维码</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#0d0d0d;background:#fff;
+--line:#ededed;--ink-2:#5d5d5d;--ink-3:#8f8f8f;--side:#f9f9f9;--blue:#0285ff;--accent:#0c8df6;--fill:#0a77d1;--xhs:#ff2442;--sel:rgba(0,0,0,.06)}
+*{box-sizing:border-box}body{margin:0;padding:28px 36px}
+header,.controls,.frame,.note{max-width:1100px;margin-left:auto;margin-right:auto}
+h1{font-size:23px;letter-spacing:-.5px;margin:0 0 8px}header p,.note{font-size:13px;color:var(--ink-3);line-height:1.8;margin:0}
+button{font:inherit;cursor:pointer}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:18px auto 14px;font-size:13px;color:var(--ink-3)}
+.controls button{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:13px;color:#25282e}
+.controls button[aria-pressed=true]{border-color:var(--accent);color:var(--fill);font-weight:600}
+.controls .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
+.frame{height:620px;position:relative;border:1px solid #e0e3e8;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 16px 50px #1522390b;display:grid;grid-template-columns:200px 1fr}
+.win{position:absolute;right:18px;top:12px;display:flex;gap:24px;color:#7f8590;font-size:16px;z-index:3}
+.side{background:var(--side);padding:16px 10px}
+.brand{display:flex;gap:9px;align-items:center;font-weight:650;font-size:15px;padding:4px 8px 22px}.brand img{width:22px;height:22px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{border:0;background:none;text-align:left;padding:8px 10px;border-radius:8px;font-size:14px;color:#0d0d0d}
+.nav button:hover{background:rgba(0,0,0,.04)}.nav button[aria-current=true]{background:var(--sel);font-weight:600}
+main{position:relative;padding:44px 48px;overflow:hidden}
+main h2{font-size:22px;margin:0 0 6px;letter-spacing:-.4px}.now{font-size:14px;color:var(--ink-2);margin:0 0 24px}
+.cards{display:flex;flex-direction:column;gap:10px;max-width:420px}
+.card{border:1px solid var(--line);border-radius:14px;padding:15px 18px;display:flex;align-items:center;gap:12px;font-weight:600}
+.card .logo{width:28px;height:28px;border-radius:8px;background:#1c1c1e;color:#fff;display:grid;place-items:center;font-size:13px}
+.card.on{border-color:var(--accent)}.card .tag{margin-left:auto;color:var(--blue);font-size:13px;font-weight:500}
+.community{height:100%;display:flex;flex-direction:column}
+.cbody{flex:1;display:flex;align-items:center;justify-content:center;gap:56px;text-align:center;flex-wrap:wrap}
+.ccol{display:flex;flex-direction:column;align-items:center;gap:14px}
+.qr{display:block;border-radius:12px;box-shadow:0 0 0 1px var(--line);padding:8px;background:#fff}
+.cline{font-size:17px;font-weight:600;margin:0;display:flex;align-items:center;justify-content:center;gap:6px}
+.csub{font-size:13px;color:var(--ink-2);margin:6px 0 0}
+.chip{font-size:11px;color:#fff;background:var(--xhs);border-radius:5px;padding:2px 6px;font-weight:600}
+.wx{width:18px;height:18px;color:#0d0d0d}
+.textlink{border:0;background:none;color:var(--ink-2);font-size:13px;padding:4px;display:inline-flex;gap:6px;align-items:center}
+.textlink:hover{color:#0d0d0d}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);display:grid;place-items:center;z-index:2;animation:fade .18s ease-out}
+.dialog{background:#fff;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.18);padding:30px 34px;width:420px;max-width:92%;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;animation:pop .22s ease-out}
+.fs-sub{font-size:18px;color:var(--ink-2)}.fs-count{font-size:56px;font-weight:600;letter-spacing:-.02em;line-height:1}.fs-unit{font-size:24px}
+.primary{background:#0d0d0d;color:#fff;border:0;border-radius:999px;padding:9px 22px;font-size:15px;font-weight:500}
+.primary:hover{background:#2b2b2b}
+.fs-follow{color:var(--ink-3);font-size:13px}
+.fs-qr{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:16px;margin-top:4px;text-align:left;width:100%}
+.fs-qr b{font-size:14px;display:block}.fs-qr span{font-size:12px;color:var(--ink-2)}
+.fs-pair img{width:150px;height:150px;border-radius:12px;box-shadow:0 0 0 1px var(--line);padding:6px;background:#fff}
+.fs-pair{display:flex;gap:26px;border-top:1px solid var(--line);padding-top:16px;margin-top:4px;width:100%;justify-content:center}
+.fs-pair div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+.expand{overflow:hidden;max-height:0;transition:max-height .3s ease;display:flex;flex-direction:column;align-items:center;gap:6px}
+.expand.open{max-height:200px}
+.toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:#0d0d0d;color:#fff;font-size:13px;padding:9px 15px;border-radius:9px;animation:fade .2s}
+.note{margin-top:14px}
+@keyframes fade{from{opacity:0}}@keyframes pop{from{opacity:0;transform:scale(.96)}}
+@media(max-width:760px){body{padding:20px 12px}.frame{grid-template-columns:110px 1fr;height:680px}main{padding:40px 16px}.cbody{gap:26px}}
+</style>
+<header><h1>个人微信二维码</h1><p>可点击原型 · 企业微信群码换成你的个人微信码；完成弹窗和「社群」页各有 5 种放法</p></header>
+<div class="controls" id="controls">
+  <span>版本</span>
+  <button data-v="1">1 弹窗带小码</button><button data-v="2">2 弹窗一行字</button><button data-v="3">3 点开才显示</button><button data-v="4">4 两个码并排</button><button data-v="5">5 只留微信</button>
+  <span class="sep"></span>
+  <button id="again">重新装好一次</button>
+</div>
+<section class="frame" aria-label="CodexBuddy 原型">
+  <div class="win" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>
+  <aside class="side">
+    <div class="brand"><img src="../ui/assets/icon.svg" alt="">CodexBuddy</div>
+    <nav class="nav" id="nav"><button data-r="models">模型</button><button data-r="settings">设置</button><button data-r="community">社群</button></nav>
+  </aside>
+  <main id="main"></main>
+</section>
+<p class="note" id="note"></p>
+<script>
+const $=id=>document.getElementById(id);
+let v=1,route='models';
+try{v=+(localStorage.getItem('wxqr.v')||location.hash.replace('#v',''))||1}catch{}
+const NOTES={
+1:'弹窗底部直接放一个小码，扫了就加；社群页：微信码 + 小红书码。',
+2:'弹窗只多一行字，点了关掉弹窗、跳到社群页看大码；弹窗最干净。',
+3:'弹窗里折叠：点「加我微信」才展开小码，再点收起。',
+4:'弹窗底部微信码和小红书码并排；社群页同上。',
+5:'弹窗同第 1 版；社群页只放微信码，小红书收成码下面一行字（点开小红书主页）。'};
+/* A QR-looking pattern: three finder squares plus seeded modules, with the account icon in the middle */
+function qr(size,seed){
+  const n=29,c=size/n;let s=seed,r=()=>(s=(s*9301+49297)%233280)/233280;
+  let p='';const fin=(x,y)=>{p+=`<rect x="${x*c}" y="${y*c}" width="${7*c}" height="${7*c}" fill="#0d0d0d"/><rect x="${(x+1)*c}" y="${(y+1)*c}" width="${5*c}" height="${5*c}" fill="#fff"/><rect x="${(x+2)*c}" y="${(y+2)*c}" width="${3*c}" height="${3*c}" fill="#0d0d0d"/>`};
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const inF=(x<8&&y<8)||(x>n-9&&y<8)||(x<8&&y>n-9),mid=x>10&&x<18&&y>10&&y<18;
+    if(!inF&&!mid&&r()>.52)p+=`<rect x="${x*c}" y="${y*c}" width="${c+.3}" height="${c+.3}" fill="#0d0d0d"/>`;}
+  fin(0,0);fin(n-7,0);fin(0,n-7);
+  const m=size*.22;
+  return `<svg class="qr" width="${size+16}" height="${size+16}" viewBox="-8 -8 ${size+16} ${size+16}" role="img" aria-label="二维码"><rect x="-8" y="-8" width="${size+16}" height="${size+16}" fill="#fff"/>${p}<rect x="${size/2-m/2-3}" y="${size/2-m/2-3}" width="${m+6}" height="${m+6}" rx="6" fill="#fff"/><image href="../ui/assets/icon.svg" x="${size/2-m/2}" y="${size/2-m/2}" width="${m}" height="${m}"/></svg>`;
+}
+const WX=`<svg class="wx" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 4C5.4 4 2 6.7 2 10.1c0 1.9 1.1 3.6 2.8 4.7L4.2 17l2.6-1.3c.8.2 1.7.4 2.7.4"/><path d="M15.5 9.2c-3.6 0-6.5 2.4-6.5 5.3s2.9 5.3 6.5 5.3c.8 0 1.5-.1 2.2-.3l2.3 1.2-.5-2c1.5-1 2.5-2.5 2.5-4.2 0-2.9-2.9-5.3-6.5-5.3z"/></svg>`;
+const wxCol=(sz=200)=>`<div class="ccol">${qr(sz,7)}<div><p class="cline">${WX}有问题？加我微信</p><p class="csub">扫码加好友，拉你进交流群</p></div></div>`;
+const xhsCol=(sz=200)=>`<div class="ccol">${qr(sz,31)}<div><p class="cline"><span class="chip">小红书</span>关注小红书</p><p class="csub">「黄金金不AI」，看更多 Codex 用法</p></div></div>`;
+function render(){
+  document.querySelectorAll('#controls [data-v]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.v===v));
+  document.querySelectorAll('#nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.r===route));
+  $('note').textContent='第 '+v+' 版：'+NOTES[v];
+  const m=$('main');
+  if(route==='models')m.innerHTML=`<h2>模型</h2><p class="now">正在用：智谱免费</p><div class="cards"><div class="card on"><span class="logo">智</span>智谱<span class="tag">正在用</span></div><div class="card"><span class="logo" style="background:#4d6bfe">D</span>DeepSeek</div><div class="card"><span class="logo" style="background:#16191e">K</span>Kimi</div></div>`;
+  else if(route==='settings')m.innerHTML=`<h2>设置</h2><p class="now">界面语言：中文</p>`;
+  else{
+    const body=v===5?`<div class="ccol">${qr(220,7)}<div><p class="cline">${WX}有问题？加我微信</p><p class="csub">扫码加好友，拉你进交流群</p></div><button class="textlink" id="xhsLink"><span class="chip">小红书</span>「黄金金不AI」看更多用法 ›</button></div>`:wxCol()+xhsCol();
+    m.innerHTML=`<div class="community"><h2>社群</h2><div class="cbody">${body}</div></div>`;
+    const x=$('xhsLink');if(x)x.onclick=()=>toast('已在浏览器打开小红书主页');
+  }
+}
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;$('main').append(e);setTimeout(()=>e.remove(),1800)}
+function success(){
+  route='models';render();
+  let foot='';
+  if(v===1||v===5)foot=`<div class="fs-qr">${qr(84,7)}<div><b>有问题？加我微信</b><span>扫码加好友，拉你进群</span></div></div>`;
+  if(v===2)foot=`<button class="textlink" id="goC">${WX}有问题？加我微信 ›</button>`;
+  if(v===3)foot=`<button class="textlink" id="tog">${WX}加我微信</button><div class="expand" id="exp">${qr(120,7)}<span class="fs-follow">扫码加好友，拉你进群</span></div>`;
+  if(v===4)foot=`<div class="fs-pair"><div><img src="wechat-qr-real.png" alt="微信二维码"><span>加我<b style="color:#07c160;font-weight:600">微信</b></span></div><div><img src="../ui/assets/xhs-qr.png" alt="小红书二维码"><span>关注<b style="color:var(--xhs);font-weight:600">小红书</b></span></div></div>`;
+  const s=document.createElement('div');s.className='scrim';
+  s.innerHTML=`<div class="dialog" role="dialog"><div class="fs-sub">从零到能用</div><div class="fs-count"><span id="sec">0</span><span class="fs-unit"> 秒</span></div><button class="primary" id="open">打开 Codex</button>${foot}</div>`;
+  $('main').append(s);
+  let t=0;const end=93,iv=setInterval(()=>{t=Math.min(end,t+4);$('sec').textContent=t;if(t>=end)clearInterval(iv)},16);
+  const close=()=>s.remove();
+  s.onclick=e=>{if(e.target===s)close()};
+  $('open').onclick=()=>{close();toast('正在打开 Codex')};
+  const g=$('goC');if(g)g.onclick=()=>{close();route='community';render()};
+  const tg=$('tog');if(tg)tg.onclick=()=>$('exp').classList.toggle('open');
+}
+document.querySelectorAll('#controls [data-v]').forEach(b=>b.onclick=()=>{v=+b.dataset.v;try{localStorage.setItem('wxqr.v',v)}catch{};history.replaceState(null,'','#v'+v);success()});
+$('again').onclick=success;
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{document.querySelector('.scrim')?.remove();route=b.dataset.r;render()});
+success();
+</script>
+</html>

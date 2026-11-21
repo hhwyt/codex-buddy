@@ -357,12 +357,22 @@ export function openLoginWindows(targets: { url: string; name: string }[], onUrl
   });
 }
 
-/** IPC handlers for the page's browser chrome (B-03, B-04, B-05) */
+/** P-02, P-03: the only shop pages the 商城 page can open. The renderer names an item, never a URL. */
+export const SHOP_URLS = {
+  sms: 'https://shop.humanslive.ai/products/codex-sms', // lint-scan: allow (P-02, H-03 exception)
+  subscriptions: 'https://shop.humanslive.ai/categories/chatgpt', // lint-scan: allow (P-03, H-03 exception)
+} as const;
+export type ShopItem = keyof typeof SHOP_URLS;
+
+/** IPC handlers for the page's browser chrome (B-03, B-04, B-05) and the 商城 page (P-02, P-03) */
 export function browserHandlers(rb: RightBrowser) {
   return {
     'browser:show': ({ mode }: { mode: BrowserMode }) => rb.show(mode),
     'browser:close': () => rb.close(),
     'browser:back': () => rb.back(),
     'browser:reload': () => rb.reload(),
+    'shop:open': async ({ item }: { item: ShopItem }) => {
+      if (Object.prototype.hasOwnProperty.call(SHOP_URLS, item)) await rb.open(SHOP_URLS[item], { mode: 'expanded' });
+    },
   };
 }

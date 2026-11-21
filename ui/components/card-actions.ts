@@ -5,10 +5,9 @@ import { h } from '../dom.js';
 import { TID } from '../testids.js';
 import { promptRestart } from './restart.js';
 import { dialog } from './dialog.js';
+import { BUNDLED_QR, communityQr, XHS_QR } from '../pages/community.js';
 
-const FOLLOW = '关注小红书 黄金金不AI 看教程';
-
-/** M-20: 「从零到能用 N 秒」+「打开 Codex」+ 关注行. Resolves when closed. */
+/** M-20: 「从零到能用 N 秒」+「打开 Codex」+ 两个码（加我微信、关注小红书, design/wechat-qr.html v4）. Resolves when closed. */
 export function firstSuccess(api: BuddyApi, seconds: number, root: HTMLElement = document.body): Promise<void> {
   return new Promise(resolve => {
     const close = () => { scrim.remove(); document.removeEventListener('keydown', onKey); resolve(); };
@@ -17,7 +16,11 @@ export function firstSuccess(api: BuddyApi, seconds: number, root: HTMLElement =
       h('div', { class: 'fs-sub' }, '从零到能用'),
       h('div', { class: 'fs-count' }, h('span', { 'data-testid': TID.firstSuccess.seconds }, String(Math.max(0, Math.round(seconds)))), h('span', { class: 'fs-unit' }, ' 秒')),
       h('button', { class: 'btn primary', type: 'button', 'data-testid': TID.firstSuccess.openCodex, onclick: () => { void api.invoke('codex:open', {}); close(); } }, '打开 Codex'),
-      h('div', { class: 'fs-follow' }, FOLLOW));
+      h('div', { class: 'fs-pair' },
+        h('div', {}, h('img', { src: communityQr(null) ?? BUNDLED_QR, alt: '微信二维码', 'data-testid': TID.firstSuccess.wechatQr }),
+          h('span', {}, '加我', h('b', { class: 'brand-wechat' }, '微信'))),
+        h('div', {}, h('img', { src: XHS_QR, alt: '小红书二维码', 'data-testid': TID.firstSuccess.xhsQr }),
+          h('span', {}, '关注', h('b', { class: 'brand-xhs' }, '小红书')))));
     const scrim = h('div', { class: 'scrim', onclick: (e: Event) => { if (e.target === scrim) close(); } }, box);
     document.addEventListener('keydown', onKey);
     root.append(scrim);

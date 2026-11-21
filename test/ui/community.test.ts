@@ -19,20 +19,21 @@ beforeEach(() => localStorage.clear());
 afterEach(() => { document.body.innerHTML = ''; vi.restoreAllMocks(); });
 
 describe('社群页（H-02）', () => {
-  it('H-02 群码和小红书码并排，各带两句话，不写群名', async () => {
+  it('H-02 个人微信码和小红书码并排，各带两句话，不写群名', async () => {
     await mount(fakeApi());
     const root = $(TID.community.root)!;
     expect(root.querySelector('h1')!.textContent).toBe('社群');
     expect([...root.querySelectorAll('p')].map(p => p.textContent)).toEqual([
-      '使用有问题？加群咨询', '企业微信群，扫码就进', '小红书关注小红书', '「黄金金不AI」，看更多 Codex 用法',
+      '有问题？加我微信', '扫码加好友，拉你进交流群', '小红书关注小红书', '「黄金金不AI」，看更多 Codex 用法',
     ]);
     expect(root.querySelectorAll('img')).toHaveLength(2);
+    expect(root.querySelector('.brand-wechat')!.textContent).toBe('微信');
     expect($(TID.community.xhsQr)!.getAttribute('src')).toBe(XHS_QR);
     expect(existsSync(`ui/${XHS_QR}`)).toBe(true);
     expect(root.querySelectorAll('button, input, textarea, a')).toHaveLength(0);
   });
 
-  it('H-02 一次都没取到：显示 App 自带的企业微信群码', async () => {
+  it('H-02 一次都没取到：显示 App 自带的个人微信码', async () => {
     await mount(fakeApi());
     expect(src()).toBe(BUNDLED_QR);
     expect(existsSync(`ui/${BUNDLED_QR}`)).toBe(true);

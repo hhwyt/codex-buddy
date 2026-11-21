@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>商城入口</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#0d0d0d;background:#fff;
+--line:#ededed;--ink-2:#5d5d5d;--ink-3:#8f8f8f;--side:#f9f9f9;--blue:#0285ff;--accent:#0c8df6;--fill:#0a77d1;--sel:rgba(0,0,0,.06);--hover:rgba(0,0,0,.04)}
+*{box-sizing:border-box}body{margin:0;padding:24px 28px}
+header,.controls,.stage,.note{max-width:1320px;margin-left:auto;margin-right:auto}
+h1{font-size:22px;letter-spacing:-.5px;margin:0 0 6px}header p,.note{font-size:13px;color:var(--ink-3);line-height:1.8;margin:0}
+button{font:inherit;cursor:pointer}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px auto 12px;font-size:13px;color:var(--ink-3)}
+.controls button{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:13px;color:#25282e}
+.controls button[aria-pressed=true]{border-color:var(--accent);color:var(--fill);font-weight:600}
+.stage{display:flex;align-items:stretch;transition:all .3s ease}
+.frame{flex:none;width:880px;height:600px;position:relative;border:1px solid #e0e3e8;border-radius:14px 0 0 14px;background:#fff;overflow:hidden;display:grid;grid-template-columns:190px 1fr;box-shadow:0 16px 50px #1522390b}
+.stage:not(.open) .frame{border-radius:14px}
+.win{position:absolute;right:16px;top:10px;display:flex;gap:22px;color:#7f8590;font-size:15px;z-index:3}
+.stage.open .win{display:none}
+.side{background:var(--side);padding:16px 10px}
+.brand{display:flex;gap:9px;align-items:center;font-weight:650;font-size:15px;padding:4px 8px 22px}.brand img{width:22px;height:22px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{border:0;background:none;text-align:left;padding:8px 10px;border-radius:8px;font-size:14px;color:#0d0d0d;display:flex;align-items:center;gap:8px}
+.nav button:hover{background:var(--hover)}.nav button[aria-current=true]{background:var(--sel);font-weight:600}
+.nav .ext{margin-left:auto;color:var(--ink-3);font-size:12px}
+main{position:relative;padding:40px 44px;overflow:auto}
+main h2{font-size:22px;margin:0 0 6px;letter-spacing:-.4px}.now{font-size:14px;color:var(--ink-2);margin:0 0 22px}
+.cards{display:flex;flex-direction:column;gap:10px;max-width:420px}
+.mcard{border:1px solid var(--line);border-radius:14px;padding:15px 18px;display:flex;align-items:center;gap:12px;font-weight:600}
+.mcard .logo{width:28px;height:28px;border-radius:8px;background:#1c1c1e;color:#fff;display:grid;place-items:center;font-size:13px}
+.mcard.on{border-color:var(--accent)}.mcard .tag{margin-left:auto;color:var(--blue);font-size:13px;font-weight:500}
+/* shop bits inside the app */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:560px}
+.pcard{border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;background:#fff;text-align:left;cursor:pointer;transition:border-color .15s,transform .15s}
+.pcard:hover{border-color:#cfd3d8;transform:translateY(-1px)}
+.pcard.sel{border-color:var(--accent)}
+.pcard .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#f2f3f5}
+.pcard .ic img{width:22px;height:22px}
+.pcard b{font-size:15px}.pcard .sub{font-size:12px;color:var(--ink-3)}
+.pcard .price{font-size:18px;font-weight:600;margin-top:auto}
+.price small{font-size:12px;font-weight:500}
+.rows{max-width:560px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.rows h3{margin:0;padding:12px 16px 6px;font-size:12px;color:var(--ink-3);font-weight:500;background:#fff}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer;background:#fff;width:100%;border-left:0;border-right:0;border-bottom:0;text-align:left;font-size:14px}
+.rows h3+.row{border-top:0}
+.row:hover{background:var(--hover)}.row.sel{background:var(--sel)}
+.row .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:#f2f3f5;flex:none}.row .ic img{width:17px;height:17px}
+.row .sub{color:var(--ink-3);font-size:12px;margin-left:6px}
+.row .price{margin-left:auto;font-weight:600}
+.row .chev{color:var(--ink-3)}
+.tabs{display:inline-flex;background:var(--side);border-radius:999px;padding:3px;margin:0 0 16px}
+.tabs button{border:0;background:none;border-radius:999px;padding:6px 14px;font-size:13px;color:var(--ink-2)}
+.tabs button[aria-selected=true]{background:#fff;color:#0d0d0d;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.need{display:flex;flex-direction:column;gap:12px;max-width:520px}
+.needcard{border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:16px;cursor:pointer;background:#fff;text-align:left;width:100%}
+.needcard:hover{border-color:#cfd3d8}
+.needcard .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:#f2f3f5;flex:none}
+.needcard b{font-size:16px;display:block}.needcard span{font-size:13px;color:var(--ink-2)}
+.needcard .price{margin-left:auto;font-weight:600;white-space:nowrap}
+.more{margin-top:14px;border:0;background:none;color:var(--ink-2);font-size:13px;padding:4px 0}
+.more:hover{color:#0d0d0d}
+.empty{height:100%;display:grid;place-items:center;text-align:center;color:var(--ink-2)}
+.empty .glyph{font-size:40px;margin-bottom:12px}
+.primary{background:#0d0d0d;color:#fff;border:0;border-radius:999px;padding:9px 20px;font-size:14px;font-weight:500}
+.ghost{background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 18px;font-size:14px}
+/* right-side browser */
+.browser{width:0;overflow:hidden;border:1px solid #e0e3e8;border-left:0;border-radius:0 14px 14px 0;background:#fff;display:flex;flex-direction:column;transition:width .3s ease;height:600px}
+.stage.open .browser{width:440px}
+.stage:not(.open) .browser{border:0}
+.bbar{height:44px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;border-bottom:1px solid var(--line);background:#fff}
+.bbar .ib{border:0;background:none;width:28px;height:28px;border-radius:7px;color:var(--ink-2);font-size:15px}
+.bbar .ib:hover{background:var(--hover)}
+.addr{flex:1;min-width:0;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--side);color:var(--ink-2);font-size:12px;display:flex;align-items:center;overflow:hidden;white-space:nowrap}
+.bview{flex:1;overflow:auto;background:#f6f7f9}
+/* fake shop inside the browser */
+.s-top{height:42px;background:#2b2e33;color:#fff;display:flex;align-items:center;padding:0 14px;font-size:13px;gap:8px}
+.s-top b{font-family:Georgia,serif;font-weight:400}
+.s-top .cart{margin-left:auto;border:1px solid #5a5e66;border-radius:7px;padding:3px 8px;font-size:11px}
+.s-body{padding:18px 16px}
+.s-body h4{font-size:18px;margin:0 0 4px;font-weight:600}.s-body .s-sub{font-size:11px;color:#7b8089;margin:0 0 14px}
+.s-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.s-chips span{font-size:11px;border:1px solid #e2e4e8;border-radius:999px;padding:3px 9px;background:#fff;color:#555}
+.s-chips span.on{background:#e9ebef;color:#111}
+.s-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.s-card{background:#fff;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;border:1px solid #eceef1}
+.s-card .t{font-size:12px;font-weight:600}.s-card .d{font-size:10px;color:#7b8089}
+.s-card .p{font-size:14px;font-weight:600;margin-top:6px}
+.s-buy{background:#1f7ae0;color:#fff;border:0;border-radius:7px;padding:7px 0;font-size:12px;width:100%}
+.s-detail{background:#fff;border-radius:12px;padding:16px;border:1px solid #eceef1}
+.s-detail .p{font-size:24px;font-weight:600;margin:8px 0 12px}
+.s-detail ul{margin:0 0 14px;padding-left:16px;font-size:11px;color:#555;line-height:1.8}
+.s-pay{display:flex;flex-direction:column;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:18px;border:1px solid #eceef1;text-align:center}
+.s-pay .tabs2{display:flex;gap:6px}.s-pay .tabs2 span{font-size:11px;border:1px solid #e2e4e8;border-radius:999px;padding:3px 10px}
+.s-pay .tabs2 span.on{border-color:#07c160;color:#07c160}
+.s-qr{width:150px;height:150px}
+.note{margin-top:12px;min-height:40px}
+@keyframes fade{from{opacity:0}}
+.toast{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);background:#0d0d0d;color:#fff;font-size:13px;padding:9px 15px;border-radius:9px;animation:fade .2s}
+@media(max-width:1380px){.frame{width:760px}}
+</style>
+<header><h1>商城入口</h1><p>可点击原型 · 左栏多一个「商城」，商品在右侧浏览器里打开 HumansLive 商城，用微信 / 支付宝付款</p></header>
+<div class="controls" id="controls">
+  <span>版本</span>
+  <button data-v="1">1 直接打开商城</button><button data-v="2">2 商品卡片</button><button data-v="3">3 分组列表</button><button data-v="4">4 两个标签</button><button data-v="5">5 按需要挑</button><span class="sep" style="width:1px;height:20px;background:var(--line);margin:0 4px"></span><button data-v="6">5A 只留验证码</button><button data-v="7">5B 订阅收成一行</button><button data-v="8">5C 用到时才出现</button>
+</div>
+<div class="stage" id="stage">
+  <section class="frame" aria-label="CodexBuddy 原型">
+    <div class="win" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>
+    <aside class="side">
+      <div class="brand"><img src="../ui/assets/icon.svg" alt="">CodexBuddy</div>
+      <nav class="nav" id="nav"></nav>
+    </aside>
+    <main id="main"></main>
+  </section>
+  <section class="browser" id="browser" aria-label="右侧浏览器">
+    <div class="bbar">
+      <button class="ib" id="bBack" title="后退">←</button>
+      <button class="ib" id="bReload" title="刷新">↻</button>
+      <div class="addr" id="addr"></div>
+      <button class="ib" id="bClose" title="关闭">✕</button>
+    </div>
+    <div class="bview" id="bview"></div>
+  </section>
+</div>
+<p class="note" id="note"></p>
+<script>
+const $=id=>document.getElementById(id);
+const OAI='<img src="../ui/assets/logos/openai.webp" alt="">';
+const SMS='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d0d0d" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18.5h4"/></svg>';
+const P={
+ sms:{slug:'codex-sms',name:'手机验证码',full:'ChatGPT / Codex 手机验证码（临时号码）',sub:'收不到可换号',price:35,ic:SMS,cat:'sms'},
+ go:{slug:'chatgpt-go-1m',name:'ChatGPT Go',full:'ChatGPT Go 1 个月',sub:'1 个月',price:53,ic:OAI,cat:'gpt'},
+ plus:{slug:'chatgpt-plus-1m',name:'ChatGPT Plus',full:'ChatGPT Plus 1 个月',sub:'1 个月',price:169,ic:OAI,cat:'gpt'},
+ plus12:{slug:'chatgpt-plus-12m',name:'ChatGPT Plus',full:'ChatGPT Plus 12 个月',sub:'12 个月',price:1419,ic:OAI,cat:'gpt'},
+ pro:{slug:'chatgpt-pro-200-1m',name:'ChatGPT Pro',full:'ChatGPT Pro 200 1 个月',sub:'1 个月起',price:679,from:true,ic:OAI,cat:'gpt'},
+ codex:{slug:'codex-250',name:'Codex 额度充值',full:'Codex 250 额度充值',sub:'250 额度',price:99,ic:OAI,cat:'gpt'},
+};
+const GPT=['go','plus','plus12','pro','codex'];
+let v=1,route='models',sel=null,tab='gpt',open=false,hist=[];
+try{v=+(location.hash.replace('#v',''))||1}catch{}
+const NOTES={
+1:'点「商城」直接在右侧打开商城首页（已筛到 ChatGPT 和验证码），App 里不放商品。最省事，商品和价格全看网站。',
+2:'商城页放 4 张商品卡（验证码、Go、Plus、Pro），点卡在右侧打开那个商品；底部「全部商品 ›」打开商城首页。',
+3:'商城页是两组列表：验证码一组、ChatGPT 订阅一组，价格靠右。点一行在右侧打开那个商品。',
+4:'商城页顶上两个标签「ChatGPT 订阅 / 手机验证码」，切换看对应商品；点商品在右侧打开。',
+6:'商城页只有一张大卡「注册要手机验证码」。App 里不出现 ChatGPT、会员字样和价格；只在最下面一行灰色小字「全部商品 ›」，打开的是网站商城首页，会员在网站里自己找。',
+7:'验证码大卡不变；下面一行灰色小字「官方模型订阅 ›」，不写品牌、不写价格，点了在右侧打开网站的会员分类。',
+8:'商城页只放验证码。会员只在「模型」页出现：选 OpenAI 官方账号、还没有会员时，卡片下面一行小字「还没有会员？›」，点了在右侧打开会员页。不用这个模型的人永远看不到。',
+5:'按用户为什么来：「注册要手机验证码」「想用 GPT 官方模型」两张大卡，各直达最常买的那个；其余在「全部商品 ›」。'};
+const yuan=(p,from)=>`<span class="price">¥${p}${from?'<small> 起</small>':''}</span>`;
+function nav(){
+  const items=[['models','模型'],['settings','设置'],['community','社群'],['shop','商城']];
+  $('nav').innerHTML=items.map(([r,l])=>`<button data-r="${r}" aria-current="${r===route}">${l}${r==='shop'&&v===1?'<span class="ext">↗</span>':''}</button>`).join('');
+  $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.r));
+}
+function go(r){
+  if(r==='shop'&&v===1){route='shop';render();openBrowser('home');return}
+  route=r;render();
+}
+function card(k){const p=P[k];return `<button class="pcard${sel===k?' sel':''}" data-k="${k}"><span class="ic">${p.ic}</span><b>${p.name}</b><span class="sub">${p.sub}</span>${yuan(p.price,p.from)}</button>`}
+function row(k){const p=P[k];return `<button class="row${sel===k?' sel':''}" data-k="${k}"><span class="ic">${p.ic}</span>${p.name}<span class="sub">${p.sub}</span>${yuan(p.price,p.from)}<span class="chev">›</span></button>`}
+function render(){
+  nav();
+  document.querySelectorAll('#controls [data-v]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.v===v));
+  $('note').textContent='第 '+v+' 版：'+NOTES[v];
+  const m=$('main');
+  if(route==='models'&&v===8)m.innerHTML=`<h2>模型</h2><p class="now">正在用：智谱免费</p><div class="cards"><div class="mcard on"><span class="logo">智</span>智谱<span class="tag">正在用</span></div><div class="mcard"><span class="logo" style="background:#4d6bfe">D</span>DeepSeek</div><div><div class="mcard"><span class="logo" style="background:#ececec;color:#5d5d5d">O</span>OpenAI 官方账号<span class="tag" style="color:var(--ink-3)">未登录</span></div><button class="more" id="member" style="font-size:12px;color:var(--ink-3);margin:6px 0 0 18px">还没有会员？›</button></div></div>`;
+  else if(route==='models')m.innerHTML=`<h2>模型</h2><p class="now">正在用：智谱免费</p><div class="cards"><div class="mcard on"><span class="logo">智</span>智谱<span class="tag">正在用</span></div><div class="mcard"><span class="logo" style="background:#4d6bfe">D</span>DeepSeek</div><div class="mcard"><span class="logo" style="background:#ececec;color:#5d5d5d">O</span>OpenAI 官方账号</div></div>`;
+  else if(route==='settings')m.innerHTML=`<h2>设置</h2><p class="now">界面语言：中文</p>`;
+  else if(route==='community')m.innerHTML=`<h2>社群</h2><p class="now">有问题？加我微信</p>`;
+  else{
+    let body='';
+    if(v===1)body=`<div class="empty"><div><div class="glyph">🛍️</div><p style="margin:0 0 16px">商城在右侧打开了</p><button class="ghost" id="reopen">重新打开</button></div></div>`;
+    if(v===2)body=`<h2>商城</h2><p class="now">微信 / 支付宝付款，付完自动发货</p><div class="grid">${['sms','go','plus','pro'].map(card).join('')}</div><button class="more" id="all">全部商品 ›</button>`;
+    if(v===3)body=`<h2>商城</h2><p class="now">微信 / 支付宝付款，付完自动发货</p><div class="rows"><h3>验证码</h3>${row('sms')}</div><div style="height:12px"></div><div class="rows"><h3>ChatGPT 订阅</h3>${GPT.map(row).join('')}</div><button class="more" id="all">全部商品 ›</button>`;
+    if(v===4)body=`<h2>商城</h2><p class="now">微信 / 支付宝付款，付完自动发货</p><div class="tabs" role="tablist"><button data-t="gpt" aria-selected="${tab==='gpt'}">ChatGPT 订阅</button><button data-t="sms" aria-selected="${tab==='sms'}">手机验证码</button></div><div class="grid">${(tab==='gpt'?GPT:['sms']).map(card).join('')}</div><button class="more" id="all">全部商品 ›</button>`;
+    if(v===5)body=`<h2>商城</h2><p class="now">微信 / 支付宝付款，付完自动发货</p><div class="need">
+      <button class="needcard" data-k="sms"><span class="ic">${SMS}</span><span><b>注册要手机验证码</b><span>注册、登录 OpenAI 官方账号时收短信用，收不到可换号</span></span>${yuan(35)}</button>
+      <button class="needcard" data-k="plus"><span class="ic">${OAI}</span><span><b>想用 GPT 官方模型</b><span>ChatGPT Plus 1 个月，Codex 直接能用</span></span>${yuan(169)}</button></div><button class="more" id="all">全部商品 ›</button>`;
+    if(v===6)body=`<h2>商城</h2><p class="now">微信 / 支付宝付款，付完自动发货</p><div class="need">
+      <button class="needcard" data-k="sms"><span class="ic">${SMS}</span><span><b>注册要手机验证码</b><span>注册、登录 OpenAI 官方账号时收短信用，收不到可换号</span></span>${yuan(35)}</button></div><button class="more" id="all" style="color:var(--ink-3);font-size:12px;margin-top:22px">全部商品 ›</button>`;
+    if(v===7)body=`<h2>商城</h2><p class="now">微信 / 支付宝付款，付完自动发货</p><div class="need">
+      <button class="needcard" data-k="sms"><span class="ic">${SMS}</span><span><b>注册要手机验证码</b><span>注册、登录 OpenAI 官方账号时收短信用，收不到可换号</span></span>${yuan(35)}</button></div><button class="more" id="all" style="color:var(--ink-3);font-size:12px;margin-top:22px">官方模型订阅 ›</button>`;
+    if(v===8)body=`<h2>商城</h2><p class="now">微信 / 支付宝付款，付完自动发货</p><div class="need">
+      <button class="needcard" data-k="sms"><span class="ic">${SMS}</span><span><b>注册要手机验证码</b><span>注册、登录 OpenAI 官方账号时收短信用，收不到可换号</span></span>${yuan(35)}</button></div><p style="margin-top:18px;font-size:12px;color:var(--ink-3)">想换 OpenAI 官方模型？去「模型」页选它</p>`;
+    m.innerHTML=body;
+    m.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{sel=b.dataset.k;render();openBrowser('product',b.dataset.k)});
+    m.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+    const a=$('all');if(a)a.onclick=()=>openBrowser('home');
+    const r=$('reopen');if(r)r.onclick=()=>openBrowser('home');
+  }
+  const mb=$('member');if(mb)mb.onclick=()=>openBrowser('home');
+}
+function qr(seed){const n=25,c=150/n;let s=seed,r=()=>(s=(s*9301+49297)%233280)/233280,p='';
+  const f=(x,y)=>p+=`<rect x="${x*c}" y="${y*c}" width="${7*c}" height="${7*c}"/><rect x="${(x+1)*c}" y="${(y+1)*c}" width="${5*c}" height="${5*c}" fill="#fff"/><rect x="${(x+2)*c}" y="${(y+2)*c}" width="${3*c}" height="${3*c}"/>`;
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){const F=(x<8&&y<8)||(x>n-9&&y<8)||(x<8&&y>n-9);if(!F&&r()>.5)p+=`<rect x="${x*c}" y="${y*c}" width="${c+.3}" height="${c+.3}"/>`}
+  f(0,0);f(n-7,0);f(0,n-7);return `<svg class="s-qr" viewBox="0 0 150 150" fill="#111">${p}</svg>`}
+const SHOPTOP='<div class="s-top"><b>Humans | Live</b><span style="opacity:.7">商城</span><span class="cart">购物车</span></div>';
+function page(kind,k){
+  if(kind==='home')return {url:'shop.humanslive.ai/categories/chatgpt',html:SHOPTOP+`<div class="s-body"><h4>ChatGPT</h4><p class="s-sub">AI 会员与开发工具 · 微信 / 支付宝付款</p><div class="s-chips"><span>全部</span><span>验证码</span><span class="on">ChatGPT</span><span>Claude</span></div><div class="s-grid">${['go','plus','plus12','pro','codex','sms'].map(x=>`<div class="s-card"><span class="t">${P[x].full}</span><span class="d">有货</span><span class="p">¥${P[x].price}</span><button class="s-buy" data-go="${x}">立即购买</button></div>`).join('')}</div></div>`};
+  if(kind==='product'){const p=P[k];return {url:'shop.humanslive.ai/products/'+p.slug,html:SHOPTOP+`<div class="s-body"><div class="s-detail"><span style="font-size:15px;font-weight:600">${p.full}</span><div class="p">¥${p.price}</div><ul><li>付款后自动发货，发到你填的邮箱</li><li>${p.cat==='sms'?'收不到验证码可换号，换号也收不到全额退款':'30 天质保，有问题社群找我们'}</li></ul><button class="s-buy" id="buy">立即购买</button></div></div>`}}
+  if(kind==='pay'){const p=P[k];return {url:'shop.humanslive.ai/pay?item='+p.slug,html:SHOPTOP+`<div class="s-body"><div class="s-pay"><span style="font-size:13px">${p.full}</span><span style="font-size:22px;font-weight:600">¥${p.price}</span><div class="tabs2"><span class="on">微信</span><span>支付宝</span></div>${qr(k.length*31+7)}<span style="font-size:11px;color:#7b8089">用手机微信扫码付款</span></div></div>`}}
+}
+function show(kind,k,push=true){const pg=page(kind,k);if(push)hist.push([kind,k]);$('addr').textContent=pg.url;$('bview').innerHTML=pg.html;
+  $('bview').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show('product',b.dataset.go));
+  const buy=$('buy');if(buy)buy.onclick=()=>show('pay',k);}
+function openBrowser(kind,k){open=true;$('stage').classList.add('open');hist=[];show(kind,k)}
+$('bClose').onclick=()=>{open=false;$('stage').classList.remove('open');sel=null;render()};
+$('bBack').onclick=()=>{if(hist.length>1){hist.pop();const [k,x]=hist[hist.length-1];show(k,x,false)}};
+$('bReload').onclick=()=>{const [k,x]=hist[hist.length-1]||['home'];show(k,x,false)};
+document.querySelectorAll('#controls [data-v]').forEach(b=>b.onclick=()=>{v=+b.dataset.v;history.replaceState(null,'','#v'+v);sel=null;tab='gpt';open=false;$('stage').classList.remove('open');route='shop';
+  if(v===1){render();openBrowser('home')}else render()});
+route='shop';render();if(v===1)openBrowser('home');
+</script>
+</html>

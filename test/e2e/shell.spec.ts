@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { TID } from '../../ui/testids';
+import { SHOP_URLS } from '../../electron/main/browser';
 import { fakeScan, finishOnboarding, nav } from './flows';
 import { filesUnder, launch, REPO, seedCodex, seedUserData, setCodexScenario, wallet, vendorState, type Launched } from './launch';
 import { forEachScreen, paintedColors, tokenColors } from './screens';
@@ -109,7 +110,7 @@ test('UI-02 每屏最多一个黑色实心主按钮', async () => {
   });
 });
 
-test('H-03 代码、网络请求、界面里都不出现 humanslive', async () => {
+test('H-03 代码、网络请求、界面里都不出现 humanslive（商城的两个固定链接除外）', async () => {
   const urls: string[] = [];
   await forEachScreen(async (page, screen) => {
     expect.soft(await page.content(), screen).not.toMatch(/humanslive/i);
@@ -125,6 +126,7 @@ test('H-03 代码、网络请求、界面里都不出现 humanslive', async () =
   expect(vendorState(run.vendors).requests.every(r => !/humanslive/i.test(JSON.stringify(r)))).toBe(true);
   // the shipped code and the files the app wrote
   const shipped = [...filesUnder(path.join(REPO, 'dist')), ...filesUnder(path.join(REPO, 'ui', 'build')), ['remote/config.json', fs.readFileSync(path.join(REPO, 'remote', 'config.json'))] as const];
-  for (const [rel, buf] of shipped) expect.soft(/humanslive/i.test(buf.toString('utf8')), rel).toBe(false);
+  const withoutShop = (text: string) => Object.values(SHOP_URLS).reduce((t, url) => t.split(url).join(''), text);
+  for (const [rel, buf] of shipped) expect.soft(/humanslive/i.test(withoutShop(buf.toString('utf8'))), rel).toBe(false);
   for (const [rel, buf] of filesUnder(run.sandbox, r => r.startsWith('electron-user-data'))) expect.soft(/humanslive/i.test(buf.toString('utf8')), rel).toBe(false);
 });

@@ -4,7 +4,7 @@ import { TID } from '../../ui/testids';
 import { finishOnboarding, nav } from './flows';
 import { launch, seedCodex, seedUserData, type Launched } from './launch';
 
-export type Screen = 'uninstalled' | 'install-failure' | 'models' | 'clones' | 'settings' | 'community' | 'security';
+export type Screen = 'uninstalled' | 'install-failure' | 'models' | 'clones' | 'settings' | 'community' | 'shop' | 'security';
 
 export async function forEachScreen(check: (page: Page, screen: Screen, run: Launched) => Promise<void>, onLaunch?: (run: Launched) => void): Promise<void> {
   const fresh = await launch({ env: { CODEXBUDDY_FAKE_INSTALL: 'fail-once' } });
@@ -33,6 +33,9 @@ export async function forEachScreen(check: (page: Page, screen: Screen, run: Lau
     await nav.community(page);
     await expect(page.getByTestId(TID.community.root)).toBeVisible();
     await check(page, 'community', run);
+    await nav.shop(page);
+    await expect(page.getByTestId(TID.shop.root)).toBeVisible();
+    await check(page, 'shop', run);
     await page.getByTestId(TID.shell.security).click();
     await expect(page.getByTestId(TID.security.root)).toBeVisible();
     await check(page, 'security', run);
