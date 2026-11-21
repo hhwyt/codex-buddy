@@ -19,7 +19,7 @@ import { BRIDGE_FLAG, ensureBridge, macAutostart, noAutostart, registerUpstream,
 import { GH_CANDIDATES, ghStar } from './main/star-verify';
 import { BROWSER_PARTITION, browserHandlers, createRightBrowser, electronViewHost, openLoginWindows } from './main/browser';
 import { debugSwitchesIn, debuggable, removeTestEnvironment } from './main/hardening';
-import { checkInternet, NetworkGate, NETWORK_POLL_MS } from './main/network-gate';
+import { checkInternet, NetworkGate } from './main/network-gate';
 import { aesCipher, loadDataKey } from './main/cipher';
 import { registerIpc, sendEvent } from './main/ipc';
 import type { ConnectionView } from './main/ipc-contract';
@@ -198,15 +198,13 @@ async function main(): Promise<void> {
     () => checkInternet(guardedFetch as typeof fetch, testMode ? endpoints.remoteConfig.map(url => new URL('/network-check', url).href) : undefined),
     state => {
       sendEvent(win, 'network', state);
-      if (state === 'offline') { rb.close(); services.handlers['switch:cancel']?.(); }
       if (state === 'online' && !started) { started = true; void services.startup().catch(() => undefined); }
     },
     () => net.isOnline(),
   );
-  const versionChannels = new Set(['network:check', 'network:offline', 'app:state', 'app:quit', 'wallet:get', 'install:log', 'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'browser:close', 'switch:cancel', 'security:get', 'security:ask-ai', 'security:source', 'restore:plan']);
+  const versionChannels = new Set(['network:check', 'app:state', 'app:quit', 'wallet:get', 'install:log', 'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'browser:close', 'switch:cancel', 'security:get', 'security:ask-ai', 'security:source', 'restore:plan']);
   registerIpc({ ...services.handlers, ...browserHandlers(rb),
     'network:check': async () => ({ ok: await network.check() }),
-    'network:offline': () => network.block(),
     'app:quit': () => app.quit(),
   }, async channel => {
     if (!(await network.allows(channel))) return false;
@@ -231,12 +229,11 @@ async function main(): Promise<void> {
     write();
   }
   const poll = setInterval(() => { if (network.state === 'online') services.pollModel(); }, 2000);
-  const heartbeat = setInterval(() => { if (network.state === 'online') void network.check(); }, NETWORK_POLL_MS);
   const checkVersion = () => { void services.checkVersion().catch(() => undefined); };
   const versionPoll = setInterval(checkVersion, VERSION_CHECK_INTERVAL_MS);
   win.on('focus', checkVersion);
   powerMonitor.on('resume', checkVersion);
-  app.on('before-quit', () => { rb.close(); services.handlers['switch:cancel']?.(); clearInterval(poll); clearInterval(heartbeat); clearInterval(versionPoll); powerMonitor.removeListener('resume', checkVersion); });
+  app.on('before-quit', () => { rb.close(); services.handlers['switch:cancel']?.(); clearInterval(poll); clearInterval(versionPoll); powerMonitor.removeListener('resume', checkVersion); });
 }
 
 /** dist/main/bridge-daemon.js, run in node mode of this same program (inside app.asar when packaged) */

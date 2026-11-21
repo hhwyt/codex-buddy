@@ -741,12 +741,13 @@ describe('security, community, update, restore', () => {
     });
   });
 
-  test('V-02 运行中重新校验，抬高下限即拦截后台操作，断网也拦截，恢复网络再放行', async () => {
+  test('V-02 N-04 运行中重新校验，抬高下限即拦截后台操作；用到一半断网不拦截', async () => {
     const b = build();
     expect(await b.svc.versionAllowed()).toBe(true);
     fetchText = async () => { throw new Error('offline'); };
     clock += 60_000;
-    expect(await b.h['clone:open']({ vendor: 'deepseek' })).toMatchObject({ ok: false, kind: 'version-required' });
+    expect(await b.svc.versionAllowed()).toBe(true);
+    expect(events.filter(e => e.event === 'versionStatus').at(-1)?.payload).toBe('allowed');
     fetchText = async () => JSON.stringify(bundled);
     await b.svc.checkVersion();
     expect(await b.svc.versionAllowed()).toBe(true);

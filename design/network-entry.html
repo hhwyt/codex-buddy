@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>直接进入 · 连不上才弹窗</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#17191d;background:#fff;--line:#e8eaee;--muted:#737982;--blue:#0a77d1;--accent:#0c8df6;--red:#c82f39}
+*{box-sizing:border-box}body{margin:0;padding:30px 38px}
+header,.controls,.frame,.note{max-width:1120px;margin-left:auto;margin-right:auto}
+h1{font-size:24px;letter-spacing:-.6px;margin:0 0 10px}header p,.note{font-size:13px;color:var(--muted);line-height:1.8}
+button,select{font:inherit}
+button{cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 18px;font-size:14px;font-weight:550;color:#25282e}
+button:hover{background:#f6f7f8}button:disabled{opacity:.6;cursor:wait}
+button:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.primary{background:var(--blue);border-color:var(--blue);color:#fff}.primary:hover{background:#0868ba}
+.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:20px auto 16px;color:var(--muted);font-size:13px}
+.controls button{font-size:13px;padding:7px 12px}
+select{padding:7px 9px;background:#fff;border:1px solid var(--line);border-radius:8px;color:#30353d}
+.frame{height:650px;position:relative;border:1px solid #e0e3e8;border-radius:17px;background:#fff;overflow:hidden;box-shadow:0 16px 50px #1522390b}
+.brand{position:absolute;top:25px;left:28px;display:flex;gap:10px;align-items:center;font-weight:650;font-size:16px;z-index:1}
+.brand img{width:27px;height:27px}
+.window{position:absolute;right:22px;top:21px;display:flex;gap:26px;color:#7f8590;font-size:18px;z-index:1}
+.app{padding:105px 55px;display:flex;height:100%;gap:50px}
+.nav{width:120px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.nav button{border:none;padding:8px 0;background:none;color:var(--muted);font-weight:500}
+.nav button[aria-current=true]{color:#17191d;font-weight:650}
+.workspace{flex:1}.workspace h2{font-size:26px;margin:0 0 8px}.workspace .now{font-size:14px;color:var(--muted);margin:0 0 26px}
+.cards{display:flex;flex-direction:column;gap:12px;max-width:440px}
+.card{border:1px solid var(--line);border-radius:15px;padding:18px 20px;display:flex;align-items:center;gap:12px}
+.card img{width:28px;height:28px}.card b{font-size:16px;flex:1}
+.card.active{border-color:var(--accent)}.card .tag{color:var(--blue);font-size:13px}
+.card button{padding:7px 13px;font-size:13px}
+.toast{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);background:#17191d;color:#fff;font-size:13px;padding:9px 15px;border-radius:9px}
+.scrim{position:absolute;inset:0;display:grid;place-items:center;padding:20px;background:#171c2426;z-index:2}
+.dialog{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 60px #18243619;padding:30px;width:440px;max-width:100%}
+.dialog h2{font-size:22px;margin:0 0 12px;letter-spacing:-.5px}.dialog p{font-size:14px;line-height:1.8;color:var(--muted);margin:0}
+.glyph{width:46px;height:46px;border:1px solid var(--line);border-radius:14px;display:grid;place-items:center;color:var(--red);margin-bottom:23px}
+svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:27px}
+.mini-spin{display:inline-block;width:13px;height:13px;border:2px solid #ffffff66;border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;vertical-align:-2px;margin-right:7px}
+.qr{width:150px;height:150px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center;color:var(--muted);font-size:13px;margin:18px auto 0}
+.exit{height:100%;display:grid;place-items:center;text-align:center}.exit h2{font-size:23px;margin:0 0 20px}
+.note{margin-top:16px;min-height:42px}
+[hidden]{display:none!important}@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:750px){body{padding:22px 12px}.app{gap:15px;padding:105px 22px}.nav{width:60px;flex-shrink:0}.dialog{padding:25px}}
+@media(prefers-reduced-motion:reduce){.mini-spin{animation-duration:2s}}
+</style>
+<header><h1>直接进入，连不上才弹窗</h1><p>可点击原型 · 打开就是平常的界面，没有「正在连接」页；只在每次打开时后台检查一次联网和新版本，失败才强制弹出「网络问题」；用到一半断网不弹</p></header>
+<div class="controls">
+  <label>网络 <select id="net"><option value="online">通</option><option value="offline">断</option></select></label>
+  <button id="replay">重新打开 CodexBuddy</button>
+</div>
+<section class="frame" aria-label="CodexBuddy 原型">
+  <div class="brand"><img src="../ui/assets/icon.svg" alt="">CodexBuddy</div>
+  <div class="window" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>
+  <main id="screen" style="height:100%"></main>
+  <div id="layer"></div>
+</section>
+<p class="note" id="note"></p>
+<script>
+const $=id=>document.getElementById(id);
+const ICON='<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23a6 6 0 0 1-1-11 9 9 0 0 1 17-2 7 7 0 0 1 3 13"/><path d="m12 18 8 8m0-8-8 8"/></svg>';
+const VENDORS=[['zhipu','智谱'],['deepseek','DeepSeek'],['kimi','Kimi']];
+let active='deepseek',page='模型',timer,toastTimer,poll;
+const offline=()=>$('net').value==='offline';
+const note=t=>{$('note').textContent=t};
+function app(){
+  const cards=VENDORS.map(([id,name])=>`<div class="card${id===active?' active':''}"><img src="../ui/assets/logos/${id}.png" alt=""><b>${name}</b>${id===active?'<span class="tag">✓ 正在用</span>':`<button data-use="${id}">用这个</button>`}</div>`).join('');
+  const body=page==='模型'?`<h2>模型</h2><p class="now">正在用：${VENDORS.find(v=>v[0]===active)[1]}</p><div class="cards">${cards}</div>`:`<h2>${page}</h2><p class="now">（原型只演示模型页）</p>`;
+  $('screen').innerHTML=`<div class="app" id="app"><nav class="nav">${['模型','设置','社群'].map(n=>`<button data-page="${n}" aria-current="${n===page}">${n}</button>`).join('')}</nav><section class="workspace">${body}</section></div><div id="toast"></div>`;
+  document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{page=b.dataset.page;app()});
+  document.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{if(offline()){toast('连不上网，没切换，原来的配置没动');return;}active=b.dataset.use;app();toast('已切换')});
+}
+function toast(t){clearTimeout(toastTimer);$('toast').innerHTML=`<div class="toast">${t}</div>`;toastTimer=setTimeout(()=>{$('toast').innerHTML=''},1500)}
+function open(){
+  clearTimeout(timer);clearInterval(poll);$('layer').innerHTML='';page='模型';app();
+  note('打开就是平常的模型页，可以直接用。每次打开时在后台检查一次联网和新版本，界面上不显示「正在连接」。用到一半把网络切成「断」：不弹窗，点「用这个」会在那一步说连不上。');
+  timer=setTimeout(()=>{ if(offline()) lock('启动时后台检查没通过：在当前界面上直接弹出「网络问题」，后面的界面点不了。'); },700);
+}
+function lock(why){
+  document.getElementById('app')?.setAttribute('inert','');
+  $('layer').innerHTML=`<div class="scrim"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="nt"><div class="glyph">${ICON}</div><h2 id="nt">网络问题</h2><p>请检查网络后重试。</p><div class="actions"><button data-a="quit">退出</button><button data-a="community">去社群问问</button><button class="primary" data-a="retry">重试</button></div></section></div>`;
+  note(why+' 没有关闭按钮，按 Esc、点背景都关不掉。把上方网络切成「通」，几秒内弹窗自己收起；也可以直接点「重试」。');
+  clearInterval(poll);poll=setInterval(()=>{if(!offline())unlock('网络恢复了：后台每隔几秒自动再查一次，查通了弹窗自己收起，不用点重试。')},3000);
+  const q=s=>$('layer').querySelector(s);
+  q('[data-a=quit]').onclick=()=>{clearTimeout(timer);clearInterval(poll);$('layer').innerHTML='';$('screen').innerHTML='<div class="exit"><div><h2>CodexBuddy 已退出</h2><button class="primary" id="reopen">重新打开</button></div></div>';$('reopen').onclick=open;note('原型模拟退出；正式版会关闭应用。');};
+  q('[data-a=community]').onclick=()=>{const d=q('.dialog');const keep=d.innerHTML;d.innerHTML=`<h2>去社群问问</h2><p>微信扫码进群</p><div class="qr">社群二维码</div><div class="actions"><button data-a="back">返回</button></div>`;d.querySelector('[data-a=back]').onclick=()=>lock(why);};
+  q('[data-a=retry]').onclick=e=>{const b=e.currentTarget;b.disabled=true;b.innerHTML='<span class="mini-spin"></span>重试';
+    timer=setTimeout(()=>{ if(!offline()){ unlock('连上了：弹窗收起，回到刚才的界面，原来在哪一页还在哪一页。'); } else { b.disabled=false;b.textContent='重试';note('还是不通：弹窗留着，按钮恢复，可以再点。'); } },900);};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')e.preventDefault()},{once:true});
+}
+function unlock(why){clearInterval(poll);$('layer').innerHTML='';document.getElementById('app')?.removeAttribute('inert');note(why);}
+$('replay').onclick=open;
+open();
+</script>
+</html>

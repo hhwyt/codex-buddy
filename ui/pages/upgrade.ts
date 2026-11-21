@@ -7,13 +7,12 @@ import { showCommunityOverlay } from './community.js';
 export function showUpgrade(api: BuddyApi, root: HTMLElement, info: UpgradeRequiredView | null,
   opts: { os: 'mac' | 'win'; current: string; qr: string; status?: VersionStatus }): HTMLElement {
   const scrim = h('div', { class: 'scrim version-gate', 'data-testid': TID.upgrade.root });
-  const title = h('h2', {}, info ? '升级后继续使用' : opts.status === 'offline' ? '网络问题' : '正在校验版本');
-  const message = h('p', {}, info ? `请升级到 ${info.version}` : opts.status === 'offline' ? '请检查网络后重试。' : '');
+  const title = h('h2', {}, info ? '升级后继续使用' : '网络问题');
+  const message = h('p', {}, info ? `请升级到 ${info.version}` : '请检查网络后重试。');
   const progress = h('progress', { max: 100, value: 0, 'aria-label': '下载进度', 'data-testid': TID.upgrade.progress });
   progress.hidden = true;
   const quit = h('button', { class: 'btn', type: 'button', onclick: () => void api.invoke('app:quit') }, '退出 CodexBuddy');
   const now = h('button', { class: 'btn primary', type: 'button', 'data-testid': TID.upgrade.download }, info ? '立即升级' : '重试');
-  now.hidden = !info && opts.status !== 'offline';
   const community = h('button', { class: 'btn', type: 'button', 'data-testid': TID.upgrade.community }, '去社群问问');
   const actions = h('div', { class: 'row' }, quit, now);
   let communityAdded = false;

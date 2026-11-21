@@ -6,7 +6,6 @@ export const NETWORK_PROBE_URLS = [
   'https://open.bigmodel.cn/',
 ];
 export const NETWORK_TIMEOUT_MS = 5000;
-export const NETWORK_POLL_MS = 15_000;
 
 /** A new HTTPS response is required. No persisted state, browser cache or OS online flag can grant access. */
 export async function checkInternet(doFetch: typeof fetch, urls = NETWORK_PROBE_URLS): Promise<boolean> {
@@ -23,13 +22,15 @@ export async function checkInternet(doFetch: typeof fetch, urls = NETWORK_PROBE_
   } finally { clearTimeout(timeout); controller.abort(); }
 }
 
-const UNBLOCKED = new Set<Channel>(['network:check', 'network:offline', 'app:quit', 'browser:close', 'switch:cancel']);
+const UNBLOCKED = new Set<Channel>(['network:check', 'app:quit', 'browser:close', 'switch:cancel']);
 const READ_ONLY = new Set<Channel>(NETWORK_READ_CHANNELS);
 
+/** The check made each time CodexBuddy opens (N-01..N-04). Until it passes, actions wait for it or are refused; reads
+ * always go through (the window shows the usual page from the start). Once it has passed, losing the network later in
+ * the session never locks anything: each operation that needs the network reports its own failure. */
 export class NetworkGate {
   private current: NetworkState = 'checking';
   private pending: Promise<boolean> | null = null;
-  private generation = 0;
 
   constructor(
     private readonly verify: () => Promise<boolean>,
@@ -39,17 +40,10 @@ export class NetworkGate {
 
   get state(): NetworkState { return this.current; }
 
-  block(): void {
-    this.generation++;
-    this.pending = null;
-    this.setState('offline');
-  }
-
   check(): Promise<boolean> {
+    if (this.current === 'online') return Promise.resolve(true);
     if (this.pending) return this.pending;
-    const generation = this.generation;
     const pending = Promise.resolve().then(async () => this.systemOnline() && await this.verify()).catch(() => false).then(ok => {
-      if (generation !== this.generation) return false;
       this.setState(ok ? 'online' : 'offline');
       return ok;
     }).finally(() => { if (this.pending === pending) this.pending = null; });
@@ -58,11 +52,9 @@ export class NetworkGate {
   }
 
   async allows(channel: Channel): Promise<boolean> {
-    if (UNBLOCKED.has(channel)) return true;
-    if (this.current !== 'online') return false;
-    if (!this.systemOnline()) { this.block(); return false; }
-    // Reads use the active session; actions must pass another live probe before doing any work.
-    return READ_ONLY.has(channel) || this.check();
+    if (UNBLOCKED.has(channel) || READ_ONLY.has(channel) || this.current === 'online') return true;
+    // An action clicked before the opening check finished waits for it
+    return this.current === 'checking' && this.check();
   }
 
   private setState(state: NetworkState): void {

@@ -57,7 +57,6 @@ export type NetworkState = 'checking' | 'online' | 'offline';
 /** invoke channels: name → [args, result] */
 export interface IpcChannels {
   'network:check': [void, Outcome];
-  'network:offline': [void, void];
   'app:quit': [void, void];
   'app:state': [void, AppStateView];
   'install:run': [void, Outcome];                                   // O-01..O-03, O-07, O-08
@@ -131,7 +130,7 @@ export interface BuddyApi {
 
 /** Every channel name, for preload's allowlist and the contract test */
 export const CHANNELS: Channel[] = [
-  'network:check', 'network:offline', 'app:quit',
+  'network:check', 'app:quit',
   'app:state', 'install:run', 'install:log', 'wallet:get', 'wallet:reorder', 'wallet:mode', 'switch:start', 'switch:cancel',
   'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall',
   'clone:make', 'clone:open', 'clone:remove', 'zh:set', 'zh:remove', 'browser:show', 'browser:close', 'browser:back',

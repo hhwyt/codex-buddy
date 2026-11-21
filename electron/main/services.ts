@@ -160,7 +160,8 @@ export function createServices(d: ServiceDeps) {
       const cardsBefore = JSON.stringify([remote.models, remote.switches]);
       remote = r.config;
       online = r.source !== 'cache' && r.source !== 'bundled';
-      versionStatus = online ? 'allowed' : 'offline';
+      // N-04: once a fresh signed config has allowed this version, losing the network later does not lock the app
+      if (online || versionStatus !== 'allowed') versionStatus = online ? 'allowed' : 'offline';
       lastVersionCheck = d.now();
       if (online) {
         const next = raiseFloor(floor(), r.config.minVersion);
@@ -169,7 +170,7 @@ export function createServices(d: ServiceDeps) {
         save();
       }
       const u = upgradeRequired();
-      if (!online || u) { switchAbort?.abort(); d.browser.close(); }
+      if (versionStatus !== 'allowed' || u) { switchAbort?.abort(); d.browser.close(); }
       if (JSON.stringify(u) !== lastUpgradeSent) { lastUpgradeSent = JSON.stringify(u); d.emit('upgradeRequired', u); }
       d.emit('versionStatus', versionStatus);
       // the page may already show cards from the cached copy (REMOTE_GRACE_MS): redraw them when models or switches moved

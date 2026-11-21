@@ -114,7 +114,8 @@ async function createConnectedApp(root: HTMLElement, api: BuddyApi): Promise<App
     route: () => current,
   };
   const synchronizeGate = () => {
-    const key = required ? `required:${required.version}` : versionStatus && versionStatus !== 'allowed' ? versionStatus : '';
+    // N-01: no waiting screen while the version is still being checked; only a required upgrade or no network locks
+    const key = required ? `required:${required.version}` : versionStatus === 'offline' ? versionStatus : '';
     blocked = !!key;
     if (blocked) closeInstall?.();
     shell.inert = blocked;

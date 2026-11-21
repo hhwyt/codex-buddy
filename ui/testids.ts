@@ -120,7 +120,6 @@ export const TID = {
   // shared components
   network: {
     root: 'network-root',
-    loading: 'network-loading',
     error: 'network-error',
     retry: 'network-retry',
     community: 'network-community', // 去社群问问

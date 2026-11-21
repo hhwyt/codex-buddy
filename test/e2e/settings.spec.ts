@@ -208,8 +208,9 @@ test('T-02 检查更新：有新版本、已是最新、断网三种情况', asy
   run.config.setMode('jsdelivr', 'down');
   run.config.setMode('github', 'down');
   await run.page.getByTestId(TID.settings.checkUpdate).click();
-  const toast = run.page.getByTestId(TID.toast);
-  await expect(run.page.getByTestId(TID.upgrade.root)).toContainText('网络问题');
+  // N-04: losing the network after the opening check only says so here; nothing locks
+  await expect(run.page.getByTestId(TID.toast)).toContainText('连不上网，稍后再试');
+  await expect(run.page.getByTestId(TID.upgrade.root)).toHaveCount(0);
 });
 
 test('T-03 一键还原先列出会做的事，先不了就什么都不做', async () => {
