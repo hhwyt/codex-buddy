@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { backup, restoreBackup } from '../core/backup';
 import { CATALOG_FILE, modelsFor } from '../core/catalogs';
 import { guardedRemove, guardedRemoveOwn } from '../core/guard';
+import { buildFromDelta, downloadResumable, parseBlockmap, planDelta } from '../core/delta';
 import { PROVIDERS, isBuiltin } from '../core/providers';
 import { hide, keyTail } from '../core/redact';
 import { loadRemote, isHidden, type Fetcher } from '../core/remote';
@@ -76,6 +77,8 @@ export interface ServiceDeps {
   fetchText: Fetcher;
   /** Fetches bytes (community QR code, inlined as a data: URL because of the page's CSP) */
   fetchBytes(url: string, onProgress?: (received: number, total: number) => void): Promise<{ type: string; data: Uint8Array }>;
+  /** Inclusive byte range of a release asset; total from Content-Range (F-06, F-07) */
+  fetchRange(url: string, start: number, end: number): Promise<{ data: Uint8Array; total: number }>;
   remoteUrls: string[];
   bundledRemote: RemoteConfig;
   /** Ed25519 public key (PEM) a fetched remote config must be signed with (core/remote-key.ts) */
@@ -501,24 +504,63 @@ export function createServices(d: ServiceDeps) {
     if (cached && digest(cached) === expected) return file;
     if (cached) guardedRemove(fs, file, roots());
     emit({ id: 'download', state: 'start', text: '0%' });
-    try {
-      let previous = -1;
-      const { data } = await d.fetchBytes(url, (received, total) => {
-        const percent = total > 0 ? Math.min(100, Math.floor(received / total * 100)) : 0;
-        if (percent === previous) return;
-        previous = percent;
-        const mb = (n: number) => (n / 1048576).toFixed(1);
-        emit({ id: 'download', state: 'start', text: `${percent}% · ${mb(received)}${total > 0 ? ' / ' + mb(total) : ''} MB` });
-      });
-      if (digest(data) !== expected) throw new UpgradeFailure('下载的更新包不完整，请再试一次。');
+    let previous = -1;
+    const progress = (received: number, total: number) => {
+      const percent = total > 0 ? Math.min(100, Math.floor(received / total * 100)) : 0;
+      if (percent === previous) return;
+      previous = percent;
+      const mb = (n: number) => (n / 1048576).toFixed(1);
+      emit({ id: 'download', state: 'start', text: `${percent}% · ${mb(received)}${total > 0 ? ' / ' + mb(total) : ''} MB` });
+    };
+    const range = (start: number, end: number) => d.fetchRange(url, start, end);
+    const base = installerPath(d.version);
+    const done = (data: Uint8Array) => {
       fs.mkdirp(path.dirname(file));
       fs.writeBytes(file, data);
       emit({ id: 'download', state: 'done', text: '100%' });
+      // Keep only this installer and the running version's own (the base of the next delta)
+      const dir = path.dirname(file);
+      for (const name of fs.list(dir)) {
+        const other = path.join(dir, name);
+        if (/^CodexBuddy-.*\.(exe|dmg|part)$/.test(name) && other !== file && other !== base) guardedRemove(fs, other, roots());
+      }
       return file;
-    } catch (error) {
-      emit({ id: 'download', state: 'fail', text: '更新包下载或校验失败' });
-      throw error instanceof UpgradeFailure ? error : new UpgradeFailure('更新包没下载下来，请检查网络后重试。');
+    };
+    // F-06: rebuild from the running version's installer plus the changed blocks only
+    const old = d.version !== version ? fs.readBytes(base) : null;
+    if (old) {
+      try {
+        const asset = d.os === 'mac' ? `CodexBuddy-${d.version}.dmg` : `CodexBuddy-Setup-${d.version}.exe`;
+        const oldMap = `https://github.com/hhwyt/codex-buddy-releases/releases/download/v${d.version}/${asset}.blockmap`;
+        const [a, b] = await Promise.all([d.fetchBytes(oldMap, () => undefined), d.fetchBytes(`${url}.blockmap`, () => undefined)]);
+        const data = await buildFromDelta(old, planDelta(parseBlockmap(a.data), parseBlockmap(b.data)), range, progress);
+        if (digest(data) === expected) { log(`upgrade delta ${version}: ok`); return done(data); }
+        log(`upgrade delta ${version}: checksum mismatch`);
+      } catch (error) { log(`upgrade delta ${version} failed: ${error instanceof Error ? error.message : String(error)}`); }
+      previous = -1;
     }
+    // F-07: whole installer in ranges, kept in .part so 重试 continues where it stopped
+    const part = `${file}.part`;
+    try {
+      await downloadResumable({
+        fetchRange: range, partPath: part, onProgress: progress,
+        size: p => fs.readBytes(p)?.length ?? null,
+        append: (p, data) => {
+          if (fs.appendBytes) fs.appendBytes(p, data);
+          else fs.writeBytes(p, new Uint8Array(Buffer.concat([fs.readBytes(p) ?? new Uint8Array(), data])));
+        },
+      });
+    } catch {
+      emit({ id: 'download', state: 'fail', text: '更新包下载或校验失败' });
+      throw new UpgradeFailure('更新包没下载下来，请检查网络后重试。');
+    }
+    const data = fs.readBytes(part) ?? new Uint8Array();
+    guardedRemove(fs, part, roots());
+    if (digest(data) !== expected) {
+      emit({ id: 'download', state: 'fail', text: '更新包下载或校验失败' });
+      throw new UpgradeFailure('下载的更新包不完整，请再试一次。');
+    }
+    return done(data);
   };
 
   // ---------- handlers ----------

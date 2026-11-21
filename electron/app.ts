@@ -155,6 +155,7 @@ async function main(): Promise<void> {
   const toView = (r: { host: string; allowed: boolean; at: number }): ConnectionView => ({ host: r.host, allowed: r.allowed, at: r.at });
   const connectionViews = () => { const c = connections(); return { app: c.app.map(toView), web: c.web.map(toView) }; };
 
+  const assetUrls = new Map<string, string>();
   const services = createServices({
     platform, clone, zh, providers, vendors, browser: rb, cipher,
     bridge: {
@@ -168,6 +169,16 @@ async function main(): Promise<void> {
       const r = await guardedFetch(address.toString(), { signal: AbortSignal.timeout(timeoutMs), headers: { 'Cache-Control': 'no-cache' } });
       if (!r.ok) throw new Error(String(r.status));
       return r.text();
+    },
+    fetchRange: async (url, start, end) => {
+      // F-06, F-07: one range of a release installer; the GitHub API address is resolved once per installer
+      let resolved = assetUrls.get(url);
+      if (!resolved) { resolved = sandbox ? url : await githubInstallerUrl(url); assetUrls.set(url, resolved); }
+      const r = await guardedFetch(resolved, { signal: AbortSignal.timeout(120_000), headers: { Accept: 'application/octet-stream', Range: `bytes=${start}-${end}` } });
+      if (r.status !== 206) throw new Error(String(r.status));
+      const total = Number(/\/(\d+)$/.exec(r.headers.get('content-range') ?? '')?.[1]);
+      if (!Number.isSafeInteger(total) || total <= 0) throw new Error('No Content-Range');
+      return { data: new Uint8Array(await r.arrayBuffer()), total };
     },
     fetchBytes: async (url, onProgress) => {
       // With progress it is an app download (forced upgrade, ~90 MB): allow a slow line half an hour

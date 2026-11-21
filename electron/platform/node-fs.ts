@@ -8,6 +8,7 @@ export const nodeFs: FileSystem = {
   writeText: (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); fs.writeFileSync(file, text, { encoding: 'utf8', mode: 0o600 }); },
   readBytes: file => (fs.existsSync(file) ? new Uint8Array(fs.readFileSync(file)) : null),
   writeBytes: (file, data) => { fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); fs.writeFileSync(file, data, { mode: 0o600 }); },
+  appendBytes: (file, data) => { fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); fs.appendFileSync(file, data, { mode: 0o600 }); },
   exists: file => fs.existsSync(file),
   mkdirp: dir => { fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); },
   copy: (from, to) => { fs.mkdirSync(path.dirname(to), { recursive: true, mode: 0o700 }); fs.cpSync(from, to, { recursive: true }); },

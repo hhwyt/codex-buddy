@@ -94,7 +94,9 @@ export function publishRelease(root, directory = path.join(root, 'release'), { f
     // Release assets are immutable after publication: reruns publish only matching, already-uploaded installers.
     let release;
     try { release = JSON.parse(gh(['release', 'view', tag, '--repo', DISTRIBUTION_REPO, '--json', 'isDraft,assets'])); } catch { /* first publication */ }
-    const installers = [path.join(directory, `CodexBuddy-Setup-${version}.exe`), path.join(directory, `CodexBuddy-${version}.dmg`)];
+    const exe = path.join(directory, `CodexBuddy-Setup-${version}.exe`);
+    const dmg = path.join(directory, `CodexBuddy-${version}.dmg`);
+    const installers = [exe, dmg, `${exe}.blockmap`, `${dmg}.blockmap`];
     if (!release) {
       // Initialize the repository before creating its first release tag.
       try { api(`repos/${DISTRIBUTION_REPO}/git/ref/heads/main`); } catch {

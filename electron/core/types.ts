@@ -69,6 +69,8 @@ export interface FileSystem {
   writeText(file: string, text: string): void;
   readBytes(file: string): Uint8Array | null;
   writeBytes(file: string, data: Uint8Array): void;
+  /** Appends to a file, creating it (resumable downloads, F-07). Optional: without it the caller rewrites the file */
+  appendBytes?(file: string, data: Uint8Array): void;
   exists(file: string): boolean;
   mkdirp(dir: string): void;
   copy(from: string, to: string): void;

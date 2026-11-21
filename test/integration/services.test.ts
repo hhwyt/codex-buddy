@@ -103,6 +103,7 @@ function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | '
     cipher: aesCipher(opts.key ?? new Uint8Array(32).fill(7)),
     // The fake answers config.json; its .sig is signed with the test key, like the real release script does
     fetchText: url => (url.endsWith('.sig') ? (forgedSig !== null ? Promise.resolve(forgedSig) : fetchText(url.slice(0, -4)).then(testSign)) : fetchText(url)), fetchBytes: (url, onProgress) => fetchBytes(url, onProgress),
+    fetchRange: async (url, start, end) => { const { data } = await fetchBytes(url, () => undefined); return { data: data.subarray(start, Math.min(end + 1, data.length)), total: data.length }; },
     remotePublicKey: TEST_PUBLIC_KEY,
     remoteUrls: opts.remoteUrls ?? ['https://cdn.jsdelivr.net/gh/x/y@main/remote/config.json', 'https://raw.githubusercontent.com/x/y/main/remote/config.json'],
     bundledRemote: bundled, version: '0.1.0', os: opts.os ?? 'mac',
