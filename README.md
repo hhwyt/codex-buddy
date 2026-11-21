@@ -7,6 +7,7 @@
 - **One-click install**: downloads the official Codex app and sets it up, no command line.
 - **Many models**: your official OpenAI account, DeepSeek, Zhipu (free), Kimi, Qwen, MiniMax, Hunyuan, or any provider you add by hand.
 - **One-click switching**: move Codex between any of these models in a click; keys are created and tested for you.
+- **Built-in browser on the right**: sign in, scan the WeChat code and top up on each provider's official page without leaving the app.
 - **Clones (分身)**: turn a model into its own app with its own icon and chat history, running next to the original.
 - **Chinese interface (汉化)**: switch Codex between English and Chinese without reinstalling.
 - **One-click restore**: put everything back the way it was.
