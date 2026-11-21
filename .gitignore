@@ -11,3 +11,6 @@ playwright-report/
 *.pem
 *.key
 remote-config-ed25519*
+
+# Working notes, logs and real-machine screenshots from development: kept locally, never committed
+.ai/
