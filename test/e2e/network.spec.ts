@@ -67,7 +67,7 @@ test('N-02 网络问题弹窗有去社群问问，社群页盖住 App，返回�
   const full = run.page.getByTestId(TID.community.full);
   await expect(full).toBeVisible();
   await expect(run.page.getByTestId(TID.community.back)).toHaveText('← 返回');
-  await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', /community-qr\.png$/);
+  await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', /wechat-qr\.png$/);
   // 社群页开着，后台功能接口仍然被拒绝，不能借社群页绕过网络检查
   const blocked = await run.page.evaluate(() => (window as unknown as { buddy: { invoke(c: string, a?: unknown): Promise<unknown> } }).buddy.invoke('install:run'));
   expect(blocked).toEqual({ ok: false, kind: 'network', reason: '网络问题' });

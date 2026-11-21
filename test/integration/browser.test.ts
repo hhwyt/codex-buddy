@@ -69,7 +69,7 @@ vi.mock('electron', async () => {
 });
 
 import { BrowserWindow } from 'electron';
-import { SHOP_URLS,
+import { SHOP_URLS, pageUrlAllowed,
   BROWSER_PARTITION, BrowserClosed, browserHandlers, createRightBrowser, electronViewHost, keepOnScreen, openLoginWindows,
   MIN_PAGE_WIDTH, pageZoom, SLIDE_MS, viewBounds, widenBy, type BrowserState, type RightBrowser,
 } from '../../electron/main/browser';
@@ -201,6 +201,16 @@ describe('right-side browser', () => {
     const h = browserHandlers(rb);
     h['browser:show']({ mode: 'expanded' });
     expect(rb.state().mode).toBe('expanded');
+  });
+
+  test('B-07 右侧浏览器只认 https；本机 http 只在测试沙盒里放行', () => {
+    expect(pageUrlAllowed('https://open.bigmodel.cn/login')).toBe(true);
+    expect(pageUrlAllowed('http://127.0.0.1:5173/login')).toBe(false);
+    expect(pageUrlAllowed('http://127.0.0.1:5173/login', true)).toBe(true);
+    expect(pageUrlAllowed('http://localhost/x', true)).toBe(true);
+    expect(pageUrlAllowed('http://evil.example/', true)).toBe(false);
+    expect(pageUrlAllowed('file:///etc/passwd', true)).toBe(false);
+    expect(pageUrlAllowed('javascript:alert(1)', true)).toBe(false);
   });
 
   test('P-02 P-03 商城只打开两个固定的商城页，放大显示；别的名字什么都不开', async () => {

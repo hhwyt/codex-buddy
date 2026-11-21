@@ -26,6 +26,13 @@ export const WEBRTC_POLICY = 'disable_non_proxied_udp';
 export const isHttpsUrl = (url: string): boolean => {
   try { return new URL(url).protocol === 'https:'; } catch { return false; }
 };
+/** Test runs only (sandbox + fake vendor servers on http://127.0.0.1): those pages may navigate too. Release builds
+ *  never pass loopbackHttp, so they stay https only. */
+export const pageUrlAllowed = (url: string, loopbackHttp = false): boolean => {
+  if (isHttpsUrl(url)) return true;
+  if (!loopbackHttp) return false;
+  try { const u = new URL(url); return u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost'); } catch { return false; }
+};
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 /** Official login pages hide the WeChat QR code under ~800px (智谱, MiniMax, measured 2026-11-13): the page always lays out
  *  at least this wide and is zoomed down to fit the view, so the QR code is there in PiP and expanded alike */
@@ -246,7 +253,7 @@ export function createRightBrowser(makeHost: () => ViewHost, onState: (s: Browse
 }
 
 /** The real view: a WebContentsView on its own partition (B-07), responses read through the DevTools protocol */
-export function electronViewHost(win: BrowserWindow): ViewHost {
+export function electronViewHost(win: BrowserWindow, opts: { loopbackHttp?: boolean } = {}): ViewHost {
   const view = new WebContentsView({
     webPreferences: { partition: BROWSER_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
@@ -257,9 +264,9 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   wc.setWebRTCIPHandlingPolicy(WEBRTC_POLICY);
   // Official pages that open a popup (OAuth, QR) stay in the same view
   // Official pages that open a popup (OAuth, QR) stay in the same view, but only over https: anything else is refused
-  wc.setWindowOpenHandler(({ url }) => { if (isHttpsUrl(url)) void wc.loadURL(url).catch(() => undefined); return { action: 'deny' }; });
+  wc.setWindowOpenHandler(({ url }) => { if (pageUrlAllowed(url, opts.loopbackHttp)) void wc.loadURL(url).catch(() => undefined); return { action: 'deny' }; });
   // A page navigating the view itself may only go to https too (file:, http:, custom schemes are refused)
-  wc.on('will-navigate', (event, url) => { if (!isHttpsUrl(url)) event.preventDefault(); });
+  wc.on('will-navigate', (event, url) => { if (!pageUrlAllowed(url, opts.loopbackHttp)) event.preventDefault(); });
   const navCbs: ((url: string) => void)[] = [];
   const respCbs: ((url: string, body: () => Promise<string>) => void)[] = [];
   const resizeCbs: (() => void)[] = [];

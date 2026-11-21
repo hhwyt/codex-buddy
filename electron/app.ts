@@ -151,7 +151,7 @@ async function main(): Promise<void> {
   const bundled = validateRemote(platform.fs.readText(path.join(__dirname, '..', 'remote', 'config.json')) ?? '');
   if (!bundled) throw new Error('remote/config.json is broken');
 
-  const rb = createRightBrowser(() => electronViewHost(win!), s => sendEvent(win, 'browser', s));
+  const rb = createRightBrowser(() => electronViewHost(win!, { loopbackHttp: testMode }), s => sendEvent(win, 'browser', s));
   const toView = (r: { host: string; allowed: boolean; at: number }): ConnectionView => ({ host: r.host, allowed: r.allowed, at: r.at });
   const connectionViews = () => { const c = connections(); return { app: c.app.map(toView), web: c.web.map(toView) }; };
 

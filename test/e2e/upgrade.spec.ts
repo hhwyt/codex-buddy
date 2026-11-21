@@ -80,7 +80,7 @@ test('V-01 断网阻止界面和后台操作，联网重试后恢复使用', asy
   await community.click();
   const full = run.page.getByTestId(TID.community.full);
   await expect(full).toBeVisible();
-  await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', /community-qr\.png$/);
+  await expect(run.page.getByTestId(TID.community.qr)).toHaveAttribute('src', /wechat-qr\.png$/);
   const blocked = await run.page.evaluate(() => (window as any).buddy.invoke('codex:open', {}));
   expect(blocked.ok).toBe(false);
   await run.page.getByTestId(TID.community.back).click();
