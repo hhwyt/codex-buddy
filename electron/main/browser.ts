@@ -21,6 +21,11 @@ export const SLIDE_MS = 450;
 export const PIP = { width: 318, height: 208, margin: 17, bar: 31 };
 
 export const WEBRTC_POLICY = 'disable_non_proxied_udp';
+
+/** Only https: URLs may be loaded or opened by the right-side browser (popups and navigations alike) */
+export const isHttpsUrl = (url: string): boolean => {
+  try { return new URL(url).protocol === 'https:'; } catch { return false; }
+};
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 /** Official login pages hide the WeChat QR code under ~800px (智谱, MiniMax, measured 2026-11-13): the page always lays out
  *  at least this wide and is zoomed down to fit the view, so the QR code is there in PiP and expanded alike */
@@ -230,7 +235,10 @@ export function electronViewHost(win: BrowserWindow): ViewHost {
   // IPs leak): only proxied UDP, i.e. none
   wc.setWebRTCIPHandlingPolicy(WEBRTC_POLICY);
   // Official pages that open a popup (OAuth, QR) stay in the same view
-  wc.setWindowOpenHandler(({ url }) => { void wc.loadURL(url).catch(() => undefined); return { action: 'deny' }; });
+  // Official pages that open a popup (OAuth, QR) stay in the same view, but only over https: anything else is refused
+  wc.setWindowOpenHandler(({ url }) => { if (isHttpsUrl(url)) void wc.loadURL(url).catch(() => undefined); return { action: 'deny' }; });
+  // A page navigating the view itself may only go to https too (file:, http:, custom schemes are refused)
+  wc.on('will-navigate', (event, url) => { if (!isHttpsUrl(url)) event.preventDefault(); });
   const navCbs: ((url: string) => void)[] = [];
   const respCbs: ((url: string, body: () => Promise<string>) => void)[] = [];
   const resizeCbs: (() => void)[] = [];

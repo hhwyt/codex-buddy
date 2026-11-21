@@ -389,6 +389,28 @@ describe('electron view host', () => {
     b.close();
   });
 
+  test('S-05 右侧浏览器只放行 https：弹窗里的 file:、javascript: 被拒，网页自己跳非 https 也被拦', () => {
+    const w = win();
+    electronViewHost(w);
+    const wc = fx.views[0].webContents;
+    // https 弹窗留在同一个视图里
+    expect(wc.openHandler({ url: 'https://a.example/qr' })).toEqual({ action: 'deny' });
+    expect(wc.url).toBe('https://a.example/qr');
+    // file: 和 javascript: 一律拒绝，不加载
+    wc.url = '';
+    expect(wc.openHandler({ url: 'file:///etc/passwd' })).toEqual({ action: 'deny' });
+    expect(wc.url).toBe('');
+    expect(wc.openHandler({ url: 'javascript:alert(1)' })).toEqual({ action: 'deny' });
+    expect(wc.url).toBe('');
+    // 网页把视图导航到非 https 时被拦下
+    const blocked = { prevented: false, preventDefault() { this.prevented = true; } };
+    wc.emit('will-navigate', blocked, 'http://x.example/');
+    expect(blocked.prevented).toBe(true);
+    const allowed = { prevented: false, preventDefault() { this.prevented = true; } };
+    wc.emit('will-navigate', allowed, 'https://x.example/');
+    expect(allowed.prevented).toBe(false);
+  });
+
   test('M-08 调试通道被占用时不崩，退到粘贴', () => {
     fx.attachThrows = true;
     const h = electronViewHost(win());

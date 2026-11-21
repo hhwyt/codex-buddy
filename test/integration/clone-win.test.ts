@@ -130,9 +130,10 @@ describe('分身 Windows', () => {
   test('L-07 分身跟着汉化开关走：汉化时启动器用 CodexBuddy 跑汉化程序，关了汉化直接打开', async () => {
     const clone = make();
     const info = await clone.make(spec({ zh: true }));
-    const q = (s: string) => `""${s}""`;
-    expect(readVbs(info.appPath)).toContain(`sh.Run "${q(nodeRunner)} ${q(path.join(info.appPath, 'zh-runner.js'))} ${q(path.join(info.appPath, 'zh.json'))}", 0, False`);
-    expect(readVbs(info.appPath)).toContain('env("ELECTRON_RUN_AS_NODE") = "1"');
+    const q = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const runner = `"${nodeRunner}" --run-script "${path.join(info.appPath, 'zh-runner.js')}" "${path.join(info.appPath, 'zh.json')}"`;
+    expect(readVbs(info.appPath)).toContain(`sh.Run ${q(runner)}, 0, False`);
+    expect(readVbs(info.appPath)).not.toContain('ELECTRON_RUN_AS_NODE');
     await clone.setZh(false);
     expect(readVbs(info.appPath)).not.toContain('zh-runner.js');
     shortcuts.clear();
@@ -154,7 +155,7 @@ describe('分身 Windows', () => {
     const opened = await waitFor(() => readRecord(record)[0]);
     expect(opened.codexHome).toBe(info.codexHome);
     expect(opened.args[0]).toBe(config.args[0]);
-    const port = Number(opened.args[1].replace('--remote-debugging-port=', ''));
+    const port = Number(opened.args.find(a => a.startsWith('--remote-debugging-port='))!.replace('--remote-debugging-port=', ''));
     const server = cdpServer(port, (msg, send, close) => {
       if (msg.method === 'Target.setAutoAttach') send({ method: 'Target.attachedToTarget', params: { sessionId: 'S1', targetInfo: { type: 'page', url: 'app://-/index.html' }, waitingForDebugger: true } });
       if (msg.method === 'Runtime.runIfWaitingForDebugger') setTimeout(close, 100);

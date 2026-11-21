@@ -1,6 +1,6 @@
 // 汉化版 launcher on Mac. Owner: A10 (was A6).
 // Adds <appsDir>/ChatGPT 汉化版.app: a tiny app (ChatGPT icon + 「中」 badge). Its executable is a shell script that runs
-// Resources/zh-runner.js with CodexBuddy's own Electron in node mode (ELECTRON_RUN_AS_NODE). The runner opens ChatGPT.app
+// Resources/zh-runner.js with CodexBuddy's own Electron via `--run-script` (the runAsNode fuse stays off). The runner opens ChatGPT.app
 // with --remote-debugging-port=<random free port> (Electron binds it to 127.0.0.1 only), attaches over the DevTools
 // protocol and turns OpenAI's enable_i18n switch on in every Codex page (the same patch codex.ps1's Windows launcher
 // uses), then stays alive while Codex runs. Whatever fails, Codex still opens in English (L-06).
@@ -23,7 +23,7 @@ export const realExec: Exec = (cmd, args) => new Promise(resolve => {
 
 export interface MacZhDeps {
   exec: Exec;
-  /** The program that runs zh-runner.js in node mode: CodexBuddy's own Electron (process.execPath) */
+  /** The program that runs zh-runner.js: CodexBuddy's own Electron (process.execPath), invoked with --run-script */
   nodeRunner: string;
 }
 
@@ -88,7 +88,7 @@ export function launcherScript(nodeRunner: string, plain: { cmd: string; args: s
 # When anything goes wrong it still opens ChatGPT, in English.
 RES="$(cd "$(dirname "$0")/../Resources" && pwd)"
 if [ -x ${sh(nodeRunner)} ]; then
-  ELECTRON_RUN_AS_NODE=1 ${sh(nodeRunner)} "$RES/zh-runner.js" "$RES/zh.json" && exit 0
+  ${sh(nodeRunner)} --run-script "$RES/zh-runner.js" "$RES/zh.json" && exit 0
 fi
 exec ${[plain.cmd, ...plain.args].map(sh).join(' ')}
 `;
@@ -289,7 +289,7 @@ async function main() {
   }
   const port = await freePort();
   // --lang: Codex follows the system language once the switch is on; an English Windows or macOS would stay English
-  start(['--remote-debugging-port=' + port, '--lang=zh-CN']);
+  start(['--remote-debugging-address=127.0.0.1', '--remote-debugging-port=' + port, '--lang=zh-CN']);
   let wsUrl = null;
   const deadline = Date.now() + (config.waitMs || 30000);
   while (!wsUrl && Date.now() < deadline) {

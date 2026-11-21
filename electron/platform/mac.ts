@@ -32,6 +32,13 @@ export function macPaths(home = os.homedir()): Paths {
 
 export const MAC_CODEX_APP = '/Applications/ChatGPT.app';
 export const MAC_CODEX_BUNDLE_ID = 'com.openai.codex';
+/** OpenAI's Developer ID TeamIdentifier for the official ChatGPT/Codex app. Measured on the build machine (2026-11-20):
+ *  /usr/bin/codesign -dv --verbose=2 /Applications/ChatGPT.app 2>&1 | grep TeamIdentifier
+ *  => TeamIdentifier=2DC432GLL2
+ */
+export const OPENAI_TEAM_ID = '2DC432GLL2';
+/** Shown on the install progress when the downloaded Codex app is not signed by OpenAI */
+export const SIGNATURE_MISMATCH_REASON = '下载的 Codex 签名不对，没有安装';
 /** Official Codex dmg (overridable: CODEXBUDDY_ENDPOINTS {"codexDownload": "..."} or deps.downloadUrl) */
 export const MAC_CODEX_DMG_URL = 'https://persistent.oaistatic.com/codex-app-prod/Codex.dmg';
 export const macCli = (app: string) => path.join(app, 'Contents', 'Resources', 'codex-cli', 'CodexCLI.app', 'Contents', 'MacOS', 'codex');
@@ -46,8 +53,9 @@ export const macRunningPattern = (app: string) => `${app}/Contents/MacOS/`.repla
 export type Exec = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
 
 export const realExec: Exec = (cmd, args) => new Promise(resolve => {
-  execFile(cmd, args, { timeout: 10 * 60_000 }, (err, stdout) => {
-    resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stdout: String(stdout ?? '') });
+  // codesign -dv prints the designations to stderr; keep them so signature checks can read TeamIdentifier
+  execFile(cmd, args, { timeout: 10 * 60_000 }, (err, stdout, stderr) => {
+    resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stdout: `${String(stdout ?? '')}${String(stderr ?? '')}` });
   });
 });
 
@@ -137,6 +145,13 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
     return { version, location: app, cli: macCli(app), running: await isCodexRunning() };
   };
 
+  /** The downloaded Codex must be signed by OpenAI before it is copied into place: codesign --verify, then read TeamIdentifier */
+  const verifyCodexSignature = async (candidate: string): Promise<boolean> => {
+    if ((await exec('/usr/bin/codesign', ['--verify', '--deep', '--strict', candidate])).code !== 0) return false;
+    const detail = await exec('/usr/bin/codesign', ['-dv', '--verbose=2', candidate]);
+    return detail.code === 0 && new RegExp(`TeamIdentifier=${OPENAI_TEAM_ID}\\b`).test(detail.stdout);
+  };
+
   /** Mounts the dmg, copies the first .app into place (via a temp name, then rename), detaches */
   const copyFromDmg = async () => {
     const mnt = path.join(paths.buddyDir, 'mnt');
@@ -149,6 +164,7 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
     try {
       const name = nodeFs.list(mnt).find(f => f.endsWith('.app'));
       if (!name) throw new Error('no app in dmg');
+      if (!(await verifyCodexSignature(path.join(mnt, name)))) throw new Error('signature-mismatch');
       const tmp = `${app}.partial`;
       guardedRemove(nodeFs, tmp, roots);
       if ((await exec('/usr/bin/ditto', [path.join(mnt, name), tmp])).code !== 0) throw new Error('copy');
@@ -208,8 +224,11 @@ export function createMacPlatform(paths: Paths = macPaths(), deps: Partial<MacDe
       guardedRemove(nodeFs, dmg, roots);
       progress({ id: 'check', state: 'done', text: '检查 Codex' });
       return { ok: true };
-    } catch {
-      const reason = step === 'download' ? '下载没成功，检查一下网络再试' : step === 'copy' ? '没能装进应用程序' : '装好的 Codex 打不开';
+    } catch (err) {
+      const reason = step === 'download' ? '下载没成功，检查一下网络再试'
+        : err instanceof Error && err.message === 'signature-mismatch' ? SIGNATURE_MISMATCH_REASON
+        : step === 'copy' ? '没能装进应用程序'
+        : '装好的 Codex 打不开';
       progress({ id: step, state: 'fail', text: reason });
       return { ok: false, reason };
     }

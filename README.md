@@ -46,6 +46,7 @@ The 社群 page has a WeChat Work group QR code for questions, and the author's 
 - **Short allow-list.** CodexBuddy itself only connects to GitHub, jsDelivr and the providers' own domains. The 🛡 panel lists every host it and the built-in browser have contacted.
 - **Signed remote settings.** The model list, minimum version and community code come from [`remote/config.json`](remote/config.json), signed with Ed25519. The app ignores any copy whose signature does not match.
 - **Check it yourself.** The 🛡 panel can copy a prompt that asks an AI to review this source code for you.
+- **Chinese-interface debug port.** While the Chinese interface is running, ChatGPT opens a random debug port on 127.0.0.1 on this computer. Web pages cannot reach it, but other programs on the same computer can.
 
 ## How it is built
 

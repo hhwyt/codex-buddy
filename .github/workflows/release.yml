@@ -19,6 +19,7 @@ permissions:
   contents: read
 
 jobs:
+  # 安装依赖 + 打包：只读仓库，产物用 artifact 传给下面的上传 job（npm 包里的代码拿不到 contents: write）
   build:
     strategy:
       fail-fast: false
@@ -31,21 +32,24 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     permissions:
-      contents: write
+      contents: read
       id-token: write
       attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.source_ref || inputs.tag || github.ref }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - name: Tag matches package.json
         shell: bash
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          tag="${{ inputs.tag || github.ref_name }}"
+          tag="$TAG"
           version="$(node -p "require('./package.json').version")"
           test "$tag" = "v$version" || { echo "tag $tag does not match package.json $version"; exit 1; }
       - run: npm ci
@@ -57,6 +61,30 @@ jobs:
           subject-path: |
             release/*.exe
             release/*.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+          if-no-files-found: error
+
+  # 上传到 Release：只下载产物再上传，不跑 npm ci / npm install，也不跑仓库脚本
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          path: release
+          merge-multiple: true
       - name: Store installers in private draft release
         shell: bash
         env:

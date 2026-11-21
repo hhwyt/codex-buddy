@@ -45,6 +45,8 @@ let calls: string[][];
 let running: boolean;
 let attachFails: boolean;
 let dmgApp: string;
+let codesignVerifyCode: number | null;
+let codesignTeamId: string | null;
 
 /** Fake hdiutil / ditto / pgrep / open / plutil */
 const fakeExec: Exec = async (cmd, args) => {
@@ -58,6 +60,8 @@ const fakeExec: Exec = async (cmd, args) => {
     return { code: 0, stdout: '' };
   }
   if (name === 'hdiutil') { fs.rmSync(args[1], { recursive: true, force: true }); return { code: 0, stdout: '' }; }
+  if (name === 'codesign' && args[0] === '--verify') return { code: codesignVerifyCode ?? 0, stdout: '' };
+  if (name === 'codesign' && args[0] === '-dv') return { code: 0, stdout: `TeamIdentifier=${codesignTeamId ?? '2DC432GLL2'}\n` };
   if (name === 'ditto') { fs.cpSync(args[0], args[1], { recursive: true }); return { code: 0, stdout: '' }; }
   if (name === 'plutil') return { code: 1, stdout: '' };
   return { code: 0, stdout: '' };
@@ -75,6 +79,7 @@ beforeEach(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'cb-mac-'));
   paths = sandboxPaths(root, 'mac');
   calls = []; running = false; attachFails = false; cutAfter = null; failStatus = null; requests = [];
+  codesignVerifyCode = null; codesignTeamId = null;
   dmgApp = path.join(root, 'dmg-src', 'ChatGPT.app');
   makeApp(dmgApp);
   server = http.createServer((req, res) => {
@@ -146,6 +151,31 @@ test('O-01 开始安装：下载、装进应用程序、检查，依次打勾', 
   expect(fs.existsSync(path.join(paths.buddyDir, 'downloads', 'Codex.dmg'))).toBe(false);
   expect(fs.existsSync(`${app()}.partial`)).toBe(false);
   expect(calls.some(c => c[0] === 'hdiutil' && c[1] === 'detach')).toBe(true);
+});
+
+test('S-09 下载的 Codex 装之前核对签名：通过才继续复制', async () => {
+  const p = platform();
+  expect(await p.installCodex(() => {})).toEqual({ ok: true });
+  expect(calls.some(c => c[0] === 'codesign' && c[1] === '--verify')).toBe(true);
+  expect(calls.some(c => c[0] === 'codesign' && c[1] === '-dv')).toBe(true);
+  expect(calls.some(c => c[0] === 'ditto')).toBe(true);
+  expect(fs.existsSync(app())).toBe(true);
+});
+
+test('S-09 codesign --verify 失败：不复制，报「下载的 Codex 签名不对，没有安装」', async () => {
+  codesignVerifyCode = 1;
+  const p = platform();
+  expect(await p.installCodex(() => {})).toEqual({ ok: false, reason: '下载的 Codex 签名不对，没有安装' });
+  expect(calls.some(c => c[0] === 'ditto')).toBe(false);
+  expect(fs.existsSync(app())).toBe(false);
+});
+
+test('S-09 TeamIdentifier 不是 OpenAI 的：不复制', async () => {
+  codesignTeamId = 'AAAAAAAAAA';
+  const p = platform();
+  expect(await p.installCodex(() => {})).toEqual({ ok: false, reason: '下载的 Codex 签名不对，没有安装' });
+  expect(calls.some(c => c[0] === 'ditto')).toBe(false);
+  expect(fs.existsSync(app())).toBe(false);
 });
 
 test('O-03 下载失败 → 故障，再试一次接着装好', async () => {
@@ -330,7 +360,15 @@ test.runIf(process.platform === 'darwin')('O-01 真的 hdiutil 和 ditto：从�
   const bytes = fs.readFileSync(dmgFile);
   const s = http.createServer((_q, r) => { r.writeHead(200, { 'Content-Length': bytes.length }); r.end(bytes); });
   await new Promise<void>(r => s.listen(0, '127.0.0.1', r));
-  const p = createMacPlatform(paths, { exec: realExec, downloadUrl: `http://127.0.0.1:${(s.address() as AddressInfo).port}/Codex.dmg` });
+  // The fixture app is unsigned: let codesign pretend it's OpenAI's so this test keeps exercising the real dmg copy path.
+  const execRealWithFakeCodesign: Exec = async (cmd, args) => {
+    if (path.basename(cmd) === 'codesign') {
+      if (args[0] === '--verify') return { code: 0, stdout: '' };
+      if (args[0] === '-dv') return { code: 0, stdout: 'TeamIdentifier=2DC432GLL2\n' };
+    }
+    return realExec(cmd, args);
+  };
+  const p = createMacPlatform(paths, { exec: execRealWithFakeCodesign, downloadUrl: `http://127.0.0.1:${(s.address() as AddressInfo).port}/Codex.dmg` });
   expect(await p.installCodex(() => {})).toEqual({ ok: true });
   expect(await p.findCodex()).toMatchObject({ version: '27.0.0', location: app(), running: false });
   await new Promise(r => s.close(r));

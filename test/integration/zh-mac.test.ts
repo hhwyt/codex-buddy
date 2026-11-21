@@ -43,6 +43,13 @@ function useFakeOpener(extra: Partial<ZhRunnerConfig> = {}) {
   const c = config();
   writeZhRunner(nodeFs, resources(), { ...c, cmd: process.execPath, args: [opener, '-a', app, '--args'], ...extra });
 }
+/** A tiny executable that turns --run-script <script> [args...] into plain node <script> [args...], so tests can
+ *  run the launcher shell with node standing in for CodexBuddy's Electron. */
+const nodeRunScript = () => {
+  const f = path.join(root, 'node-run-script');
+  fs.writeFileSync(f, `#!/bin/sh\nif [ "$1" = "--run-script" ]; then shift; fi\nexec ${JSON.stringify(process.execPath)} "$@"\n`, { mode: 0o755 });
+  return f;
+};
 const runRunner = (dir = resources()) => spawnSync(process.execPath, [path.join(dir, 'zh-runner.js'), path.join(dir, 'zh.json')], { encoding: 'utf8', timeout: 20_000 });
 const runRunnerAsync = (dir = resources()) => new Promise<number | null>(resolve => {
   const child = spawn(process.execPath, [path.join(dir, 'zh-runner.js'), path.join(dir, 'zh.json')], { stdio: 'ignore' });
@@ -81,7 +88,8 @@ describe('汉化版 on Mac', () => {
     expect(plist).toContain(`<string>${ZH_APP_EXECUTABLE}</string>`);
     const exe = path.join(contents, 'MacOS', ZH_APP_EXECUTABLE);
     if (process.platform !== 'win32') expect(fs.statSync(exe).mode & 0o111).not.toBe(0);
-    expect(fs.readFileSync(exe, 'utf8')).toContain('ELECTRON_RUN_AS_NODE=1');
+    expect(fs.readFileSync(exe, 'utf8')).toContain('--run-script');
+    expect(fs.readFileSync(exe, 'utf8')).not.toContain('ELECTRON_RUN_AS_NODE');
     expect(config()).toMatchObject({ cmd: '/usr/bin/open', args: ['-a', app, '--args'], version: '26.1027.61615', stateDir: zhStateDir(paths.buddyDir) });
     expect(fs.readFileSync(path.join(resources(), 'zh-runner.js'), 'utf8')).toContain('enable_i18n');
     if (isMac) {
@@ -126,7 +134,8 @@ describe('汉化版 on Mac', () => {
   });
 
   test.skipIf(process.platform === 'win32')('L-02 启动器脚本：用 CodexBuddy 自带的 Electron 跑汉化，没有它时直接按英文打开', async () => {
-    await zh(realExec).add();
+    // node stands in for CodexBuddy's Electron: an executable shim honours the same --run-script contract
+    await createMacZh(createMacPlatform(paths), { exec: realExec, nodeRunner: nodeRunScript() }).add();
     useFakeOpener({ waitMs: 300 });
     const exe = path.join(paths.zhLauncherPath, 'Contents', 'MacOS', ZH_APP_EXECUTABLE);
     expect(spawnSync(exe, { timeout: 20_000 }).status).toBe(0);
@@ -204,9 +213,10 @@ describe('汉化版 on Mac', () => {
     const opened = await waitFor(() => readRecord(record)[0]);
     expect(opened.codexHome).toBe(cloneHome);
     expect(opened.args[0]).toBe('--user-data-dir=' + path.join(root, 'ud'));
-    expect(opened.args[1]).toMatch(/^--remote-debugging-port=\d+$/);
+    expect(opened.args[1]).toBe('--remote-debugging-address=127.0.0.1');
+    expect(opened.args[2]).toMatch(/^--remote-debugging-port=\d+$/);
     // Chinese even on an English system: Codex follows the language Chromium is told (hwy-pc, en-US Windows)
-    expect(opened.args[2]).toBe('--lang=zh-CN');
+    expect(opened.args[3]).toBe('--lang=zh-CN');
   });
 });
 
