@@ -79,6 +79,8 @@ export interface ServiceDeps {
   fetchBytes(url: string, onProgress?: (received: number, total: number) => void): Promise<{ type: string; data: Uint8Array }>;
   /** Inclusive byte range of a release asset; total from Content-Range (F-06, F-07) */
   fetchRange(url: string, start: number, end: number): Promise<{ data: Uint8Array; total: number }>;
+  /** 演示模式 on Windows (--demo-mode): Codex counts as missing until the demo install has run in this process */
+  demoInstall?: boolean;
   remoteUrls: string[];
   bundledRemote: RemoteConfig;
   /** Ed25519 public key (PEM) a fetched remote config must be signed with (core/remote-key.ts) */
@@ -152,6 +154,7 @@ export function createServices(d: ServiceDeps) {
   let lastVersionCheck = 0;
   let remoteRefresh: Promise<RemoteConfig> | null = null;
   // E-04: a failed forced upgrade can be skipped for this run only (memory, gone on restart)
+  let demoInstallPending = d.demoInstall === true;
   let upgradeFailed = false;
   let upgradeSkipped = false;
   // Forced upgrade: the floor rises with every signed config we accept and never drops (a later, lower minVersion or
@@ -572,7 +575,7 @@ export function createServices(d: ServiceDeps) {
       const codexRunning = await platform.isCodexRunning();
       if (st.restartRequired && !codexRunning) { st.restartRequired = false; save(); d.emit('restartRequired', false); }
       return {
-        version: d.version, os: d.os, configured: st.onboarded, codexInstalled: !!codex,
+        version: d.version, os: d.os, configured: st.onboarded, codexInstalled: !!codex && !demoInstallPending,
         codexRunning,
         restartRequired: st.restartRequired,
         zh: { on: st.zh, launcherExists: await d.zh.exists(), supported: await d.zh.supported().catch(() => false), hidden: remote.switches.hideZh },
@@ -591,7 +594,7 @@ export function createServices(d: ServiceDeps) {
       const r = await platform.installCodex(e => { log(`${e.id} ${e.state} ${e.text}`); emit(e); });
       log(`install ${r.ok ? 'ok' : r.reason}`);
       // Codex is opened by the models page once the top card is set up (站主 11-16: 装完自动打开、默认用国产模型)
-      if (r.ok) { st.onboarded = true; save(); }
+      if (r.ok) { st.onboarded = true; demoInstallPending = false; save(); }
       return r;
     },
     'install:log': () => ({ text: hide(fs.readText(logFile) ?? '') }),

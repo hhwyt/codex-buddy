@@ -157,6 +157,7 @@ async function main(): Promise<void> {
 
   const assetUrls = new Map<string, string>();
   const services = createServices({
+    demoInstall: os === 'win' && process.argv.includes('--demo-mode'),
     platform, clone, zh, providers, vendors, browser: rb, cipher,
     bridge: {
       baseUrlFor: (vendor, upstream) => { upstreams[vendor] = upstream; registerUpstream(buddyDir, vendor, upstream); return `${bridgeUrl}/${encodeURIComponent(vendor)}/v1`; },

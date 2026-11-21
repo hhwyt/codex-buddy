@@ -154,6 +154,21 @@ export function createWinPlatform(paths: Paths = winPaths(), opts: WinOptions = 
   }
 
   async function installCodex(progress: InstallProgress) {
+    // 演示模式 (product videos, --demo-mode): ChatGPT is already installed; play the install steps in about 12 s
+    // without downloading or installing anything, then confirm the installed Codex is there
+    if (process.argv.includes('--demo-mode')) {
+      const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+      progress({ id: 'check', state: 'start', text: '检测电脑' }); await wait(800);
+      progress({ id: 'check', state: 'done', text: 'Windows 11' });
+      for (let pct = 0; pct <= 100; pct += 5) { progress({ id: 'install', state: 'start', text: `下载 Codex ${pct}%` }); await wait(300); }
+      progress({ id: 'install', state: 'start', text: '核对安装包是不是 OpenAI 官方原版' }); await wait(1500);
+      progress({ id: 'install', state: 'start', text: '安装 Codex' }); await wait(2500);
+      lastCodex = null;
+      const codex = await getCodex();
+      if (!codex) return { ok: false, reason: '没能装好 Codex' };
+      progress({ id: 'install', state: 'done', text: 'Codex 已装好' });
+      return { ok: true };
+    }
     let failText: string | null = null;
     lastCodex = null;
     const code = await runCodexPs1({ CODEX_SETUP_ACTION: 'install' }, line => {
