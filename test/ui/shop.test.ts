@@ -32,7 +32,7 @@ describe('商城页（P-01..P-04）', () => {
     const root = $(TID.shop.root)!;
     expect(root.querySelector('h1')!.textContent).toBe('商城');
     expect(root.querySelectorAll('button')).toHaveLength(3);
-    expect(root.textContent).toBe('商城微信 / 支付宝付款，付完自动发货注册要手机验证码注册、登录 OpenAI 官方账号时收短信用ChatGPT 会员更强的官方 GPT 模型静态住宅 IP防 Codex 风控降智独享、固定不变');
+    expect(root.textContent).toBe('商城微信 / 支付宝付款，付完自动发货注册要手机验证码注册、登录 OpenAI 官方账号时收短信用ChatGPT 会员更强的官方 GPT 模型静态住宅 IP防 Codex 风控降智防 Claude 封号黄金金同款独享、固定不变');
     expect(root.textContent).not.toMatch(/¥|元/);
   });
 

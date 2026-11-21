@@ -12,9 +12,9 @@ const EXTERNAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 
 const svg = (cls: string, markup: string): HTMLElement => { const el = h('span', { class: cls }); el.innerHTML = markup; return el; };
 
 const ENTRIES = [
-  { item: 'sms', testid: TID.shop.sms, hl: 'sms', icon: () => svg('shop-card-icon', PHONE), name: '注册要手机验证码', tag: '', sub: '注册、登录 OpenAI 官方账号时收短信用' },
-  { item: 'subscriptions', testid: TID.shop.subscriptions, hl: 'gpt', icon: () => h('span', { class: 'shop-card-icon' }, h('img', { src: 'assets/logos/openai.webp', alt: '' })), name: 'ChatGPT 会员', tag: '', sub: '更强的官方 GPT 模型' },
-  { item: 'ip', testid: TID.shop.ip, hl: '', icon: () => svg('shop-card-icon dark', SHIELD), name: '静态住宅 IP', tag: '防 Codex 风控降智', sub: '独享、固定不变' },
+  { item: 'sms', testid: TID.shop.sms, hl: 'sms', icon: () => svg('shop-card-icon', PHONE), name: '注册要手机验证码', tags: [], sub: '注册、登录 OpenAI 官方账号时收短信用' },
+  { item: 'subscriptions', testid: TID.shop.subscriptions, hl: 'gpt', icon: () => h('span', { class: 'shop-card-icon' }, h('img', { src: 'assets/logos/openai.webp', alt: '' })), name: 'ChatGPT 会员', tags: [], sub: '更强的官方 GPT 模型' },
+  { item: 'ip', testid: TID.shop.ip, hl: '', icon: () => svg('shop-card-icon dark', SHIELD), name: '静态住宅 IP', tags: ['防 Codex 风控降智', '防 Claude 封号', '黄金金同款'], sub: '独享、固定不变' },
 ] as const;
 
 export const renderShop: Page = ({ api, root, highlight }) => {
@@ -26,6 +26,6 @@ export const renderShop: Page = ({ api, root, highlight }) => {
         e.icon(),
         svg('shop-card-arrow', EXTERNAL),
         h('b', {}, e.name),
-        ...(e.tag ? [h('span', { class: 'shop-card-tag' }, e.tag)] : []),
+        ...(e.tags.length ? [h('span', { class: 'shop-card-tags' }, ...e.tags.map(t => h('span', { class: 'shop-card-tag' }, t)))] : []),
         h('span', { class: 'shop-card-sub' }, e.sub))))));
 };
