@@ -41,7 +41,7 @@ The 社群 page has a WeChat Work group QR code for questions, and the author's 
 
 ## Privacy and security
 
-- **Your keys stay on your computer.** They are encrypted with AES-256-GCM; the encryption key is kept in the system keychain (macOS Keychain, Windows DPAPI). Keys never appear in logs or copied error reports.
+- **Your keys stay on your computer.** They are encrypted with AES-256-GCM; the encryption key is stored in the same owner-only folder. This protects against keys being copied or uploaded by mistake, not against malware already running on your computer. Keys never appear in logs or copied error reports.
 - **No middleman.** Codex talks to the provider you chose directly. CodexBuddy has no server of its own; when a provider only offers a Chat-style API, a small bridge runs locally on 127.0.0.1.
 - **Short allow-list.** CodexBuddy itself only connects to GitHub, jsDelivr and the providers' own domains. The 🛡 panel lists every host it and the built-in browser have contacted.
 - **Signed remote settings.** The model list, minimum version and community code come from [`remote/config.json`](remote/config.json), signed with Ed25519. The app ignores any copy whose signature does not match.
