@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>普通更新和强制升级</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#17191d;background:#fff;--line:#e8eaee;--muted:#737982;--blue:#0a77d1;--accent:#0c8df6;--red:#c82f39}
+*{box-sizing:border-box}body{margin:0;padding:28px 34px}
+header,.controls,.frame,.note{max-width:1180px;margin-left:auto;margin-right:auto}
+h1{font-size:24px;letter-spacing:-.6px;margin:0 0 8px}header p,.note{font-size:13px;color:var(--muted);line-height:1.8;margin:0}
+button,select{font:inherit}
+button{cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 18px;font-size:14px;font-weight:550;color:#25282e}
+button:hover{background:#f6f7f8}button:disabled{opacity:.6;cursor:default}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.primary{background:var(--blue);border-color:var(--blue);color:#fff}.primary:hover{background:#0868ba}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin:18px auto 14px}
+.controls button{font-size:13px;padding:7px 12px}.controls button[aria-pressed=true]{background:#eef5fd;border-color:#cfe3f7;color:var(--blue)}
+.frame{height:620px;position:relative;border:1px solid #e0e3e8;border-radius:17px;background:#fff;overflow:hidden;box-shadow:0 16px 50px #1522390b}
+.brand{position:absolute;top:25px;left:28px;display:flex;gap:10px;align-items:center;font-weight:650;font-size:16px;z-index:1}
+.brand img{width:27px;height:27px}
+.window{position:absolute;right:22px;top:21px;display:flex;gap:26px;color:#7f8590;font-size:18px;z-index:1}
+.app{padding:90px 48px 40px;display:flex;height:100%;gap:44px}
+.nav{width:100px;display:flex;flex-direction:column;gap:6px;padding-top:10px}
+.nav button{border:none;background:none;padding:8px 0;color:var(--muted);font-size:14px;font-weight:500;text-align:left}
+.nav button[aria-current=page]{color:#17191d;font-weight:650}
+.workspace{flex:1;min-width:0}
+.nav{position:relative}
+.upd{position:absolute;left:0;bottom:0;border:none;background:none;padding:6px 0;font-size:13px;font-weight:500;color:#30353d;display:flex;align-items:center;gap:7px;text-align:left;line-height:1.4}
+.upd:hover{background:none;color:var(--blue)}.upd .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.upd small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.workspace h2{font-size:26px;margin:0 0 8px}.now{font-size:14px;color:var(--muted);margin:0 0 22px}
+.cards{display:flex;flex-direction:column;gap:12px;max-width:430px}
+.card{border:1px solid var(--line);border-radius:15px;padding:16px 18px;display:flex;align-items:center;gap:12px}
+.card img{width:26px;height:26px}.card b{flex:1;font-size:15px}.card.active{border-color:var(--accent)}.tag{color:var(--blue);font-size:13px}
+.card button{padding:7px 13px;font-size:13px}
+.rows{max-width:470px}.rows div{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line);font-size:14px}
+.rows button{padding:7px 13px;font-size:13px}
+.scrim{position:absolute;inset:0;display:grid;place-items:center;padding:20px;background:#171c2426;z-index:2}
+.dialog{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 60px #18243619;padding:28px;width:460px;max-width:100%}
+.dialog h3{font-size:21px;margin:0 0 10px;letter-spacing:-.4px}.dialog p{font-size:14px;line-height:1.8;color:#30353d;margin:0}
+.dialog ul{margin:4px 0 0;padding-left:20px;font-size:14px;line-height:1.9;color:#30353d}
+progress{width:100%;margin-top:14px;height:6px;accent-color:var(--blue)}
+.actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:24px;flex-wrap:wrap}
+.help{margin-right:auto;border:none;background:none;padding:6px 2px;font-size:13px;font-weight:500;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.help:hover{background:none;color:#30353d;text-decoration:underline;text-underline-offset:3px}
+.help svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}
+.toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:#17191d;color:#fff;font-size:13px;padding:8px 15px;border-radius:999px;z-index:4}
+.note{margin-top:14px;min-height:46px}
+[hidden]{display:none!important}
+@media(max-width:860px){body{padding:20px 12px;overflow-x:hidden}.app{gap:14px;padding:90px 16px 30px}.nav{width:56px}}
+</style>
+<header><h1>普通更新和强制升级</h1><p>可点击原型 · 普通发布：左边导航最下面一个小蓝点「有新版本」，不弹窗、不挤页面，点了才打开更新弹窗，可以「稍后」；强制发布：沿用现在的拦截弹窗，必须升级才能用。</p></header>
+<div class="controls" id="modes">
+  <button data-m="normal" aria-pressed="true">普通发布（有新版本 26.11.2）</button>
+  <button data-m="forced">强制发布（最低版本 26.11.2）</button>
+  <button data-m="none">没有新版本</button>
+</div>
+<section class="frame" aria-label="CodexBuddy 原型">
+  <div class="brand"><img src="../ui/assets/icon.svg" alt="">CodexBuddy</div>
+  <div class="window" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>
+  <main id="screen" style="height:100%"></main>
+  <div id="layer"></div>
+</section>
+<p class="note" id="note"></p>
+<script>
+const $=id=>document.getElementById(id);
+const note=t=>{$('note').textContent=t};
+const V='26.11.2',NOTES=['安装失败时可以直接去社群咨询','修复了升级偶尔卡住的问题'];
+const CHAT='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 4 4Z"/></svg>';
+let mode='normal',page='模型',dismissed=false,timer;
+function app(){
+  const banner=mode==='normal'&&!dismissed?`<button class="upd" id="banner"><span class="dot"></span><span>有新版本<small>${V}</small></span></button>`:'';
+  const body=page==='设置'?`<h2>设置</h2><p class="now">语言、更新和还原</p><div class="rows"><div>CodexBuddy 26.11.1<button id="check">检查更新</button></div><div>把电脑恢复成用 CodexBuddy 之前的样子<button>一键还原</button></div></div>`
+    :page==='模型'?`<h2>模型</h2><p class="now">正在用：DeepSeek</p><div class="cards">${[['zhipu','智谱'],['deepseek','DeepSeek'],['kimi','Kimi']].map(([id,n])=>`<div class="card${id==='deepseek'?' active':''}"><img src="../ui/assets/logos/${id}.png" alt=""><b>${n}</b>${id==='deepseek'?'<span class="tag">✓ 正在用</span>':'<button>用这个</button>'}</div>`).join('')}</div>`
+    :`<h2>${page}</h2><p class="now">（原型只演示模型和设置）</p>`;
+  $('screen').innerHTML=`<div class="app"${mode==='forced'?' inert':''}><nav class="nav">${['模型','设置','社群','商城'].map(n=>`<button data-nav="${n}"${n===page?' aria-current="page"':''}>${n}</button>`).join('')}${banner}</nav><section class="workspace">${body}</section></div>`;
+  $('screen').querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{page=b.dataset.nav;app();});
+  $('banner')&&($('banner').onclick=()=>updateDialog());
+  $('check')&&($('check').onclick=()=>{ if(mode==='none'){toast('已经是最新版');note('设置 → 检查更新：没有新版本时只提示一句。');} else updateDialog(); });
+}
+function toast(t){$('layer').insertAdjacentHTML('beforeend',`<div class="toast" id="tt">${t}</div>`);setTimeout(()=>$('tt')?.remove(),1500);}
+function updateDialog(){
+  $('layer').innerHTML=`<div class="scrim" id="sc"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="t"><h3 id="t">有新版本 ${V}</h3><ul>${NOTES.map(n=>`<li>${n}</li>`).join('')}</ul>
+  <div class="actions"><button data-a="later">稍后</button><button class="primary" data-a="go">立即更新</button></div></section></div>`;
+  wire();note('点左下角「有新版本」打开更新弹窗：列出这次改了什么。「稍后」关掉弹窗，左下角的「有新版本」留着，什么时候想更新再点；按 Esc 或点外面也能关。');
+}
+function downloading(forced){
+  const d=$('layer').querySelector('.dialog');
+  d.innerHTML=`<h3>正在下载 ${V}</h3><progress id="pg" max="100" value="0"></progress><div class="actions"><button class="primary" disabled>正在下载</button></div>`;
+  let v=0;clearInterval(timer);timer=setInterval(()=>{v+=9;const pg=$('pg');if(pg)pg.value=v;if(v>=100){clearInterval(timer);d.innerHTML=`<h3>下载好了</h3><div class="actions">${forced?'':'<button data-a="later">稍后</button>'}<button class="primary" data-a="restart">重启</button></div>`;wire();}},110);
+  note('下载中有进度条。下载好后点「重启」换成新版；普通更新也可以「稍后」，下次打开 CodexBuddy 时自动换。');
+}
+function forced(){
+  $('layer').innerHTML=`<div class="scrim"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="t"><h3 id="t">升级后继续使用</h3><p>请升级到 ${V}</p><div class="actions"><button class="primary" data-a="force">立即升级</button></div></section></div>`;
+  wire();note('强制发布（现在的弹窗）：整个 App 被拦住，没有「稍后」，关不掉，只能升级；要走就点窗口的 ×。升级失败时按报错规则显示原因、「本次先跳过」「重试」和「去社群咨询」。');
+}
+function failed(){
+  $('layer').querySelector('.dialog').innerHTML=`<h3>升级没成功</h3><p>更新包没下载下来，请检查网络后重试。</p><div class="actions"><button class="help" data-a="help">${CHAT}去社群咨询</button><button data-a="skip">本次先跳过</button><button class="primary" data-a="force2">重试</button></div>`;wire();
+}
+function wire(){
+  $('layer').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
+    const a=b.dataset.a;
+    if(a==='later'){$('layer').innerHTML='';note('稍后：弹窗关掉，左下角的「有新版本」还在。普通更新随时都能继续用旧版。');}
+    if(a==='go')downloading(false);
+    if(a==='restart'){$('layer').innerHTML='';mode='none';dismissed=false;app();toast(`已更新到 ${V}`);note(`重启完成：左下角的「有新版本」消失，App 是 ${V}。`);}
+    if(a==='force')failed(),note('原型演示下载失败的样子（真实情况大多会直接下载成功）。');
+    if(a==='force2')downloading(true);
+    if(a==='skip'){$('layer').innerHTML='';mode='skipped';app();note('本次先跳过：这次照常用，下次打开再要求升级。');}
+    if(a==='help'){$('layer').innerHTML='';page='社群';mode='skipped';app();note('去社群咨询：复制日志并跳到社群页（见出错时去社群咨询原型）。');}
+  });
+}
+$('layer').addEventListener('click',e=>{if(e.target.id==='sc'){$('layer').innerHTML='';note('点外面关掉更新弹窗，左下角的「有新版本」还在。');}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('sc')){$('layer').innerHTML='';}});
+function setMode(m){mode=m;dismissed=false;page='模型';clearInterval(timer);$('layer').innerHTML='';document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));app();
+  if(m==='forced')forced();
+  if(m==='normal')note('普通发布：打开 CodexBuddy 照常用，左边导航最下面多一个小蓝点「有新版本 26.11.2」，不弹窗、不挤占模型列表。点它打开更新弹窗。设置 → 检查更新也能打开同一个弹窗。');
+  if(m==='none')note('没有新版本：什么都不显示。');}
+$('modes').querySelectorAll('button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+setMode('normal');
+</script>
+</html>
