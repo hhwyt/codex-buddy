@@ -5,7 +5,7 @@
 // it runs app\ChatGPT.exe with package identity, keeps the caller's environment (CODEX_HOME) and passes the arguments.
 // app\Codex.exe is only a stub, and activation by AppUserModelID drops the environment. Spike d on hwy-pc (2026-11-13):
 // a second instance with its own --user-data-dir runs next to the open Codex and uses the clone's CODEX_HOME.
-// 汉化 (L-07): the launcher runs the same zh-runner.js as the Mac launchers (CodexBuddy's own Electron in node mode),
+// 汉化 (L-07): the launcher runs the same zh-runner.js as the Mac launchers (CodexBuddy's own Electron via --run-script),
 // which opens Codex with a 127.0.0.1 debug port and turns enable_i18n on; without CodexBuddy it opens Codex plainly.
 // Layout: <appsDir>\<slug>\{launch.vbs, zh-runner.js, zh.json, icon.ico, clone.json}; shortcuts <Name>.lnk on the desktop
 // and in the Start menu. remove(): guardedRemove the shortcuts and the launcher folder only; ~/.codex-<slug> and the data
@@ -44,7 +44,7 @@ export interface WinCloneDeps {
   appData?: string;
   /** Codex's app execution alias; defaults to %LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe */
   alias?: string;
-  /** The program that runs zh-runner.js in node mode: CodexBuddy's own Electron (process.execPath) */
+  /** The program that runs zh-runner.js: CodexBuddy's own Electron (process.execPath), invoked with --run-script */
   nodeRunner?: string;
 }
 
@@ -58,7 +58,7 @@ export interface WinCloneMeta {
   codexHome: string;
   userData: string;
   zh: boolean;
-  /** CodexBuddy's Electron, which runs zh-runner.js */
+  /** CodexBuddy's Electron, which runs zh-runner.js via --run-script */
   nodeRunner: string;
 }
 
@@ -67,7 +67,7 @@ const vbsString = (s: string) => `"${s.replace(/"/g, '""')}"`;
 /** launch.vbs. 汉化 on: run zh-runner.js with CodexBuddy's Electron (hidden), or open Codex plainly when it is gone */
 export function launcherVbs(meta: WinCloneMeta, dir: string): string {
   const plain = `"${meta.exe}" --user-data-dir="${meta.userData}"`;
-  const runner = `"${meta.nodeRunner}" "${path.join(dir, 'zh-runner.js')}" "${path.join(dir, 'zh.json')}"`;
+  const runner = `"${meta.nodeRunner}" --run-script "${path.join(dir, 'zh-runner.js')}" "${path.join(dir, 'zh.json')}"`;
   return [
     `' codexbuddy-clone ${meta.slug}`,
     'Set sh = CreateObject("WScript.Shell")',
@@ -76,7 +76,6 @@ export function launcherVbs(meta: WinCloneMeta, dir: string): string {
     `env("CODEX_ELECTRON_USER_DATA_PATH") = ${vbsString(meta.userData)}`,
     ...(meta.zh ? [
       `If CreateObject("Scripting.FileSystemObject").FileExists(${vbsString(meta.nodeRunner)}) Then`,
-      '  env("ELECTRON_RUN_AS_NODE") = "1"',
       `  sh.Run ${vbsString(runner)}, 0, False`,
       '  WScript.Quit',
       'End If',

@@ -130,9 +130,10 @@ describe('分身 Windows', () => {
   test('L-07 分身跟着汉化开关走：汉化时启动器用 CodexBuddy 跑汉化程序，关了汉化直接打开', async () => {
     const clone = make();
     const info = await clone.make(spec({ zh: true }));
-    const q = (s: string) => `""${s}""`;
-    expect(readVbs(info.appPath)).toContain(`sh.Run "${q(nodeRunner)} ${q(path.join(info.appPath, 'zh-runner.js'))} ${q(path.join(info.appPath, 'zh.json'))}", 0, False`);
-    expect(readVbs(info.appPath)).toContain('env("ELECTRON_RUN_AS_NODE") = "1"');
+    const q = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const runner = `"${nodeRunner}" --run-script "${path.join(info.appPath, 'zh-runner.js')}" "${path.join(info.appPath, 'zh.json')}"`;
+    expect(readVbs(info.appPath)).toContain(`sh.Run ${q(runner)}, 0, False`);
+    expect(readVbs(info.appPath)).not.toContain('ELECTRON_RUN_AS_NODE');
     await clone.setZh(false);
     expect(readVbs(info.appPath)).not.toContain('zh-runner.js');
     shortcuts.clear();

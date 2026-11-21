@@ -28,7 +28,7 @@ const plist = (version: string) =>
 export function fakeCodexRunner(node: string, script: string, extraEnv: NodeJS.ProcessEnv = {}): CodexRunner {
   return (args, { codexHome, timeoutMs, stopEarly, signal }) => new Promise(resolve => {
     const child = spawn(node, [script, ...args], {
-      cwd: codexHome, env: { ...process.env, ...extraEnv, ELECTRON_RUN_AS_NODE: '1', CODEX_HOME: codexHome }, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: codexHome, env: { ...process.env, ...extraEnv, CODEX_HOME: codexHome }, stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '', err = '', timedOut = false;
     child.stdout.on('data', c => { out += c; });

@@ -99,7 +99,7 @@ describe('打包加固', () => {
   test('electron-builder 打开 fuses：不认 NODE_OPTIONS / --inspect，只从完整性校验过的 app.asar 加载，cookie 加密', () => {
     expect(PKG.build.asar).toBe(true);
     expect(PKG.build.electronFuses).toEqual({
-      runAsNode: true, // the 汉化 runner runs on our Electron in node mode (platform/zh-mac.ts, clone-win.ts)
+      runAsNode: false, // the runAsNode fuse is off; the 汉化 runner runs on our Electron via --run-script (platform/zh-mac.ts, clone-win.ts)
       enableNodeOptionsEnvironmentVariable: false,
       enableNodeCliInspectArguments: false,
       enableEmbeddedAsarIntegrityValidation: true,

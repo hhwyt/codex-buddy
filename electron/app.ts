@@ -38,26 +38,45 @@ import { loginWindowTargets, vendorsWith } from './vendors';
 const os: 'mac' | 'win' = process.platform === 'win32' ? 'win' : 'mac';
 let win: BrowserWindow | null = null;
 
+// --run-script <script> [args...]: CodexBuddy's own Electron runs one of its own scripts instead of the app. This
+// replaces ELECTRON_RUN_AS_NODE (the runAsNode fuse is now off), so only these two files, by absolute path, are
+// accepted: zh-runner.js (汉化) and fake-codex.mjs (sandbox fake Codex). Anything else exits 2. No window, no
+// single-instance lock, no hardening switches, and the script is free to keep the process alive while it waits.
+const runScriptIndex = process.argv.indexOf('--run-script');
+if (runScriptIndex !== -1) {
+  const script = process.argv[runScriptIndex + 1];
+  const allowedScripts = new Set(['zh-runner.js', 'fake-codex.mjs']);
+  if (typeof script !== 'string' || !path.isAbsolute(script) || !allowedScripts.has(path.basename(script))) process.exit(2);
+  if (process.platform === 'darwin') app.dock?.hide();
+  // node mode handed the script argv = [execPath, script, ...args]; zh-runner reads argv[2] (zh.json), fake-codex
+  // reads argv.slice(2). Rebuild that shape before require.
+  process.argv = [process.execPath, script, ...process.argv.slice(runScriptIndex + 2)];
+  // Scripts that only wait (e.g. fake-codex login-wait) must not be quit just because no window was ever created.
+  app.on('window-all-closed', () => { /* the script exits itself */ });
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require(script);
+}
+
 // Release builds: no debugging switch on our own command line, no DevTools (main/hardening.ts)
-const packageMeta = JSON.parse(nfs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8')) as { codexbuddyDebuggable?: unknown };
-const allowDebug = debuggable(app.isPackaged, packageMeta);
-removeTestEnvironment(process.env, allowDebug);
+const packageMeta = runScriptIndex === -1 ? JSON.parse(nfs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8')) as { codexbuddyDebuggable?: unknown } : null;
+const allowDebug = packageMeta !== null && debuggable(app.isPackaged, packageMeta);
+if (runScriptIndex === -1) removeTestEnvironment(process.env, allowDebug);
 const sandbox = sandboxRoot();
-if (!allowDebug && debugSwitchesIn(s => app.commandLine.hasSwitch(s)).length) app.exit(1);
-if (!allowDebug) app.on('web-contents-created', (_e, wc) => { wc.on('devtools-opened', () => wc.closeDevTools()); });
+if (runScriptIndex === -1 && !allowDebug && debugSwitchesIn(s => app.commandLine.hasSwitch(s)).length) app.exit(1);
+if (runScriptIndex === -1 && !allowDebug) app.on('web-contents-created', (_e, wc) => { wc.on('devtools-opened', () => wc.closeDevTools()); });
 
 // Keep Electron's own profile inside the sandbox too
-if (sandbox) app.setPath('userData', path.join(sandbox, 'electron-user-data'));
+if (runScriptIndex === -1 && sandbox) app.setPath('userData', path.join(sandbox, 'electron-user-data'));
 // Test runs (sandbox + fake servers): the window stays off screen (m1-decisions 2026-11-13); on Windows an off-screen
 // window counts as hidden and would stop painting, which screenshots need
 const testMode = !!sandbox && !!process.env.CODEXBUDDY_ENDPOINTS;
 const realCodex = !!sandbox && !testMode && process.env.CODEXBUDDY_REAL_CODEX === '1';
 // WebRTC's mDNS responder listens on UDP 5353 on every network card, which makes Windows Firewall ask the user whether
 // to let CodexBuddy onto public networks. Official pages get no local WebRTC ports anyway (browser.ts WEBRTC_POLICY)
-app.commandLine.appendSwitch('disable-features', ['WebRtcHideLocalIpsWithMdns', ...(testMode ? ['CalculateNativeWinOcclusion'] : [])].join(','));
+if (runScriptIndex === -1) app.commandLine.appendSwitch('disable-features', ['WebRtcHideLocalIpsWithMdns', ...(testMode ? ['CalculateNativeWinOcclusion'] : [])].join(','));
 // No OS keychain (站主 11-16): Chromium's own cookie encryption ("codex-buddy Safe Storage") asked for the login
 // password on every rebuild. A fixed in-app key instead, like Codex keeping its keys in plain files
-if (process.platform === 'darwin') app.commandLine.appendSwitch('use-mock-keychain');
+if (runScriptIndex === -1 && process.platform === 'darwin') app.commandLine.appendSwitch('use-mock-keychain');
 
 // In a sandbox nothing is ever opened or launched: every open / reveal / external link goes to <sandbox>/opened.log.
 // Real-Codex runs on Mac are used by a person, so there they really happen (an installer still only goes to the log)
@@ -213,7 +232,9 @@ async function main(): Promise<void> {
   app.on('before-quit', () => { rb.close(); services.handlers['switch:cancel']?.(); clearInterval(poll); clearInterval(heartbeat); clearInterval(versionPoll); powerMonitor.removeListener('resume', checkVersion); void bridge.close(); });
 }
 
-if (!app.requestSingleInstanceLock()) app.quit();
+if (runScriptIndex !== -1) {
+  // --run-script was handled at the top: the script may still be running, so start nothing here.
+} else if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   app.whenReady().then(main).catch(e => { console.error(String(e)); app.quit(); });
