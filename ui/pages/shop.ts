@@ -7,15 +7,13 @@ import type { Page } from './types.js';
 /** The SMS code's price on the shop's product page (SHOP_URLS.sms in electron/main/browser.ts, 2026-11-20) */
 export const SMS_PRICE_YUAN = 35;
 
-const SPARK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z"/></svg>';
 const EXTERNAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9"/></svg>';
 const PHONE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18.5h4"/></svg>';
 
 export const renderShop: Page = ({ api, root, highlight }) => {
   const icon = h('span', { class: 'shop-card-icon' });
   icon.innerHTML = PHONE;
-  const spark = h('span', { class: 'shop-more-icon' });
-  spark.innerHTML = SPARK;
+  const logo = h('img', { class: 'shop-more-icon', src: 'assets/logos/openai.webp', alt: '' });
   const external = h('span', { class: 'shop-more-arrow' });
   external.innerHTML = EXTERNAL;
   root.replaceChildren(h('div', { 'data-testid': TID.shop.root },
@@ -28,5 +26,5 @@ export const renderShop: Page = ({ api, root, highlight }) => {
         h('span', {}, '注册、登录 OpenAI 官方账号时收短信用，收不到可换号')),
       h('span', { class: 'shop-card-price' }, `¥${SMS_PRICE_YUAN}`)),
     h('button', { class: highlight === 'gpt' ? 'shop-more hl' : 'shop-more', type: 'button', 'data-testid': TID.shop.subscriptions, onclick: () => { void api.invoke('shop:open', { item: 'subscriptions' }); } },
-      spark, h('span', { class: 'shop-more-text' }, '购买更强的官方 GPT 模型'), external)));
+      logo, h('span', { class: 'shop-more-text' }, '购买更强的官方 GPT 模型'), external)));
 };
