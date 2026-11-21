@@ -56,8 +56,8 @@
 .card .st.ok { color: var(--face-ink); font-weight: 500; } /* white on a brand face, as in model-page-final.html */
 .face-zhipu .st.ok, .face-kimi .st.ok { color: var(--face-ok-dark); }
 .card.light .st.ok { color: var(--blue); }
-.shop-chips { margin-top: auto; display: flex; align-items: center; gap: 18px; font-size: 13px; }
-.shop-chip { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+.shop-chips { margin-top: auto; display: flex; align-items: center; gap: 18px; font-size: 13px; opacity: .78; }
+.shop-chip { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px 0; color: inherit; font: inherit; font-weight: 400; cursor: pointer; }
 .shop-chip span { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); transition: text-decoration-color .15s; }
 .shop-chip:hover span { text-decoration-color: currentColor; }
 .shop-chip svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
