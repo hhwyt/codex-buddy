@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenAI 卡原型</title>
+<style>
+:root { --ink:#0d0d0d; --ink-2:#5d5d5d; --ink-3:#8f8f8f; --line:#e5e5e5; --face:#ececec; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; font: 14px -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--ink); }
+.tabs { display: flex; gap: 8px; padding: 18px; justify-content: center; flex-wrap: wrap; }
+.tabs button { border: 1px solid #ccc; background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit; cursor: pointer; }
+.tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.seg { display: flex; justify-content: center; margin-bottom: 18px; }
+.seg span { background: #f0f0f0; border-radius: 999px; padding: 4px; display: inline-flex; }
+.seg b, .seg i { font-style: normal; font-weight: 400; padding: 6px 22px; border-radius: 999px; }
+.seg b { background: #fff; box-shadow: 0 1px 3px #0001; }
+.stack { width: 620px; margin: 0 auto; position: relative; }
+.card { position: relative; z-index: 2; height: 380px; border-radius: 22px; background: var(--face); padding: 26px 30px; display: flex; flex-direction: column; box-shadow: 0 -8px 24px #0001, 0 22px 50px #0002; }
+.next { height: 70px; margin-top: -40px; border-radius: 0 0 22px 22px; background: #4f6bff; }
+.top { display: flex; align-items: center; gap: 14px; font-size: 24px; font-weight: 650; }
+.logo { width: 52px; height: 52px; border-radius: 12px; background: #fff; padding: 6px; }
+.logo img { width: 100%; height: 100%; object-fit: contain; }
+.bottom { margin-top: auto; display: flex; flex-direction: column; gap: 18px; }
+.lbl { font-size: 11px; letter-spacing: .08em; color: var(--ink-3); }
+.val { font-size: 15px; font-weight: 500; margin-top: 2px; }
+svg.ext { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; transition: transform .15s; }
+svg.ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.go:hover svg.ext { transform: translate(2px, -2px); }
+.go { cursor: pointer; font: inherit; color: inherit; }
+
+/* 1 白底小卡 */
+.v1 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.v1 .go { display: flex; align-items: center; gap: 10px; text-align: left; background: #fff; border: 1px solid #0000; border-radius: 12px; padding: 12px 14px; box-shadow: 0 1px 2px #0000000d; transition: border-color .15s, box-shadow .15s; }
+.v1 .go:hover { border-color: #d0d0d0; box-shadow: 0 4px 12px #0000000f; }
+.v1 b { display: block; font-size: 14px; }
+.v1 small { display: block; font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+.v1 .ext { margin-left: auto; color: var(--ink-3); }
+
+/* 2 一行文字链接 */
+.v2 { display: flex; align-items: center; gap: 18px; font-size: 13px; }
+.v2 .go { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0; color: var(--ink); font-weight: 600; }
+.v2 .go span { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #0004; transition: text-decoration-color .15s; }
+.v2 .go:hover span { text-decoration-color: var(--ink); }
+.v2 .sep { width: 1px; height: 14px; background: #0002; }
+
+/* 3 黑色胶囊 */
+.v3 { display: flex; gap: 10px; }
+.v3 .go { display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 9px 16px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 600; transition: background .15s; }
+.v3 .go:hover { background: #333; }
+.v3 .go.ghost { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px #0002; }
+.v3 .go.ghost:hover { background: #f7f7f7; }
+
+.toast { position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px; opacity: 0; transition: all .2s; }
+.toast.show { opacity: 1; transform: translateX(-50%); }
+</style>
+</head>
+<body>
+<div class="tabs" id="tabs"></div>
+<div class="seg"><span><b>切换</b><i>分身</i></span></div>
+<div class="stack">
+  <div class="card">
+    <div class="top"><div class="logo"><img src="../ui/assets/logos/openai.webp" alt=""></div>OpenAI 官方账号</div>
+    <div class="bottom">
+      <div id="slot"></div>
+      <div><div class="lbl">MODEL</div><div class="val">—</div></div>
+    </div>
+  </div>
+  <div class="next"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const EXT = '<svg class="ext" viewBox="0 0 24 24"><path d="M7 17L17 7M8 7h9v9"/></svg>';
+const PHONE = '<svg class="ic" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18.5h4"/></svg>';
+const SPARK = '<svg class="ic" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z"/></svg>';
+const V = [
+  ['1 白底小卡', `<div class="v1">
+      <button class="go" data-t="sms">${PHONE}<span><b>收不到验证码</b><small>买一个号码</small></span>${EXT}</button>
+      <button class="go" data-t="gpt">${SPARK}<span><b>更强的 GPT</b><small>官方订阅</small></span>${EXT}</button></div>`],
+  ['2 一行文字链接', `<div class="v2">
+      <button class="go" data-t="sms">${PHONE}<span>收不到验证码？买一个号码</span>${EXT}</button><i class="sep"></i>
+      <button class="go" data-t="gpt">${SPARK}<span>更强的 GPT</span>${EXT}</button></div>`],
+  ['3 黑色胶囊', `<div class="v3">
+      <button class="go" data-t="sms">${PHONE}收不到验证码 · 买一个号码${EXT}</button>
+      <button class="go ghost" data-t="gpt">${SPARK}更强的 GPT${EXT}</button></div>`],
+];
+const tabs = document.getElementById('tabs'), slot = document.getElementById('slot'), toast = document.getElementById('toast');
+let timer;
+function pick(i) {
+  [...tabs.children].forEach((b, j) => b.classList.toggle('on', i === j));
+  slot.innerHTML = V[i][1];
+  slot.querySelectorAll('.go').forEach(b => b.onclick = () => {
+    toast.textContent = b.dataset.t === 'sms' ? '跳到商城，高亮「注册要手机验证码」' : '跳到商城，高亮「ChatGPT 会员」';
+    toast.classList.add('show'); clearTimeout(timer); timer = setTimeout(() => toast.classList.remove('show'), 1600);
+  });
+}
+V.forEach(([n], i) => { const b = document.createElement('button'); b.textContent = n; b.onclick = () => pick(i); tabs.append(b); });
+pick(0);
+</script>
+</body>
+</html>

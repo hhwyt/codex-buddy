@@ -56,10 +56,15 @@
 .card .st.ok { color: var(--face-ink); font-weight: 500; } /* white on a brand face, as in model-page-final.html */
 .face-zhipu .st.ok, .face-kimi .st.ok { color: var(--face-ok-dark); }
 .card.light .st.ok { color: var(--blue); }
-.shop-chips { margin-top: auto; display: flex; gap: 8px; }
-.shop-chip { flex: 1; text-align: left; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); background: color-mix(in srgb, currentColor 8%, transparent); color: inherit; border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; cursor: pointer; }
-.shop-chip:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
-.shop-chip small { display: block; opacity: .75; font-size: 11px; margin-top: 2px; }
+.shop-chips { margin-top: auto; display: flex; align-items: center; gap: 18px; font-size: 13px; }
+.shop-chip { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+.shop-chip span { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); transition: text-decoration-color .15s; }
+.shop-chip:hover span { text-decoration-color: currentColor; }
+.shop-chip svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.shop-chip svg.fill { fill: currentColor; stroke: none; }
+.shop-chip svg.ext { width: 13px; height: 13px; stroke-width: 2.4; transition: transform .15s; }
+.shop-chip:hover svg.ext { transform: translate(2px, -2px); }
+.shop-chips-sep { width: 1px; height: 14px; background: color-mix(in srgb, currentColor 15%, transparent); }
 .card .num { margin-top: auto; font: 500 18px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .14em; display: flex; align-items: center; gap: 12px; }
 .card .bot { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 14px; }
 .card .lbl { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; opacity: .6; }

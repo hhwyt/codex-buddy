@@ -134,13 +134,22 @@ function cloneRow(c: CardView, o: FaceOptions): HTMLElement {
   }
 }
 
+const SHOP_PHONE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18.5h4"/></svg>';
+const SHOP_SPARK = '<svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z"/></svg>';
+const SHOP_EXTERNAL = '<svg viewBox="0 0 24 24" aria-hidden="true" class="ext"><path d="M7 17L17 7M8 7h9v9"/></svg>';
+
+/** F-08 (design/openai-card-chips.html 第 2 版): one line of two text links */
 function shopChips(go: { sms(): void; gpt(): void }): HTMLElement {
-  const chip = (testid: string, title: string, sub: string, onclick: () => void) => h('button', {
-    class: 'shop-chip', type: 'button', 'data-testid': testid, onclick: (e: Event) => { e.stopPropagation(); onclick(); },
-  }, h('span', {}, title), h('small', {}, sub));
+  const link = (testid: string, icon: string, text: string, onclick: () => void) => {
+    const b = h('button', { class: 'shop-chip', type: 'button', 'data-testid': testid, onclick: (e: Event) => { e.stopPropagation(); onclick(); } });
+    b.innerHTML = `${icon}<span></span>${SHOP_EXTERNAL}`;
+    b.querySelector('span')!.textContent = text;
+    return b;
+  };
   return h('div', { class: 'shop-chips' },
-    chip(TID.models.shopSms, '📱 收不到验证码', '买一个号码', go.sms),
-    chip(TID.models.shopGpt, '✦ 更强的 GPT', '官方订阅', go.gpt));
+    link(TID.models.shopSms, SHOP_PHONE, '收不到验证码？买一个号码', go.sms),
+    h('i', { class: 'shop-chips-sep', 'aria-hidden': 'true' }),
+    link(TID.models.shopGpt, SHOP_SPARK, '更强的 GPT', go.gpt));
 }
 
 /** Children of one card element (the element itself is owned by the page so it can animate) */
