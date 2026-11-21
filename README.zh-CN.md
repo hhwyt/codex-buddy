@@ -2,7 +2,14 @@
 
 [English](README.md) | **简体中文**
 
-**一键装好 OpenAI 的 Codex，用国产大模型。**
+**一键装好 OpenAI 的 Codex，在任意模型之间一键切换。**
+
+- **一键安装**：下载官方 Codex 并装好，不用敲命令。
+- **支持很多模型**：OpenAI 官方账号、DeepSeek、智谱（免费）、Kimi、通义（Qwen）、MiniMax、混元，也能手动加任意厂商。
+- **一键切换**：Codex 在这些模型之间点一下就切换，Key 自动建好、测通。
+- **分身**：把一个模型做成独立的 App，有自己的图标和聊天记录，能和原版同时开。
+- **汉化**：Codex 在英文和中文之间切换，不用重装。
+- **一键还原**：随时恢复成用 CodexBuddy 之前的样子。
 
 CodexBuddy 帮你装好 Codex 桌面 App，并把它接到国产模型厂商：DeepSeek、智谱、Kimi、通义（Qwen）、MiniMax、混元。不用科学上网，不用敲命令，不用改配置文件。用微信扫一下码，CodexBuddy 就在厂商官网上用你自己的账号建好 API Key，测通以后把 Codex 切过去。
 

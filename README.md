@@ -2,7 +2,14 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-**Use OpenAI's Codex with China's own AI models, set up in one click.**
+**Install OpenAI's Codex in one click and switch it between any models.**
+
+- **One-click install**: downloads the official Codex app and sets it up, no command line.
+- **Many models**: your official OpenAI account, DeepSeek, Zhipu (free), Kimi, Qwen, MiniMax, Hunyuan, or any provider you add by hand.
+- **One-click switching**: move Codex between any of these models in a click; keys are created and tested for you.
+- **Clones (分身)**: turn a model into its own app with its own icon and chat history, running next to the original.
+- **Chinese interface (汉化)**: switch Codex between English and Chinese without reinstalling.
+- **One-click restore**: put everything back the way it was.
 
 CodexBuddy installs the Codex desktop app for you and connects it to a Chinese model provider: DeepSeek, Zhipu (智谱), Kimi, Qwen (通义), MiniMax or Hunyuan (混元). No VPN, no command line, no config files. Scan a QR code with WeChat, and CodexBuddy gets an API key from your own account on the provider's official site, tests it, and switches Codex over.
 
