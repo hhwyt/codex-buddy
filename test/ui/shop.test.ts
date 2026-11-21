@@ -27,12 +27,12 @@ describe('F-08 从官方卡跳来', () => {
 });
 
 describe('商城页（P-01..P-03）', () => {
-  it('P-01 标题「商城」，一张验证码大卡和一行「购买更强的官方 GPT 模型 ›」，别的不放', async () => {
+  it('P-01 标题「商城」，一张验证码大卡和一行「购买更强的官方 GPT 模型」，别的不放', async () => {
     await mount(fakeApi());
     const root = $(TID.shop.root)!;
     expect(root.querySelector('h1')!.textContent).toBe('商城');
     expect(root.querySelectorAll('button')).toHaveLength(2);
-    expect(root.textContent).toBe('商城微信 / 支付宝付款，付完自动发货注册要手机验证码注册、登录 OpenAI 官方账号时收短信用，收不到可换号¥35购买更强的官方 GPT 模型 ›');
+    expect(root.textContent).toBe('商城微信 / 支付宝付款，付完自动发货注册要手机验证码注册、登录 OpenAI 官方账号时收短信用，收不到可换号¥35购买更强的官方 GPT 模型');
     expect(SMS_PRICE_YUAN).toBe(35);
   });
 
@@ -43,11 +43,11 @@ describe('商城页（P-01..P-03）', () => {
     expect(fake.calls.filter(c => c.channel === 'shop:open').map(c => c.args)).toEqual([{ item: 'sms' }]);
   });
 
-  it('P-03 「购买更强的官方 GPT 模型 ›」不写品牌和价格，点了在右侧浏览器打开订阅分类', async () => {
+  it('P-03 「购买更强的官方 GPT 模型」不写品牌和价格，点了在右侧浏览器打开订阅分类', async () => {
     const fake = fakeApi();
     await mount(fake);
     const more = $(TID.shop.subscriptions)!;
-    expect(more.textContent).toBe('购买更强的官方 GPT 模型 ›');
+    expect(more.textContent).toBe('购买更强的官方 GPT 模型');
     more.click();
     expect(fake.calls.filter(c => c.channel === 'shop:open').map(c => c.args)).toEqual([{ item: 'subscriptions' }]);
   });
