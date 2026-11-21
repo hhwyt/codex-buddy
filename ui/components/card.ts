@@ -135,7 +135,8 @@ function cloneRow(c: CardView, o: FaceOptions): HTMLElement {
 /** Children of one card element (the element itself is owned by the page so it can animate) */
 export function cardFace(c: CardView, o: FaceOptions): Node[] {
   const showKeyActions = o.front && o.inUse && c.vendor !== 'openai';
-  const pay = o.front && o.inUse && c.paid && !c.free && o.state?.kind !== 'balance';
+  // 分身 mode spreads every card out, so each paid vendor card carries its own 充值 button
+  const pay = c.paid && !c.free && (o.cloneState ? o.cloneState === 'made' : o.front && o.inUse && o.state?.kind !== 'balance');
   return [
     h('div', { class: 'top' }, logo(c), h('span', { class: 'name' }, c.name), h('span', { class: 'st-wrap' }, status(c, o))),
     h('div', { class: 'num' },

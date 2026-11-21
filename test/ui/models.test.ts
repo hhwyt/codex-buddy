@@ -979,6 +979,20 @@ describe('分身', () => {
     expect(toastText()).toBe('没打开');
   });
 
+  it('C-02 做好分身的付费卡右下角也有「余额 · 去充值 ›」，和切换页那张卡一样（design/clone-recharge）', async () => {
+    await mount(walletOf({ mode: 'clone' }, { deepseek: { cloneMade: true }, kimi: { cloneMade: true }, zhipu: { cloneMade: true } }));
+    const pay = q(TID.models.recharge('deepseek'))!;
+    expect(pay.textContent).toBe('余额去充值 ›');
+    pay.click();
+    await settle();
+    expect(api.callsOf('recharge:open')).toEqual([{ vendor: 'deepseek' }]);
+    expect(api.callsOf('clone:open')).toEqual([]);
+    expect(q(TID.models.recharge('kimi'))).toBeTruthy();
+    expect(q(TID.models.recharge('qwen'))).toBeNull(); // not made into a clone yet
+    expect(q(TID.models.recharge('zhipu'))).toBeNull(); // free
+    expect(q(TID.models.recharge('openai'))).toBeNull();
+  });
+
   it('C-07 删除分身：先确认，只删 App', async () => {
     let made = true;
     await mount(walletOf({ mode: 'clone' }, { deepseek: { cloneMade: true } }));
