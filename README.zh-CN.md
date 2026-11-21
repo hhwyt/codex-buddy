@@ -106,6 +106,6 @@ npm run dist:mac     # macOS：release/CodexBuddy-<版本>.dmg（Intel 和 Apple
 
 ## 协议
 
-[GNU AGPL-3.0-only](LICENSE)，Copyright (C) 2026 北京序变科技有限公司。
+[PolyForm Noncommercial 1.0.0](LICENSE)，Copyright (C) 2026 北京序变科技有限公司。
 
-如果你改了 CodexBuddy 并给别人用（包括通过网络提供服务），必须按同一协议公开你改过的源代码。想贡献代码请先看 [CONTRIBUTING.md](CONTRIBUTING.md)；贡献需要签 [CLA](CLA.md)。
+可以为个人学习和其他非商业目的阅读、运行、修改 CodexBuddy。**不允许商用**：包括拿去卖、打包进收费的产品或服务、在公司里用于经营。需要商用请先联系版权方取得商业授权。想贡献代码请先看 [CONTRIBUTING.md](CONTRIBUTING.md)；贡献需要签 [CLA](CLA.md)。

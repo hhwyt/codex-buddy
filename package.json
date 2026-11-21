@@ -3,7 +3,7 @@
   "version": "26.11.2",
   "description": "CodexBuddy：一键装好 Codex，免费用 AI",
   "author": "hhwyt",
-  "license": "AGPL-3.0-only",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "main": "dist/app.js",
   "scripts": {

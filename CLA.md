@@ -22,8 +22,8 @@ For patent claims you can license that are necessarily infringed by your Contrib
 
 ## 4. 重新授权 / Right to relicense
 
-你同意公司可以按它选择的任何协议发布你的贡献及包含它的作品，包括 GNU AGPL 以外的开源协议和商业（专有）授权，且不需要再征得你的同意或向你付费。
-You agree that the Company may distribute your Contributions, and works that include them, under any license it chooses, including open-source licenses other than the GNU AGPL and commercial (proprietary) licenses, without further permission from or payment to you.
+你同意公司可以按它选择的任何协议发布你的贡献及包含它的作品，包括本项目当前协议以外的协议和商业（专有）授权，且不需要再征得你的同意或向你付费。
+You agree that the Company may distribute your Contributions, and works that include them, under any license it chooses, including licenses other than the project's current license and commercial (proprietary) licenses, without further permission from or payment to you.
 
 ## 5. 你的保证 / Your representations
 

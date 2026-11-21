@@ -106,6 +106,6 @@ Builds are not signed with a paid certificate yet. On Windows, SmartScreen may s
 
 ## License
 
-[GNU AGPL-3.0-only](LICENSE). Copyright (C) 2026 北京序变科技有限公司.
+[PolyForm Noncommercial 1.0.0](LICENSE). Copyright (C) 2026 北京序变科技有限公司.
 
-If you modify CodexBuddy and let others use it, including over a network, you must publish your modified source under the same license. To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md); contributions require signing the [CLA](CLA.md).
+You may read, run and modify CodexBuddy for personal and other noncommercial purposes. Commercial use, including selling it, bundling it into a paid product or service, or using it inside a company for business, is not permitted without a separate commercial license from the copyright holder. To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md); contributions require signing the [CLA](CLA.md).
