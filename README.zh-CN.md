@@ -2,6 +2,8 @@
 
 [English](README.md) | **简体中文**
 
+> **仅限非商业使用。** CodexBuddy 采用 [CC BY-NC-SA 4.0](LICENSE) 协议：个人和非商业使用免费；**不允许商用**；改过的版本必须按同一协议公开。
+
 **一键装好 OpenAI 的 Codex，在任意模型之间一键切换。**
 
 - **一键安装**：下载官方 Codex 并装好，不用敲命令。
@@ -106,6 +108,6 @@ npm run dist:mac     # macOS：release/CodexBuddy-<版本>.dmg（Intel 和 Apple
 
 ## 协议
 
-[PolyForm Noncommercial 1.0.0](LICENSE)，Copyright (C) 2026 北京序变科技有限公司。
+[CC BY-NC-SA 4.0](LICENSE)，Copyright (C) 2026 北京序变科技有限公司。
 
-可以为个人学习和其他非商业目的阅读、运行、修改 CodexBuddy。**不允许商用**：包括拿去卖、打包进收费的产品或服务、在公司里用于经营。需要商用请先联系版权方取得商业授权。想贡献代码请先看 [CONTRIBUTING.md](CONTRIBUTING.md)；贡献需要签 [CLA](CLA.md)。
+**不允许商用。** 可以为个人学习和其他非商业目的阅读、运行、修改 CodexBuddy；拿去卖、打包进收费的产品或服务、用于公司经营，都不允许，需要商用请先联系版权方取得商业授权。改了 CodexBuddy 再发布的，必须注明出自本项目，并按同一协议公开。

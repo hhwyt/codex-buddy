@@ -2,6 +2,8 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+> **Noncommercial only.** CodexBuddy is licensed under [CC BY-NC-SA 4.0](LICENSE): free for personal and noncommercial use; commercial use is not permitted; modified versions must be shared under the same license.
+
 **Install OpenAI's Codex in one click and switch it between any models.**
 
 - **One-click install**: downloads the official Codex app and sets it up, no command line.
@@ -106,6 +108,6 @@ Builds are not signed with a paid certificate yet. On Windows, SmartScreen may s
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE). Copyright (C) 2026 北京序变科技有限公司.
+[CC BY-NC-SA 4.0](LICENSE). Copyright (C) 2026 北京序变科技有限公司.
 
-You may read, run and modify CodexBuddy for personal and other noncommercial purposes. Commercial use, including selling it, bundling it into a paid product or service, or using it inside a company for business, is not permitted without a separate commercial license from the copyright holder. To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md); contributions require signing the [CLA](CLA.md).
+**No commercial use.** You may read, run and modify CodexBuddy for personal and other noncommercial purposes. Selling it, bundling it into a paid product or service, or using it in a business is not permitted without a separate commercial license from the copyright holder. If you modify CodexBuddy and share it, you must credit the original and release your version under this same license.
