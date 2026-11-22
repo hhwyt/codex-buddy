@@ -198,7 +198,7 @@ describe('right-side browser', () => {
     rb.show('pip');
     expect(rb.state().mode).toBe('pip');
     expect(host.size.width).toBe(980);
-    const h = browserHandlers(rb);
+    const h = browserHandlers(rb, '26.11.3');
     h['browser:show']({ mode: 'expanded' });
     expect(rb.state().mode).toBe('expanded');
   });
@@ -213,18 +213,18 @@ describe('right-side browser', () => {
     expect(pageUrlAllowed('javascript:alert(1)', true)).toBe(false);
   });
 
-  test('P-02 P-03 商城只打开两个固定的商城页，放大显示；别的名字什么都不开', async () => {
-    const h = browserHandlers(rb);
+  test('P-02 P-03 商城只打开三个固定的商城页，带来源参数，放大显示；别的名字什么都不开', async () => {
+    const h = browserHandlers(rb, '26.11.3');
     await h['shop:open']({ item: 'sms' });
     expect(rb.state()).toMatchObject({ open: true, mode: 'expanded' });
-    expect(rb.url()).toBe(SHOP_URLS.sms);
+    expect(rb.url()).toBe('https://shop.humanslive.ai/products/codex-sms?utm_source=codexbuddy&utm_content=26.11.3');
     await h['shop:open']({ item: 'subscriptions' });
-    expect(rb.url()).toBe(SHOP_URLS.subscriptions);
+    expect(rb.url()).toBe('https://shop.humanslive.ai/categories/chatgpt?utm_source=codexbuddy&utm_content=26.11.3');
     await h['shop:open']({ item: 'ip' });
-    expect(rb.url()).toBe(SHOP_URLS.ip);
+    expect(rb.url()).toBe('https://shop.humanslive.ai/categories/network?utm_source=codexbuddy&utm_content=26.11.3');
     await h['shop:open']({ item: 'https://evil.example/' as never });
     await h['shop:open']({ item: 'constructor' as never });
-    expect(rb.url()).toBe(SHOP_URLS.ip);
+    expect(rb.url()).toBe('https://shop.humanslive.ai/categories/network?utm_source=codexbuddy&utm_content=26.11.3');
     expect(SHOP_URLS).toEqual({ sms: 'https://shop.humanslive.ai/products/codex-sms', subscriptions: 'https://shop.humanslive.ai/categories/chatgpt', ip: 'https://shop.humanslive.ai/categories/network' });
   });
 
@@ -236,7 +236,7 @@ describe('right-side browser', () => {
 
   test('B-04 只有点 ✕ 才关；关掉时窗口缩回原宽', async () => {
     await rb.open('https://x.example/a', { mode: 'expanded' });
-    const h = browserHandlers(rb);
+    const h = browserHandlers(rb, '26.11.3');
     h['browser:back']();
     h['browser:reload']();
     expect(rb.state().open).toBe(true);

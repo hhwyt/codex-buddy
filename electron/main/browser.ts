@@ -401,15 +401,23 @@ export const SHOP_URLS = {
 } as const;
 export type ShopItem = keyof typeof SHOP_URLS;
 
+/** The shop page with where the visit came from, so shop sales can be traced back to this app and its version */
+export function shopUrlWithSource(item: ShopItem, appVersion: string): string {
+  const url = new URL(SHOP_URLS[item]);
+  url.searchParams.set('utm_source', 'codexbuddy');
+  url.searchParams.set('utm_content', appVersion);
+  return url.toString();
+}
+
 /** IPC handlers for the page's browser chrome (B-03, B-04, B-05) and the 商城 page (P-02, P-03) */
-export function browserHandlers(rb: RightBrowser) {
+export function browserHandlers(rb: RightBrowser, appVersion: string) {
   return {
     'browser:show': ({ mode }: { mode: BrowserMode }) => rb.show(mode),
     'browser:close': () => rb.close(),
     'browser:back': () => rb.back(),
     'browser:reload': () => rb.reload(),
     'shop:open': async ({ item }: { item: ShopItem }) => {
-      if (Object.prototype.hasOwnProperty.call(SHOP_URLS, item)) await rb.open(SHOP_URLS[item], { mode: 'expanded' });
+      if (Object.prototype.hasOwnProperty.call(SHOP_URLS, item)) await rb.open(shopUrlWithSource(item, appVersion), { mode: 'expanded' });
     },
     'browser:place': (b: Bounds) => rb.place(b),
   };

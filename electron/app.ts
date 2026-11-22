@@ -236,7 +236,7 @@ async function main(): Promise<void> {
     () => net.isOnline(),
   );
   const versionChannels = new Set(['network:check', 'app:state', 'app:quit', 'wallet:get', 'install:log', 'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'upgrade:skip', 'browser:close', 'switch:cancel', 'security:get', 'security:ask-ai', 'security:source', 'restore:plan']);
-  registerIpc({ ...services.handlers, ...browserHandlers(rb),
+  registerIpc({ ...services.handlers, ...browserHandlers(rb, app.getVersion()),
     'network:check': async () => ({ ok: await network.check() }),
     'app:quit': () => app.quit(),
   }, async channel => {
