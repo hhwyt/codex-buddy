@@ -2,6 +2,17 @@
 
 [English](README.md) | **简体中文**
 
+## 下载
+
+直接下载安装包就能用，不需要编译源码。打开 **[最新版本下载页](https://github.com/hhwyt/codex-buddy-releases/releases/latest)**，按你的电脑选一个文件：
+
+| 电脑 | 下载哪个 | 怎么装 |
+|---|---|---|
+| Windows 10 / 11 | `CodexBuddy-Setup-<版本号>.exe` | 双击安装。如果提示「Windows 已保护你的电脑」，点「更多信息 → 仍要运行」。 |
+| Mac（Intel 和 Apple 芯片都行） | `CodexBuddy-<版本号>.dmg` | 打开后把 CodexBuddy 拖进「应用程序」。第一次打开时右键 App 选「打开」。 |
+
+装好以后有新版本，App 会自己提示更新，不用再回来下载。
+
 > **仅限非商业使用。** CodexBuddy 采用 [CC BY-NC-SA 4.0](LICENSE) 协议：个人和非商业使用免费；**不允许商用**；改过的版本必须按同一协议公开。
 
 **一键装好 OpenAI 的 Codex，在任意模型之间一键切换。**
@@ -13,17 +24,6 @@
 - **分身**：把一个模型做成独立的 App，有自己的图标和聊天记录，能和原版同时开。
 - **汉化**：Codex 在英文和中文之间切换，不用重装。
 - **一键还原**：随时恢复成用 CodexBuddy 之前的样子。
-
-## 下载
-
-直接下载安装包就能用，不需要编译源码。打开 **[最新版本下载页](https://github.com/hhwyt/codex-buddy-releases/releases/latest)**，按你的电脑选一个文件：
-
-| 电脑 | 下载哪个 | 怎么装 |
-|---|---|---|
-| Windows 10 / 11 | `CodexBuddy-Setup-<版本号>.exe` | 双击安装。如果提示「Windows 已保护你的电脑」，点「更多信息 → 仍要运行」。 |
-| Mac（Intel 和 Apple 芯片都行） | `CodexBuddy-<版本号>.dmg` | 打开后把 CodexBuddy 拖进「应用程序」。第一次打开时右键 App 选「打开」。 |
-
-装好以后有新版本，App 会自己提示更新，不用再回来下载。
 
 CodexBuddy 帮你装好 Codex 桌面 App，并把它接到国产模型厂商：DeepSeek、智谱、Kimi、通义（Qwen）、MiniMax、混元。不用科学上网，不用敲命令，不用改配置文件。用微信扫一下码，CodexBuddy 就在厂商官网上用你自己的账号建好 API Key，测通以后把 Codex 切过去。
 
@@ -116,6 +116,22 @@ npm run dist:mac     # macOS：release/CodexBuddy-<版本>.dmg（Intel 和 Apple
 ```
 
 安装包暂时还没有用付费证书签名。版本号是「年.月.当月第几个」（26.11.1 是 2026 年 11 月第一个版本）。发版流程见 [docs/release.md](docs/release.md)。
+
+## 参与贡献
+
+欢迎任何人给 CodexBuddy 提 PR：修 bug、加厂商、改文案、补测试都行。第一次提交前请先看 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 商务合作
+
+商务合作、商业授权，扫码加作者微信（黄金金不AI），请备注「商务合作」。
+
+<img src="docs/images/wechat-contact.png" alt="黄金金不AI 的微信二维码" width="220">
+
+## 请作者喝杯咖啡
+
+觉得 CodexBuddy 好用，可以用微信扫码请作者喝杯咖啡。
+
+<img src="docs/images/wechat-pay.png" alt="黄金金不AI 的微信收款码" width="220">
 
 ## 协议
 
