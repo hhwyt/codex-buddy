@@ -117,6 +117,22 @@ npm run dist:mac     # macOS: release/CodexBuddy-<version>.dmg (Intel + Apple si
 
 Builds are not signed with a paid certificate yet. Versions are year.month.n (26.11.1 is the first release of November 2026). Releasing is described in [docs/release.md](docs/release.md).
 
+## Contributing
+
+Pull requests from anyone are welcome: bug fixes, new providers, wording, tests. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before your first one.
+
+## Business
+
+For business cooperation or a commercial license, add the author (黄金金不AI) on WeChat and mention "business".
+
+<img src="docs/images/wechat-contact.png" alt="WeChat QR code of 黄金金不AI" width="220">
+
+## Buy the author a coffee
+
+If CodexBuddy helps you, you can buy the author a coffee with WeChat Pay.
+
+<img src="docs/images/wechat-pay.png" alt="WeChat Pay code of 黄金金不AI" width="220">
+
 ## License
 
 [CC BY-NC-SA 4.0](LICENSE). Copyright (C) 2026 [hhwyt](https://github.com/hhwyt).

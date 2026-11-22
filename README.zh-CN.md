@@ -117,6 +117,22 @@ npm run dist:mac     # macOS：release/CodexBuddy-<版本>.dmg（Intel 和 Apple
 
 安装包暂时还没有用付费证书签名。版本号是「年.月.当月第几个」（26.11.1 是 2026 年 11 月第一个版本）。发版流程见 [docs/release.md](docs/release.md)。
 
+## 参与贡献
+
+欢迎任何人给 CodexBuddy 提 PR：修 bug、加厂商、改文案、补测试都行。第一次提交前请先看 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 商务合作
+
+商务合作、商业授权，扫码加作者微信（黄金金不AI），请备注「商务合作」。
+
+<img src="docs/images/wechat-contact.png" alt="黄金金不AI 的微信二维码" width="220">
+
+## 请作者喝杯咖啡
+
+觉得 CodexBuddy 好用，可以用微信扫码请作者喝杯咖啡。
+
+<img src="docs/images/wechat-pay.png" alt="黄金金不AI 的微信收款码" width="220">
+
 ## 协议
 
 [CC BY-NC-SA 4.0](LICENSE)，Copyright (C) 2026 [hhwyt](https://github.com/hhwyt)。
