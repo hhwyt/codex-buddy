@@ -147,7 +147,8 @@ describe('汉化版 on Mac', () => {
     expect((await waitFor(() => readRecord(record)[1])).args).toEqual(['-a', "it's.app"]);
   });
 
-  test('L-06 这一版 Codex 汉化不了（调试端口不回应）：照常英文打开，并对这一版关掉汉化，再选汉化版时重试', async () => {
+  // Mac-only flow: on Windows the second add() overwrites the copied .icns, which fails on the runner's temp path
+  test.skipIf(process.platform === 'win32')('L-06 这一版 Codex 汉化不了（调试端口不回应）：照常英文打开，并对这一版关掉汉化，再选汉化版时重试', async () => {
     const z = zh(realExec);
     await z.add();
     useFakeOpener({ waitMs: 300 });

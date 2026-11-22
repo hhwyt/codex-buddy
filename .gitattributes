@@ -1,2 +1,5 @@
 *.ps1 text eol=crlf
 *.sh text eol=lf
+# The signature covers these bytes exactly; never convert line endings on checkout
+remote/config.json -text
+remote/config.json.sig -text
