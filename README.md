@@ -14,6 +14,17 @@
 - **Chinese interface (汉化)**: switch Codex between English and Chinese without reinstalling.
 - **One-click restore**: put everything back the way it was.
 
+## Download
+
+Download the installer and run it; there is nothing to build. Open the **[latest release](https://github.com/hhwyt/codex-buddy-releases/releases/latest)** and pick the file for your computer:
+
+| Computer | File | Install |
+|---|---|---|
+| Windows 10 / 11 | `CodexBuddy-Setup-<version>.exe` | Double-click it. If Windows says "Windows protected your PC", choose More info → Run anyway. |
+| Mac (Intel or Apple silicon) | `CodexBuddy-<version>.dmg` | Open it and drag CodexBuddy into Applications. The first time, right-click the app and choose Open. |
+
+Once installed, the app tells you when a new version is out; you don't need to come back here.
+
 CodexBuddy installs the Codex desktop app for you and connects it to a Chinese model provider: DeepSeek, Zhipu (智谱), Kimi, Qwen (通义), MiniMax or Hunyuan (混元). No VPN, no command line, no config files. Scan a QR code with WeChat, and CodexBuddy gets an API key from your own account on the provider's official site, tests it, and switches Codex over.
 
 It runs on macOS (Intel and Apple silicon) and Windows 10 / 11.
@@ -104,7 +115,7 @@ npm run dist         # Windows installer: release/CodexBuddy-Setup-<version>.exe
 npm run dist:mac     # macOS: release/CodexBuddy-<version>.dmg (Intel + Apple silicon)
 ```
 
-Builds are not signed with a paid certificate yet. On Windows, SmartScreen may say "Windows protected your PC": choose More info → Run anyway. On macOS, right-click the app and choose Open the first time. Versions are year.month.n (26.11.1 is the first release of November 2026). Releasing is described in [docs/release.md](docs/release.md).
+Builds are not signed with a paid certificate yet. Versions are year.month.n (26.11.1 is the first release of November 2026). Releasing is described in [docs/release.md](docs/release.md).
 
 ## License
 
