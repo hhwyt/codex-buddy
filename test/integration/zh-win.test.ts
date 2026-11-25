@@ -105,7 +105,8 @@ describe('汉化版 on Windows: running codex.ps1', () => {
     const fake: any = (cmd: string, args: string[], opts: any, cb: (e: any, out: string) => void) => { seen.push({ cmd, args, opts }); cb(null, 'ok'); };
     expect(await realPs1Runner('C:\\x\\codex.ps1', fake)({ CODEX_SETUP_EDITION: 'zh' })).toEqual({ code: 0, out: 'ok' });
     expect(seen[0].cmd).toBe('powershell.exe');
-    expect(seen[0].args).toEqual(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'C:\\x\\codex.ps1']);
+    expect(seen[0].args).toEqual(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
+      "iex ([IO.File]::ReadAllText('C:\\x\\codex.ps1', [Text.Encoding]::UTF8))"]);
     expect(seen[0].opts.env.CODEX_SETUP_EDITION).toBe('zh');
     const failing: any = (_c: string, _a: string[], _o: any, cb: (e: any, out: string) => void) => cb({ code: 2 }, '');
     expect((await realPs1Runner('p', failing)({})).code).toBe(2);

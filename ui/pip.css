@@ -16,7 +16,8 @@
 @keyframes pip-blink { 50% { opacity: .25; } }
 
 .browser-panel { position: absolute; top: 0; right: 0; bottom: 0; width: var(--browser-width, 480px); display: flex; animation: browser-in .45s cubic-bezier(.2, .8, .2, 1); flex-direction: column; background: var(--bg); border-left: 1px solid var(--line); pointer-events: auto; }
-.browser-panel-bar { height: var(--top-height); display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--line); -webkit-app-region: no-drag; }
+/* Windows: keep clear of the system window buttons (titleBarOverlay) at the top right */
+.browser-panel-bar { height: var(--top-height); display: flex; align-items: center; gap: 4px; padding: 0 8px; padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px); border-bottom: 1px solid var(--line); -webkit-app-region: no-drag; }
 .browser-panel-address { flex: 1; min-width: 0; height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--pill); background: var(--side); color: var(--ink-2); font: inherit; font-size: 12px; outline: none; }
 .browser-panel-view { flex: 1; }
 /* slides in with the native view (electron/main/browser.ts SLIDE_MS) and the card pile (models.css) */

@@ -23,9 +23,12 @@ export const OLD_ZH_SHORTCUT = 'Codex 汉化版.lnk';
 export const bundledPs1 = (dir = __dirname) =>
   path.join(dir, '..', '..', 'scripts', 'vendor', 'codex.ps1').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
 
+/** Reads codex.ps1 as UTF-8 and runs it through iex, like win.ts runCodexPs1: with -File, Windows PowerShell 5.1 reads
+ *  the BOM-less file in the ANSI code page, the Chinese text breaks the parse and 汉化 always fails */
 export function realPs1Runner(ps1 = bundledPs1(), spawnFile = execFile): Ps1Runner {
+  const command = `iex ([IO.File]::ReadAllText('${ps1.replace(/'/g, "''")}', [Text.Encoding]::UTF8))`;
   return env => new Promise(resolve => {
-    spawnFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps1],
+    spawnFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
       { env: { ...process.env, ...env }, windowsHide: true, timeout: 120_000 },
       (error, stdout) => resolve({ code: error ? (typeof error.code === 'number' ? error.code : 1) : 0, out: String(stdout) }));
   });
