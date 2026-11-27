@@ -9,6 +9,8 @@ import { helpLink } from './help.js';
 
 const WARN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>';
 const CIRCLE: Record<string, number> = { new: 0, test: 1, revoke: 2 };
+/** How long the three ticks stay before the restart confirmation */
+export const RESTART_AFTER_MS = 900;
 
 export interface RotateResult { changed: boolean; outcome?: Outcome }
 
@@ -94,9 +96,12 @@ export function rotateKeyDialog(api: BuddyApi, c: CardView): Promise<RotateResul
       if (r.kind !== 'cancelled') actions.unshift(helpLink());
       row.replaceChildren(...actions);
     }
+    /** Like a switch: when ChatGPT has to (re)start to use the new key, the ticks stay a moment and then the same
+     *  restart confirmation as 切换 takes over (the page shows it after this resolves); otherwise 好 */
     function finished(): void {
       circles.forEach((_, i) => set(i, 'done'));
       say('');
+      if (outcome?.restartRequired || outcome?.openRequired) { setTimeout(close, RESTART_AFTER_MS); return; }
       row.replaceChildren(button('好', TID.keyRotate.ok, close, true));
     }
     /** Y-05: the new key works, the old one is still accepted: 去官网删 retries the official page */

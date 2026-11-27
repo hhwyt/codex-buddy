@@ -503,6 +503,33 @@ describe('叠卡', () => {
     expect(api.callsOf('switch:start')).toEqual([]);
   });
 
+  it('Y-07 换完要重启：和切换一样弹「现在重启 ChatGPT？」；没开着时是「打开 ChatGPT」试试这一家', async () => {
+    await mount(walletOf({ active: 'deepseek' }, { deepseek: { keyTail: '7c21' } }));
+    api.handle('key:replace', () => ({ ok: true, restartRequired: true, openRequired: false }));
+    click(TID.models.changeKey('deepseek'));
+    await settle();
+    click(TID.keyRotate.start);
+    await settle();
+    await new Promise(r => setTimeout(r, 1000));
+    await settle();
+    expect(q(TID.keyRotate.root)).toBeNull();
+    expect(q(TID.restart.root)!.textContent).toContain('现在重启 ChatGPT？');
+    click(TID.restart.later);
+    await settle();
+    expect(q(TID.restart.root)).toBeNull();
+
+    api.handle('key:replace', () => ({ ok: true, restartRequired: false, openRequired: true }));
+    click(TID.models.changeKey('deepseek'));
+    await settle();
+    click(TID.keyRotate.start);
+    await settle();
+    await new Promise(r => setTimeout(r, 1000));
+    await settle();
+    expect(q(TID.restart.root)!.textContent).toContain('现在打开 ChatGPT，试试 DeepSeek？');
+    click(TID.restart.later);
+    await settle();
+  });
+
   it('M-17 先不了：什么都不改', async () => {
     await mount(walletOf({ active: 'deepseek' }, { deepseek: { keyTail: '7c21' } }));
     click(TID.models.changeKey('deepseek'));

@@ -347,7 +347,7 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     try { r = await rotateKeyDialog(api, card(v)); } finally { switching = false; }
     if (!r.changed) return;
     await refresh();
-    if (r.outcome?.restartRequired || r.outcome?.openRequired) await promptRestart(api, !r.outcome.restartRequired);
+    if (r.outcome?.restartRequired || r.outcome?.openRequired) await promptRestart(api, !r.outcome.restartRequired, card(v).name);
   }
 
   // ---- pointer: click or drag (M-02..M-06) ----

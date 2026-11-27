@@ -169,6 +169,13 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .log { margin-top: 8px; background: var(--side); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.7 ui-monospace, Menlo, monospace; color: var(--ink-2); }
 .consequence { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 5px; }
 
+.dialog.rs { width: 440px; padding: 30px; }
+.rs h2 { font-size: 22px; margin: 0 0 12px; }
+.rs-p { font-size: 14px; line-height: 1.8; color: var(--ink-2); margin: 0; }
+.rs-c { font-size: 12px; color: var(--ink-3); margin: 8px 0 0; }
+.rs-ok { width: 36px; height: 36px; border-radius: 50%; background: var(--fill); color: #fff; display: grid; place-items: center; font-weight: 700; margin-bottom: 14px; }
+.rs .drow { margin-top: 27px; }
+.bspin { display: inline-block; width: 12px; height: 12px; border: 2px solid #ffffff66; border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: -2px; margin-right: 7px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes blink { 50% { opacity: .35; } }
 @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(12,141,246,.15); } }
@@ -186,6 +193,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
     <div class="grp" id="vers"><span>版本</span></div>
     <div class="grp" id="vendors"><span>厂商</span></div>
     <div class="grp" id="cases"><span>情况</span></div>
+    <div class="grp" id="gpt"><span>ChatGPT</span></div>
     <button class="reset" id="reset">重来</button>
   </div>
   <div class="frame" id="frame">
@@ -222,14 +230,14 @@ const NOTES = [
   `<b>第 1 版 卡上直接换</b>：沿用卡片正面现有的「换」，改成换新 Key 的同时作废旧的。点「换」先弹一个贴着按钮的小确认（旧 Key 会作废，撤不回），确认后整个过程画在卡上：卡号尾号滚动变成新的，状态处三个点依次亮（新建 → 测通 → 作废旧的）。没登录时右侧浏览器自动打开扫码，扫完自己接着走。只能换最上面那张在用的卡。<br>
    自定义厂商没法替用户建 Key，小确认里改成粘贴新 Key。`,
   `<b>第 2 版 安全面板集中换</b>：🛡 面板「你的 Key」每行加尾号、用了多少天（超过 90 天标红）和一个 ↻。点某一行的 ↻ 只换这一家；顶上「全部换新」一次把这台电脑上所有 Key 都换掉，适合怀疑泄露的时候。确认框列出会换哪几家、旧 Key 会作废。换的时候一行一行转圈打勾；要登录的那家，右侧浏览器打开扫码；这家的官网不能自动删，就在这一行给「去官网删」。不在用的卡也能换。`,
-  `<b>第 3 版 三步弹窗</b>：卡上的「换」打开弹窗，和「切换模型」弹窗同一套三个圆圈：新建 Key → 测试连通 → 作废旧 Key。开始前就写清 sk-••••8f3a → 作废。哪一步失败停在哪一步，原来的 Key 照用；旧 Key 不能自动删时，第三个圈等你：「去官网删」在右侧打开 Key 列表并标出旧的那一行，删完自动打勾。每一步的明细收在「看明细」里。`,
+  `<b>第 3 版 三步弹窗</b>：卡上的「换」打开弹窗，和「切换模型」弹窗同一套三个圆圈：新建 Key → 测试连通 → 作废旧 Key。开始前就写清 sk-••••8f3a → 作废。哪一步失败停在哪一步，原来的 Key 照用；旧 Key 不能自动删时，第三个圈等你：「去官网删」在右侧打开 Key 列表并标出旧的那一行，删完自动打勾。每一步的明细收在「看明细」里。三个勾出来后弹窗自己关掉，换成和切换成功后同一个重启确认：ChatGPT 开着是「现在重启 ChatGPT？」，没开是「配置已保存」+「打开 ChatGPT」（框外「ChatGPT」开关切换这两种）。`,
 ];
 const ROT = '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>';
 const WARN = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>';
 const CHAT = '<svg viewBox="0 0 20 20"><path d="M4 4h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 14H9l-4 3v-3H4a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 4 4Z"/></svg>';
 const SH = '<svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>';
 
-const S = { ver: 2, vendor: 'deepseek', kase: 'ok', busy: false, tails: {}, ages: {} };
+const S = { ver: 2, vendor: 'deepseek', kase: 'ok', gpt: 'on', busy: false, tails: {}, ages: {} };
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const hex = () => Math.random().toString(16).slice(2, 6).padEnd(4, '0');
@@ -247,7 +255,7 @@ function pills(box, items, key, onPick) {
   });
 }
 function markPills() {
-  [['vers', String(S.ver)], ['vendors', S.vendor], ['cases', S.kase]].forEach(([id, v]) =>
+  [['vers', String(S.ver)], ['vendors', S.vendor], ['cases', S.kase], ['gpt', S.gpt]].forEach(([id, v]) =>
     $(id).querySelectorAll('.pill').forEach(b => b.classList.toggle('on', b.dataset.v === v)));
   $('cases').querySelector('[data-v=manual]').hidden = VENDORS[S.vendor].custom;
   $('cases').querySelector('[data-v=login]').hidden = VENDORS[S.vendor].custom;
@@ -255,6 +263,7 @@ function markPills() {
 pills($('vers'), VERS.map((n, i) => [String(i), n]), 'ver', () => { S.ver = Number(S.ver); start(); });
 pills($('vendors'), ORDER.map(v => [v, VENDORS[v].name]), 'vendor', () => { if (VENDORS[S.vendor].custom && (S.kase === 'login' || S.kase === 'manual')) S.kase = 'ok'; start(); });
 pills($('cases'), Object.entries(CASES), 'kase', () => start());
+pills($('gpt'), [['on', '开着'], ['off', '没开']], 'gpt', () => start());
 $('reset').onclick = () => start();
 
 /* ---------- shared drawing ---------- */
@@ -543,10 +552,29 @@ async function v3Run(sc) {
   set(2, 'done', '✓');
   S.tails[v] = nt; S.ages[v] = 0;
   msg.className = 'dmsg'; msg.textContent = '';
-  row.innerHTML = `<button class="btn primary" id="ok">好</button>`;
-  row.querySelector('#ok').onclick = () => { sc.remove(); };
   roll(cur().querySelector('.tail'), nt);
   cur().classList.add('flash');
+  // 和切换成功一样：三个勾停一下，弹窗自己关掉，换成重启确认
+  await sleep(900); if (!alive(r)) return;
+  sc.remove();
+  restartPrompt(S.gpt === 'off', d.name);
+}
+
+/* 重启确认：和切换成功后的同一个弹窗 */
+function restartPrompt(open, name) {
+  const sc = document.createElement('div'); sc.className = 'scrim'; sc.style.zIndex = 55;
+  sc.innerHTML = `<div class="dialog rs">${open ? '<div class="rs-ok">✓</div>' : ''}<h2 id="rst">${open ? '配置已保存' : '现在重启 ChatGPT？'}</h2>
+    <p class="rs-p">${open ? `现在打开 ChatGPT，试试 ${name}？` : '配置已保存，重启后生效。重启会中断正在进行的任务。'}</p>
+    ${open ? '<p class="rs-c">如果 ChatGPT 已在运行，会先退出再打开，正在进行的任务会中断。</p>' : ''}
+    <div class="drow"><button class="btn" id="later">稍后</button><button class="btn primary" id="now">${open ? '打开 ChatGPT' : '立即重启'}</button></div></div>`;
+  $('main').append(sc);
+  sc.querySelector('#later').onclick = () => sc.remove();
+  sc.querySelector('#now').onclick = async e => {
+    const b = e.currentTarget; b.disabled = true; sc.querySelector('#later').disabled = true;
+    sc.querySelector('#rst').textContent = open ? '正在打开 ChatGPT' : '正在重启 ChatGPT';
+    b.innerHTML = '<span class="bspin"></span>' + (open ? '正在打开' : '正在重启');
+    await sleep(1600); sc.remove();
+  };
 }
 
 /* ---------- boot ---------- */

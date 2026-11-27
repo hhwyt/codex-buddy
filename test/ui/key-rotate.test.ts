@@ -2,7 +2,7 @@
 // 换新 Key 弹窗 (L3): Y-01..Y-06, design/key-rotate.html 第 3 版.
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { CardView } from '../../electron/main/ipc-contract';
-import { rotateKeyDialog, type RotateResult } from '../../ui/components/key-rotate';
+import { RESTART_AFTER_MS, rotateKeyDialog, type RotateResult } from '../../ui/components/key-rotate';
 import { TID } from '../../ui/testids';
 import { fakeApi, flush } from './onboarding.fake';
 
@@ -107,7 +107,7 @@ describe('换新 Key 弹窗', () => {
     expect(q(TID.keyRotate.root)).toBeTruthy();
     fake.emit('step', { flow: 'switch', id: 'new', state: 'fail', text: '别的流程' });
     step('revoke', 'done');
-    answer = () => ({ ok: true, restartRequired: true });
+    answer = () => ({ ok: true });
     release();
     await flush();
     expect(states()).toEqual(['done', 'done', 'done']);
@@ -120,8 +120,38 @@ describe('换新 Key 弹窗', () => {
     expect(q(TID.keyRotate.log)!.hidden).toBe(true);
     expect(buttons()).toEqual(['好']);
     click(TID.keyRotate.ok);
-    expect(await done).toEqual({ changed: true, outcome: { ok: true, restartRequired: true } });
+    expect(await done).toEqual({ changed: true, outcome: { ok: true } });
     expect(fake.count('step')).toBe(0);
+  });
+
+  it('Y-07 要重启 ChatGPT 才生效：三个勾停一下，弹窗自己关掉交给重启确认，没有「好」', async () => {
+    open();
+    click(TID.keyRotate.start);
+    answer = () => ({ ok: true, restartRequired: true, openRequired: false });
+    release();
+    await flush();
+    expect(states()).toEqual(['done', 'done', 'done']);
+    expect(buttons()).toEqual([]);
+    expect(q(TID.keyRotate.root)).toBeTruthy();
+    await new Promise(r => setTimeout(r, RESTART_AFTER_MS + 50));
+    expect(q(TID.keyRotate.root)).toBeNull();
+    expect(await done).toEqual({ changed: true, outcome: { ok: true, restartRequired: true, openRequired: false } });
+  });
+
+  it('Y-07 旧 Key 还能用时不自动关；去官网删好之后再交给重启确认', async () => {
+    open();
+    click(TID.keyRotate.start);
+    answer = () => ({ ok: true, revokePending: true, openRequired: true });
+    release();
+    await flush();
+    expect(buttons()).toEqual(['关掉', '去官网删']);
+    await new Promise(r => setTimeout(r, RESTART_AFTER_MS + 50));
+    expect(q(TID.keyRotate.root)).toBeTruthy();
+    click(TID.keyRotate.revoke);
+    await flush();
+    await new Promise(r => setTimeout(r, RESTART_AFTER_MS + 50));
+    expect(q(TID.keyRotate.root)).toBeNull();
+    expect((await done).changed).toBe(true);
   });
 
   it('Y-03 测不通：停在第二个圈，红字写原因、还在用原来的 Key；去社群咨询 + 关掉 + 再试一次', async () => {
