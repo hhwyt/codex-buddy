@@ -759,6 +759,17 @@ describe('security, community, update, restore', () => {
       expect(await b.h['update:install'](undefined as never)).toEqual({ ok: true });
       expect(installed).toHaveLength(1);
     });
+
+    test('V-05 普通更新失败也写真实原因，具体错误进日志', async () => {
+      release();
+      const b = build({ os: 'win' });
+      fetchBytes = async () => { throw new Error('HTTP 403 from objects.githubusercontent.com'); };
+      expect(await b.h['update:install'](undefined as never)).toEqual({ ok: false, reason: '更新包没下载下来，请检查网络后重试。' });
+      expect((await b.h['install:log'](undefined as never)).text).toContain('HTTP 403 from objects.githubusercontent.com');
+      fetchBytes = async () => ({ type: 'application/octet-stream', data: new Uint8Array([9]) });
+      expect(await b.h['update:install'](undefined as never)).toEqual({ ok: false, reason: '下载的更新包不完整，请再试一次。' });
+      expect((await b.h['install:log'](undefined as never)).text).toContain('checksum mismatch');
+    });
   });
 
   test('V-02 N-04 运行中重新校验，抬高下限即拦截后台操作；用到一半断网不拦截', async () => {

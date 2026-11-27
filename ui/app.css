@@ -190,6 +190,8 @@ header.top { height: var(--top-height); display: flex; align-items: center; just
 /* Security panel 🛡 */
 .security { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; background: var(--bg); border-left: 1px solid var(--line); box-shadow: -8px 0 30px var(--shadow); padding: 16px 18px; overflow: auto; z-index: 40; display: flex; flex-direction: column; gap: 6px; }
 .security h2 { margin: 0; font-size: 17px; }
+/* Windows: the panel's ✕ sits below the system window buttons (titleBarOverlay, 40px) instead of under them */
+.os-win .security { padding-top: 52px; }
 .security .ft { margin: 12px 0 2px; font-size: 13px; }
 .security .kv { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; }
 .security .kv.blocked span:first-child { color: var(--red); text-decoration: line-through; }

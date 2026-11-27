@@ -13,7 +13,7 @@ vi.mock('electron', () => ({
 }));
 
 import { aesCipher, loadDataKey } from '../../electron/main/cipher';
-import { registerIpc, sendEvent } from '../../electron/main/ipc';
+import { fallbackReason, registerIpc, sendEvent } from '../../electron/main/ipc';
 import { CHANNELS } from '../../electron/main/ipc-contract';
 import { nodeFs } from '../../electron/platform/node-fs';
 import { createMacPlatform } from '../../electron/platform/mac';
@@ -72,18 +72,28 @@ describe('ipc', () => {
     expect(await ipc.handlers.get('buddy:install:run')!({}, undefined)).toEqual({ ok: true });
     expect(install).toHaveBeenCalledTimes(1);
   });
-  test('W-02 每个通道都注册；没做的通道回「还没做好」；出错时原因里没有 Key', async () => {
+  test('W-02 每个通道都注册；没做的通道回「还没做好」；出错时界面只给中文，英文原文进日志且没有 Key', async () => {
+    const logged: string[] = [];
     registerIpc({
       'wallet:mode': () => { throw new Error('bad key sk-abcdefghijklmnopqrstu'); },
       'install:log': () => ({ text: 'ok' }),
-    });
+    }, undefined, line => logged.push(line));
     expect([...ipc.handlers.keys()].sort()).toEqual(CHANNELS.map(c => `buddy:${c}`).sort());
     expect(ipc.removed).toHaveLength(CHANNELS.length);
     expect(await ipc.handlers.get('buddy:install:log')!({}, undefined)).toEqual({ text: 'ok' });
     expect(await ipc.handlers.get('buddy:app:state')!({}, undefined)).toEqual({ ok: false, reason: '这个功能还没做好' });
     const r = await ipc.handlers.get('buddy:wallet:mode')!({}, { mode: 'clone' }) as { reason: string };
-    expect(r.reason).toMatch(/^出了意外：/);
-    expect(r.reason).not.toContain('abcdefghijklmnop');
+    expect(r.reason).toBe('没做成，再试一次。');
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toMatch(/^wallet:mode failed: Error: bad key/);
+    expect(logged[0]).not.toContain('abcdefghijklmnop');
+  });
+  test('兜底报错按错误类型给一句能照着做的话', () => {
+    expect(fallbackReason(Object.assign(new Error('spawn EPERM'), { code: 'EPERM' }))).toMatch(/杀毒软件/);
+    expect(fallbackReason(new Error('spawn EPERM'))).toMatch(/杀毒软件/);
+    expect(fallbackReason(new Error('ENOSPC: no space left on device'))).toMatch(/磁盘满了/);
+    expect(fallbackReason(new TypeError('fetch failed'))).toBe('网络断了一下，再试一次。');
+    expect(fallbackReason('weird')).toBe('没做成，再试一次。');
   });
 
   test('W-02 事件只发给还开着的窗口', () => {

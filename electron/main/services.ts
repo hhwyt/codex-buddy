@@ -126,6 +126,7 @@ const FAIL_KIND: Partial<Record<FailureCode, string>> = {
 
 /** An upgrade step that failed, with the sentence the upgrade dialog shows */
 class UpgradeFailure extends Error {}
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function createServices(d: ServiceDeps) {
   const { platform, cipher } = d;
@@ -553,13 +554,15 @@ export function createServices(d: ServiceDeps) {
           else fs.writeBytes(p, new Uint8Array(Buffer.concat([fs.readBytes(p) ?? new Uint8Array(), data])));
         },
       });
-    } catch {
+    } catch (error) {
+      log(`upgrade download ${version} failed: ${errorText(error)}`);
       emit({ id: 'download', state: 'fail', text: '更新包下载或校验失败' });
       throw new UpgradeFailure('更新包没下载下来，请检查网络后重试。');
     }
     const data = fs.readBytes(part) ?? new Uint8Array();
     guardedRemove(fs, part, roots());
     if (digest(data) !== expected) {
+      log(`upgrade download ${version}: checksum mismatch (${data.length} bytes)`);
       emit({ id: 'download', state: 'fail', text: '更新包下载或校验失败' });
       throw new UpgradeFailure('下载的更新包不完整，请再试一次。');
     }
@@ -731,9 +734,17 @@ export function createServices(d: ServiceDeps) {
         const file = installerPath(remote.latest.version);
         const hadInstaller = fs.exists(file);
         await prepareInstaller(remote.latest.version, d.os === 'mac' ? remote.latest.macUrl : remote.latest.winUrl, step('update'));
-        if (hadInstaller) await d.runInstaller(file);
+        if (hadInstaller) {
+          try { await d.runInstaller(file); } catch (error) {
+            log(`update ${remote.latest.version}: installer did not start: ${errorText(error)}`);
+            return { ok: false, reason: '安装程序没能打开，请再试一次。' };
+          }
+        }
         return { ok: true };
-      } catch { return { ok: false, reason: '更新包下载或校验失败，请重试' }; }
+      } catch (error) {
+        log(`update ${remote.latest.version} failed: ${errorText(error)}`);
+        return { ok: false, reason: error instanceof UpgradeFailure ? error.message : '更新包没下载下来，请检查网络后重试。' };
+      }
     },
 
     'upgrade:run': async () => {
@@ -744,10 +755,15 @@ export function createServices(d: ServiceDeps) {
       if (!u) return { ok: false, reason: '当前版本不用升级。' };
       let file: string;
       try { file = await prepareInstaller(u.version, u.url, step('upgrade')); } catch (error) {
+        log(`upgrade ${u.version} failed: ${errorText(error)}`);
         upgradeFailed = true;
         return { ok: false, reason: error instanceof UpgradeFailure ? error.message : '更新包没下载下来，请检查网络后重试。' };
       }
-      try { await d.runInstaller(file); } catch { upgradeFailed = true; return { ok: false, reason: '安装程序没能打开，请再试一次。' }; }
+      try { await d.runInstaller(file); } catch (error) {
+        log(`upgrade ${u.version}: installer did not start: ${errorText(error)}`);
+        upgradeFailed = true;
+        return { ok: false, reason: '安装程序没能打开，请再试一次。' };
+      }
       return { ok: true };
     },
 
@@ -843,5 +859,5 @@ export function createServices(d: ServiceDeps) {
     if (u.kind === 'new' && shouldPrompt(u.version, st.dismissed, d.now())) d.emit('update', { version: u.version, notes: u.notes });
   };
 
-  return { handlers, startup, pollModel, wallet, state: () => st, refreshBridgeUrls, checkVersion: refreshRemote, versionAllowed };
+  return { handlers, log, startup, pollModel, wallet, state: () => st, refreshBridgeUrls, checkVersion: refreshRemote, versionAllowed };
 }

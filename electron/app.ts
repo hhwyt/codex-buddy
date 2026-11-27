@@ -242,7 +242,7 @@ async function main(): Promise<void> {
   }, async channel => {
     if (!(await network.allows(channel))) return false;
     return versionChannels.has(channel) || await services.versionAllowed() || 'version-required';
-  });
+  }, services.log);
   // A vendor added under 「其他厂商」 (M-19) is allowed once its base URL is in use
   installNetGuard(() => [...defaultAllowedHosts(providers), ...Object.values(endpoints.vendors).map(u => new URL(u!).host), ...Object.values(upstreams).map(u => new URL(u).host)],
     () => sendEvent(win, 'connections', connectionViews()));
