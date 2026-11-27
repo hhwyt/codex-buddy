@@ -160,6 +160,21 @@ export const TID = {
     close: 'iv-close', // 稍后
     open: 'iv-open', // 打开 ChatGPT / 重启 ChatGPT
   },
+  keyRotate: { // Y-01..Y-06 换新 Key
+    root: 'kr-root',
+    newTail: 'kr-new-tail',
+    paste: 'kr-paste',
+    circle: (i: number) => `kr-circle-${i}`,
+    msg: 'kr-msg',
+    more: 'kr-more', // 看明细
+    log: 'kr-log',
+    start: 'kr-start', // 开始换
+    cancel: 'kr-cancel', // 先不了
+    close: 'kr-close', // 关掉
+    retry: 'kr-retry', // 再试一次
+    revoke: 'kr-revoke', // 去官网删
+    ok: 'kr-ok', // 好
+  },
   dialog: {
     root: 'dialog',
     confirm: 'dialog-confirm',

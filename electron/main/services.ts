@@ -52,17 +52,23 @@ export interface BuddyState {
   /** Highest remote minVersion ever accepted (encrypted): never lowered, kept through 一键还原, enforced offline */
   minVersionFloor: string | null;
   restartRequired: boolean;
+  /** Y-05: old keys (encrypted) replaced but not yet refused by their vendor, by vendor */
+  retired: Record<string, string>;
 }
 
 export const emptyState = (): BuddyState => ({
   order: [], active: null, mode: 'switch', keys: {}, openaiAuth: null, models: {}, zh: false, onboarded: false,
   startedAt: null, firstSuccess: false, original: null, dismissed: null, custom: [], rateLimited: [], lastRemote: null,
-  minVersionFloor: null, restartRequired: false,
+  minVersionFloor: null, restartRequired: false, retired: {},
 });
 
 export interface ServiceDeps {
   /** M-12: the vendor's own balance (only vendors with a balance API); null when unknown */
   balance?(provider: ProviderInfo, key: string): Promise<{ granted: number; toppedUp: number } | null>;
+  /** Y-05: asks the vendor's API whether it still accepts this key ('dead' = refused) */
+  keyAlive?(provider: ProviderInfo, key: string): Promise<'alive' | 'dead' | 'unknown'>;
+  /** Waits between Y-05 checks; tests pass a no-op */
+  sleep?(ms: number): Promise<void>;
   platform: Platform;
   clone: Clone;
   zh: ZhLauncher;
@@ -569,6 +575,103 @@ export function createServices(d: ServiceDeps) {
     return done(data);
   };
 
+  // ---------- Y-01..Y-05: 换新 Key ----------
+  const REVOKE_POLL_MS = 3000;
+  const KEY_TEST_TRIES = 5;
+  const KEY_TEST_GAP_MS = 2000;
+  const REVOKE_WAIT_MS = 10 * 60_000;
+  const sleep = d.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
+  const masked = (key: string) => `sk-••••${keyTail(key) ?? ''}`;
+  const keyStep = step('key');
+  /** Y-05: the old key is gone once the vendor refuses it. Auto (DeepSeek's console API) first, else the official key page
+   *  opens and we wait for the user to delete it; closing the browser or 10 minutes = not yet (旧 Key 还能用) */
+  const revokeOld = async (v: VendorKey): Promise<boolean> => {
+    const p = providerOf(v);
+    const old = st.retired[v] ? dec(st.retired[v]) : null;
+    if (!p || !old) return true;
+    keyStep({ id: 'revoke', state: 'start', text: '' });
+    const vendor = vendorOf(v);
+    let gone = false;
+    if (vendor && (await vendor.revokeKey(d.browser, old).catch(() => false))) {
+      gone = true;
+      log(`rotate ${v}: deleted ${masked(old)} with the console API`);
+    } else if (vendor) {
+      await vendor.openKeyManagement(d.browser);
+      keyStep({ id: 'revoke', state: 'start', text: `在右边删掉 ${masked(old)}` });
+      for (let waited = 0; waited < REVOKE_WAIT_MS && d.browser.url() !== ''; waited += REVOKE_POLL_MS) {
+        if ((await d.keyAlive?.(p, old).catch(() => 'unknown' as const)) === 'dead') { gone = true; break; }
+        await sleep(REVOKE_POLL_MS);
+      }
+      log(`rotate ${v}: ${masked(old)} ${gone ? 'refused by the vendor' : 'still accepted'}`);
+    }
+    d.browser.close();
+    if (!gone) { keyStep({ id: 'revoke', state: 'fail', text: '旧 Key 还能用' }); return false; }
+    delete st.retired[v];
+    save();
+    keyStep({ id: 'revoke', state: 'done', text: '' });
+    return true;
+  };
+  /** Y-01..Y-05: new key → test it like a switch → old key revoked. Until the test passes nothing changes */
+  const rotateKey = async (v: VendorKey, pasted?: string): Promise<Outcome> => {
+    const p = providerOf(v);
+    if (!p || p.officialAccount) return { ok: false, reason: '这一家不用 Key' };
+    const before = st.keys[v];
+    const oldKey = keyOf(v);
+    const vendor = vendorOf(v);
+    // 1 新建 Key
+    keyStep({ id: 'new', state: 'start', text: '' });
+    let newKey: string;
+    if (vendor) {
+      const r = await vendor.obtainKey(d.browser, () => keyStep({ id: 'new', state: 'start', text: '在右边的官方页面点「创建」' }));
+      if (!r.ok) {
+        d.browser.close();
+        keyStep({ id: 'new', state: 'fail', text: r.reason === 'cancelled' ? '取消了' : '没拿到新 Key' });
+        if (r.reason === 'cancelled') return { ok: false, kind: 'cancelled', reason: '取消了' };
+        return { ok: false, kind: 'key-failed', reason: r.detail ?? '没拿到新 Key，再试一次' };
+      }
+      newKey = r.key;
+      d.browser.close();
+    } else {
+      newKey = (pasted ?? '').trim();
+      if (!newKey) { keyStep({ id: 'new', state: 'fail', text: '' }); return { ok: false, kind: 'paste-key', reason: 'Key 是空的' }; }
+    }
+    if (newKey === oldKey) { keyStep({ id: 'new', state: 'fail', text: '' }); return { ok: false, reason: '和原来的 Key 一样' }; }
+    keyStep({ id: 'new', state: 'done', text: masked(newKey) });
+    log(`rotate ${v}: new key ${masked(newKey)}`);
+    // 2 测试连通: the vendor must accept the new key before the old one goes (a fresh key can take a few seconds);
+    // failing leaves the old key and Codex config as they were
+    keyStep({ id: 'test', state: 'start', text: '' });
+    let alive: 'alive' | 'dead' | 'unknown' = 'unknown';
+    for (let i = 0; i < KEY_TEST_TRIES && alive !== 'alive'; i++) {
+      if (i) await sleep(KEY_TEST_GAP_MS);
+      alive = d.keyAlive ? await d.keyAlive(p, newKey).catch(() => 'unknown' as const) : 'alive';
+    }
+    log(`rotate ${v}: new key test ${alive}`);
+    let tested: Outcome = alive === 'alive' ? { ok: true }
+      : { ok: false, reason: alive === 'dead' ? '新 Key 测不通' : `连不上 ${p.name}，检查一下网络` };
+    setKey(v, newKey);
+    if (tested.ok && st.active === v) tested = await applyVendor(v, paths.codexHome, 'key');
+    if (!tested.ok) {
+      if (before) st.keys[v] = before; else delete st.keys[v];
+      save();
+      keyStep({ id: 'test', state: 'fail', text: tested.reason ?? '' });
+      log(`rotate ${v}: new key failed the test: ${tested.reason ?? ''}`);
+      const { result: _r, ...out } = tested as Outcome & { result?: unknown };
+      return { ...out, ok: false, kind: 'key-test' };
+    }
+    for (const c of (await d.clone.list()).filter(c => c.slug === v && c.ownsHome !== false)) {
+      const r = await applyVendor(v, c.codexHome, 'key');
+      log(`rotate ${v}: clone ${r.ok ? 'updated' : `not updated: ${r.reason ?? ''}`}`);
+    }
+    keyStep({ id: 'test', state: 'done', text: '' });
+    d.emit('wallet', wallet());
+    // 3 作废旧 Key (自定义厂商：只保存)
+    if (!oldKey || !vendor) { keyStep({ id: 'revoke', state: 'done', text: '' }); return { ok: true }; }
+    st.retired[v] = enc(oldKey);
+    save();
+    return (await revokeOld(v)) ? { ok: true } : { ok: true, revokePending: true };
+  };
+
   // ---------- handlers ----------
   let restarting: Promise<Outcome> | null = null;
   const handlers: Handlers = {
@@ -607,11 +710,8 @@ export function createServices(d: ServiceDeps) {
     'wallet:mode': ({ mode }) => { st.mode = mode; save(); },
     'switch:start': ({ vendor }) => switchTo(vendor),
     'switch:cancel': () => { switchAbort?.abort(); d.browser.close(); },
-    'key:replace': async ({ vendor }) => {
-      const k = await obtainKey(vendor, step('switch'), true);
-      if (!('key' in k)) return k;
-      return st.active === vendor ? switchTo(vendor) : { ok: true };
-    },
+    'key:replace': ({ vendor, key }) => rotateKey(vendor, key),
+    'key:revoke': async ({ vendor }) => ((await revokeOld(vendor)) ? { ok: true } : { ok: false, kind: 'revoke-pending', reason: '旧 Key 还能用' }),
     'key:paste': async ({ vendor, key }) => {
       if (!key.trim()) return { ok: false, reason: 'Key 是空的' };
       setKey(vendor, key.trim());

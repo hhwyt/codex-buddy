@@ -36,4 +36,7 @@ export interface Vendor {
   openRecharge(browser: BrowserDriver): Promise<boolean>;
   /** Opens the official key management page (S-03) */
   openKeyManagement(browser: BrowserDriver): Promise<void>;
+  /** Y-05: deletes this key through the console API (logged in already); false when this vendor has no such API or
+   *  the console did not delete it, so the user deletes it on the official page instead */
+  revokeKey(browser: BrowserDriver, key: string): Promise<boolean>;
 }

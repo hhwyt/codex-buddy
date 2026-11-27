@@ -38,6 +38,7 @@ import { createMacZh } from './platform/zh-mac';
 import { createWinZh } from './platform/zh-win';
 import type { Clone, Platform, ZhLauncher } from './platform/types';
 import { loginWindowTargets, vendorsWith } from './vendors';
+import { probeKey } from './main/key-probe';
 
 const os: 'mac' | 'win' = process.platform === 'win32' ? 'win' : 'mac';
 let win: BrowserWindow | null = null;
@@ -196,6 +197,7 @@ async function main(): Promise<void> {
       const info = ((await r.json()) as { balance_infos?: { granted_balance?: string; topped_up_balance?: string }[] }).balance_infos?.[0];
       return info ? { granted: Number(info.granted_balance ?? 0), toppedUp: Number(info.topped_up_balance ?? 0) } : null;
     },
+    keyAlive: (p, key) => probeKey(guardedFetch as typeof fetch, p, key),
     remoteUrls: endpoints.remoteConfig, bundledRemote: bundled, version: app.getVersion(), os,
     // Test mode signs the fake config server's copy with the test key (test/fakes/remote-test-key.mjs)
     remotePublicKey: (testMode && process.env.CODEXBUDDY_REMOTE_KEY) || REMOTE_CONFIG_PUBLIC_KEY,

@@ -10,6 +10,7 @@
 import type { CardView, Outcome, VendorKey, WalletView } from '../../electron/main/ipc-contract.js';
 import type { BuddyApi } from '../api.js';
 import { confirmRemoveClone, customVendor, firstSuccess, keyFailed } from '../components/card-actions.js';
+import { rotateKeyDialog } from '../components/key-rotate.js';
 import { CARD_HEAD, CARD_HEIGHT, CARD_PEEK, CARD_TUCK, CARD_WIDTH, cardFace, faceClass, isLight, type CardActions, type FrontState } from '../components/card.js';
 import { promptRestart } from '../components/restart.js';
 import { toast } from '../components/toast.js';
@@ -338,18 +339,15 @@ export function mountModels(api: BuddyApi, root: HTMLElement, initial: WalletVie
     await switchTo(v, undefined, r);
   }
 
+  /** Y-01..Y-06: the 换新 Key dialog does the work; the card refreshes once a new key is in use */
   async function changeKey(v: VendorKey): Promise<void> {
     if (switching) return;
     switching = true;
-    front = { kind: 'login' };
-    layout();
-    let r: Outcome;
-    try { r = await api.invoke('key:replace', { vendor: v }); } catch (e) { r = { ok: false, reason: (e as Error).message }; }
-    switching = false;
-    front = null;
-    if (r.ok) { toast('换好了，新 Key 测通了'); await refresh(); if (r.restartRequired || r.openRequired) await promptRestart(api, !r.restartRequired); return; }
-    layout();
-    toast(r.reason ? `没换成，还在用原来的 Key：${r.reason}` : '没换成，还在用原来的 Key', { error: true });
+    let r: Awaited<ReturnType<typeof rotateKeyDialog>>;
+    try { r = await rotateKeyDialog(api, card(v)); } finally { switching = false; }
+    if (!r.changed) return;
+    await refresh();
+    if (r.outcome?.restartRequired || r.outcome?.openRequired) await promptRestart(api, !r.outcome.restartRequired);
   }
 
   // ---- pointer: click or drag (M-02..M-06) ----

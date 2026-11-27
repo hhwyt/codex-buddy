@@ -52,7 +52,7 @@ export interface AppStateView {
 export interface UpgradeRequiredView { version: string; notes: string; url: string }
 export type VersionStatus = 'checking' | 'offline' | 'allowed';
 
-export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'upgrade' | 'repair'; id: string; state: 'start' | 'done' | 'fail'; text: string }
+export interface StepView { flow: 'install' | 'switch' | 'clone' | 'zh' | 'restore' | 'update' | 'upgrade' | 'repair' | 'key'; id: string; state: 'start' | 'done' | 'fail'; text: string }
 export interface Outcome { ok: boolean; reason?: string; restartRequired?: boolean; openRequired?: boolean; [extra: string]: unknown }
 export type NetworkState = 'checking' | 'online' | 'offline';
 
@@ -68,7 +68,8 @@ export interface IpcChannels {
   'wallet:mode': [{ mode: 'switch' | 'clone' }, void];               // C-09
   'switch:start': [{ vendor: VendorKey }, Outcome & { seconds?: number; firstTime?: boolean; running?: boolean }]; // M-02..M-16, M-20, M-21
   'switch:cancel': [void, void];                                     // M-09
-  'key:replace': [{ vendor: VendorKey }, Outcome];                   // M-17
+  'key:replace': [{ vendor: VendorKey; key?: string }, Outcome];     // M-17, Y-01..Y-05 (key: 自定义厂商粘贴的新 Key)
+  'key:revoke': [{ vendor: VendorKey }, Outcome];                    // Y-05 去官网删
   'key:paste': [{ vendor: VendorKey; key: string }, Outcome];        // key ladder level 3
   'recharge:open': [{ vendor: VendorKey }, Outcome];                 // M-13, M-18
   'custom:add': [{ name: string; baseUrl: string; model: string; apiKey: string }, Outcome]; // M-19
@@ -136,7 +137,7 @@ export interface BuddyApi {
 export const CHANNELS: Channel[] = [
   'network:check', 'app:quit',
   'app:state', 'install:run', 'install:log', 'wallet:get', 'wallet:reorder', 'wallet:mode', 'switch:start', 'switch:cancel',
-  'key:replace', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall',
+  'key:replace', 'key:revoke', 'key:paste', 'recharge:open', 'custom:add', 'codex:open', 'codex:restart', 'codex:repair', 'codex:reinstall',
   'clone:make', 'clone:open', 'clone:remove', 'zh:set', 'zh:remove', 'browser:show', 'browser:close', 'browser:back',
   'browser:reload', 'shop:open', 'browser:place', 'security:get', 'security:reveal', 'security:manage', 'security:ask-ai', 'security:source',
   'update:check', 'update:dismiss', 'update:install', 'upgrade:run', 'upgrade:skip', 'restore:plan', 'restore:run', 'shell:open-external',

@@ -484,27 +484,33 @@ describe('叠卡', () => {
     expect(root.textContent).not.toContain('安装');
   });
 
-  it('M-17 换 Key：点卡号旁的「换」，测通才替换', async () => {
+  it('M-17 换 Key：点卡号旁的「换」打开换新 Key 弹窗，换好后卡片刷新并提示重启', async () => {
     await mount(walletOf({ active: 'deepseek' }, { deepseek: { keyTail: '7c21' } }));
     expect(text('deepseek')).toContain('sk-•••• •••• 7c21');
     api.handle('key:replace', () => ({ ok: true }));
     click(TID.models.changeKey('deepseek'));
     await settle();
+    expect(q(TID.keyRotate.root)).toBeTruthy();
+    expect(api.callsOf('key:replace')).toEqual([]);
+    click(TID.keyRotate.start);
+    await settle();
     expect(api.callsOf('key:replace')).toEqual([{ vendor: 'deepseek' }]);
-    expect(toastText()).toBe('换好了，新 Key 测通了');
+    const walletCalls = api.callsOf('wallet:get').length;
+    click(TID.keyRotate.ok);
+    await settle();
+    expect(q(TID.keyRotate.root)).toBeNull();
+    expect(api.callsOf('wallet:get').length).toBeGreaterThan(walletCalls);
     expect(api.callsOf('switch:start')).toEqual([]);
   });
 
-  it('M-17 新 Key 不通就保持旧的', async () => {
+  it('M-17 先不了：什么都不改', async () => {
     await mount(walletOf({ active: 'deepseek' }, { deepseek: { keyTail: '7c21' } }));
-    api.handle('key:replace', () => ({ ok: false, reason: '新 Key 没测通' }));
     click(TID.models.changeKey('deepseek'));
     await settle();
-    expect(toastText()).toContain('没换成，还在用原来的 Key：新 Key 没测通');
-    api.handle('key:replace', () => { throw new Error(''); });
-    click(TID.models.changeKey('deepseek'));
+    click(TID.keyRotate.cancel);
     await settle();
-    expect(toastText()).toContain('没换成');
+    expect(q(TID.keyRotate.root)).toBeNull();
+    expect(api.callsOf('key:replace')).toEqual([]);
     expect(text('deepseek')).toContain('7c21');
   });
 

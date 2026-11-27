@@ -27,6 +27,9 @@ let events: { event: EventName; payload: unknown }[];
 let opened: string[];
 let external: string[];
 let keyOutcome: Record<string, KeyOutcome>;
+/** Y-05: vendors whose console API deletes the old key; keys the vendor now refuses */
+let revokeAuto: Record<string, boolean>;
+let deadKeys: Set<string>;
 let clock: number;
 let fetchText: (url: string) => Promise<string>;
 /** Non-null: every .sig answer is this instead of a real signature (a forged config) */
@@ -74,7 +77,7 @@ const fakeBrowser = (): BrowserDriver & { close(): void; reload(): void; closed:
     open: async (url: string) => { b.opens.push(url); b.at = url; },
     reload: () => { b.reloads++; },
     url: () => b.at, evaluate: async <T,>() => undefined as T, waitForResponse: async () => '',
-    waitForUrl: async () => true, setMode: () => {}, close: () => { b.closed++; }, hasCookie: async () => true,
+    waitForUrl: async () => true, setMode: () => {}, close: () => { b.closed++; b.at = ''; }, hasCookie: async () => true,
   };
   return b;
 };
@@ -85,6 +88,7 @@ function fakeVendors(): Record<BuiltinVendorId, Vendor> {
     obtainKey: async (_b: unknown, onCreate?: () => void) => { onCreate?.(); return keyOutcome[p.id] ?? { ok: true, key: `sk-${p.id}-${randomBytes(4).toString('hex')}abcd`, level: 1 }; },
     openRecharge: async (b: BrowserDriver) => { if (!p.rechargeUrl) return false; await b.open(p.rechargeUrl, { mode: 'expanded' }); return true; },
     openKeyManagement: async (b: BrowserDriver) => { await b.open(p.keysUrl, { mode: 'expanded' }); },
+    revokeKey: async (_b: BrowserDriver, key: string) => { if (revokeAuto[p.id]) deadKeys.add(key); return !!revokeAuto[p.id]; },
   } satisfies Vendor])) as unknown as Record<BuiltinVendorId, Vendor>;
 }
 
@@ -112,6 +116,7 @@ function build(opts: { env?: NodeJS.ProcessEnv; key?: Uint8Array; os?: 'mac' | '
     connections: () => ({ app: [{ host: 'cdn.jsdelivr.net', allowed: true, at: 1 }], web: [] }),
     logoPng: v => `/logos/${v}.png`,
     runInstaller: async f => { installed.push(f); },
+    keyAlive: async (_p, key) => (deadKeys.has(key) ? 'dead' : 'alive'), sleep: async () => {},
     ...(opts.balance ? { balance: opts.balance } : {}),
     ...(opts.ghStar ? { ghStar: opts.ghStar } : {}),
     ...(opts.forceStarVerify ? { forceStarVerify: true } : {}),
@@ -128,7 +133,7 @@ const catalogOf = (home: string) => {
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'cb-svc-'));
   fs.mkdirSync(path.join(root, 'home', '.codex'), { recursive: true });
-  events = []; opened = []; external = []; keyOutcome = {}; clock = 1_000_000; zhSupported = true; installed = [];
+  events = []; opened = []; external = []; keyOutcome = {}; revokeAuto = {}; deadKeys = new Set(); clock = 1_000_000; zhSupported = true; installed = [];
   fetchText = async () => JSON.stringify(bundled);
   forgedSig = null;
   clearFails = null;
@@ -368,6 +373,128 @@ describe('switching', () => {
     expect(await b.h['key:replace']({ vendor: 'kimi' })).toEqual({ ok: true });
     keyOutcome.kimi = { ok: false, reason: 'cancelled' };
     expect(await b.h['key:replace']({ vendor: 'kimi' })).toMatchObject({ ok: false, kind: 'cancelled' });
+  });
+
+  const keySteps = () => events.filter(e => e.event === 'step' && (e.payload as { flow: string }).flow === 'key')
+    .map(e => e.payload as { id: string; state: string; text: string })
+    .filter(s => ['new', 'test', 'revoke'].includes(s.id)).map(s => `${s.id}:${s.state}${s.text ? ':' + s.text : ''}`);
+  const stateOf = (b: ReturnType<typeof build>) => JSON.parse(fs.readFileSync(path.join(b.paths.buddyDir, 'state.json'), 'utf8'));
+
+  test('Y-05 DeepSeek 换新 Key：新建 → 测通写进 Codex → 官网接口删掉旧 Key', async () => {
+    const b = build();
+    await installed_(b);
+    keyOutcome.deepseek = { ok: true, key: 'sk-old-key-000000OLD1', level: 1 };
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    events = [];
+    revokeAuto.deepseek = true;
+    keyOutcome.deepseek = { ok: true, key: 'sk-new-key-000000NEW1', level: 1 };
+    expect(await b.h['key:replace']({ vendor: 'deepseek' })).toMatchObject({ ok: true });
+    expect(keySteps()).toEqual(['new:start', 'new:start:在右边的官方页面点「创建」', 'new:done:sk-••••NEW1', 'test:start', 'test:done', 'revoke:start', 'revoke:done']);
+    expect(fs.readFileSync(path.join(b.paths.codexHome, 'auth.json'), 'utf8')).toContain('sk-new-key-000000NEW1');
+    expect(deadKeys.has('sk-old-key-000000OLD1')).toBe(true);
+    expect(stateOf(b).retired).toEqual({});
+    expect(stateOf(b).keys.deepseek.tail).toBe('NEW1');
+    expect(fs.readFileSync(path.join(b.paths.buddyDir, 'install.log'), 'utf8')).not.toContain('000000OLD1');
+  });
+
+  test('Y-05 不能自动删的厂商：打开官网 Key 页，等旧 Key 被拒自动打勾；关掉浏览器算「旧 Key 还能用」，「去官网删」再等', async () => {
+    const b = build();
+    await installed_(b);
+    keyOutcome.kimi = { ok: true, key: 'sk-kimi-old-0000OLD2', level: 1 };
+    await b.h['switch:start']({ vendor: 'kimi' });
+    keyOutcome.kimi = { ok: true, key: 'sk-kimi-new-0000NEW2', level: 1 };
+    // the user closes the official page without deleting: the new key is in use, the old one waits
+    const realOpen = b.browser.open;
+    b.browser.open = async (url, o) => { await realOpen(url, o); if (url === PROVIDERS.find(p => p.id === 'kimi')!.keysUrl) b.browser.close(); };
+    events = [];
+    expect(await b.h['key:replace']({ vendor: 'kimi' })).toMatchObject({ ok: true, revokePending: true });
+    expect(keySteps().slice(-2)).toEqual(['revoke:start:在右边删掉 sk-••••OLD2', 'revoke:fail:旧 Key 还能用']);
+    expect(stateOf(b).retired.kimi).toBeTruthy();
+    expect(JSON.stringify(stateOf(b))).not.toContain('0000OLD2');
+    // 去官网删: this time the user deletes it while we wait
+    b.browser.open = async (url, o) => { await realOpen(url, o); deadKeys.add('sk-kimi-old-0000OLD2'); };
+    expect(await b.h['key:revoke']({ vendor: 'kimi' })).toEqual({ ok: true });
+    expect(stateOf(b).retired).toEqual({});
+    expect(b.browser.at).toBe('');
+    // nothing left to revoke
+    expect(await b.h['key:revoke']({ vendor: 'kimi' })).toEqual({ ok: true });
+  });
+
+  test('Y-05 等了 10 分钟旧 Key 还能用：去官网删 也回「旧 Key 还能用」', async () => {
+    const b = build();
+    await installed_(b);
+    keyOutcome.qwen = { ok: true, key: 'sk-qwen-old-0000OLD3', level: 1 };
+    await b.h['switch:start']({ vendor: 'qwen' });
+    keyOutcome.qwen = { ok: true, key: 'sk-qwen-new-0000NEW3', level: 1 };
+    expect(await b.h['key:replace']({ vendor: 'qwen' })).toMatchObject({ ok: true, revokePending: true });
+    expect(await b.h['key:revoke']({ vendor: 'qwen' })).toEqual({ ok: false, kind: 'revoke-pending', reason: '旧 Key 还能用' });
+  });
+
+  test('Y-03 新 Key 测不通：停在测试，原来的 Key 和 Codex 配置都不动，旧 Key 不删', async () => {
+    const b = build();
+    await installed_(b);
+    keyOutcome.deepseek = { ok: true, key: 'sk-old-key-000000OLD4', level: 1 };
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    const authBefore = fs.readFileSync(path.join(b.paths.codexHome, 'auth.json'), 'utf8');
+    const configBefore = configOf(b.paths.codexHome);
+    revokeAuto.deepseek = true;
+    keyOutcome.deepseek = { ok: true, key: 'sk-new-key-000000BAD4', level: 1 };
+    deadKeys.add('sk-new-key-000000BAD4');
+    events = [];
+    const r = await b.h['key:replace']({ vendor: 'deepseek' });
+    expect(r).toEqual({ ok: false, kind: 'key-test', reason: '新 Key 测不通' });
+    expect(keySteps().at(-1)).toMatch(/^test:fail/);
+    expect(fs.readFileSync(path.join(b.paths.codexHome, 'auth.json'), 'utf8')).toBe(authBefore);
+    expect(configOf(b.paths.codexHome)).toBe(configBefore);
+    expect(stateOf(b).keys.deepseek.tail).toBe('OLD4');
+    expect(deadKeys.has('sk-old-key-000000OLD4')).toBe(false);
+  });
+
+  test('Y-02 新建：登录时关掉浏览器算取消，什么都不改；厂商建不出 Key 给原因；新旧一样不算换', async () => {
+    const b = build();
+    await installed_(b);
+    keyOutcome.deepseek = { ok: true, key: 'sk-old-key-000000OLD5', level: 1 };
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    keyOutcome.deepseek = { ok: false, reason: 'cancelled' };
+    expect(await b.h['key:replace']({ vendor: 'deepseek' })).toEqual({ ok: false, kind: 'cancelled', reason: '取消了' });
+    keyOutcome.deepseek = { ok: false, reason: 'failed', detail: '厂商那边没建成 Key，等一下再试' };
+    expect(await b.h['key:replace']({ vendor: 'deepseek' })).toEqual({ ok: false, kind: 'key-failed', reason: '厂商那边没建成 Key，等一下再试' });
+    keyOutcome.deepseek = { ok: false, reason: 'need-paste' };
+    expect(await b.h['key:replace']({ vendor: 'deepseek' })).toEqual({ ok: false, kind: 'key-failed', reason: '没拿到新 Key，再试一次' });
+    keyOutcome.deepseek = { ok: true, key: 'sk-old-key-000000OLD5', level: 1 };
+    expect(await b.h['key:replace']({ vendor: 'deepseek' })).toEqual({ ok: false, reason: '和原来的 Key 一样' });
+    expect(stateOf(b).keys.deepseek.tail).toBe('OLD5');
+    expect(await b.h['key:replace']({ vendor: 'openai' })).toEqual({ ok: false, reason: '这一家不用 Key' });
+  });
+
+  test('Y-04 测通后分身也换成新 Key；不在用的那家只试一下新 Key', async () => {
+    const b = build();
+    await installed_(b);
+    keyOutcome.deepseek = { ok: true, key: 'sk-old-key-000000OLD6', level: 1 };
+    await b.h['switch:start']({ vendor: 'deepseek' });
+    expect((await b.h['clone:make']({ vendor: 'deepseek' })).ok).toBe(true);
+    revokeAuto.deepseek = true;
+    keyOutcome.deepseek = { ok: true, key: 'sk-new-key-000000NEW6', level: 1 };
+    expect(await b.h['key:replace']({ vendor: 'deepseek' })).toEqual({ ok: true, restartRequired: false, openRequired: true });
+    expect(fs.readFileSync(path.join(b.paths.cloneHome('deepseek'), 'auth.json'), 'utf8')).toContain('sk-new-key-000000NEW6');
+    // not the active vendor: a key the vendor refuses is not kept
+    keyOutcome.kimi = { ok: true, key: 'sk-kimi-dead-0000DEAD', level: 1 };
+    deadKeys.add('sk-kimi-dead-0000DEAD');
+    expect(await b.h['key:replace']({ vendor: 'kimi' })).toMatchObject({ ok: false, kind: 'key-test', reason: '新 Key 测不通' });
+    expect(stateOf(b).keys.kimi).toBeUndefined();
+  });
+
+  test('Y-01 自定义厂商：粘贴新 Key，测通后保存，不去删旧 Key', async () => {
+    const b = build();
+    await installed_(b);
+    scenario('ok');
+    expect((await b.h['custom:add']({ name: 'Relay', baseUrl: 'https://relay.example.com/v1', model: 'gpt-x', apiKey: 'sk-relay-old-0000OLD7' })).ok).toBe(true);
+    expect(await b.h['key:replace']({ vendor: 'custom-relay', key: '  ' })).toEqual({ ok: false, kind: 'paste-key', reason: 'Key 是空的' });
+    events = [];
+    expect(await b.h['key:replace']({ vendor: 'custom-relay', key: ' sk-relay-new-0000NEW7 ' })).toMatchObject({ ok: true });
+    expect(keySteps()).toEqual(['new:start', 'new:done:sk-••••NEW7', 'test:start', 'test:done', 'revoke:done']);
+    expect(stateOf(b).keys['custom-relay'].tail).toBe('NEW7');
+    expect(stateOf(b).retired).toEqual({});
   });
 
   test('M-18 去充值：打开官方充值页；没有充值页的说明', async () => {

@@ -20,6 +20,8 @@ export interface VendorDetails {
   /** Login told by a cookie instead of the URL: for a console that shows a logged-out visitor the same URL (百炼),
    *  whose login page also stays put when already logged in */
   loginCookie?: { url: string; name: string };
+  /** Y-05: page script deleting the given key with the console API; resolves to { status, body }, status 200 = deleted */
+  revokeKeyPageScript?: (key: string) => string;
   /** How long to wait for the user (login scan, clicking「创建」) */
   timeouts?: { loginMs: number; createMs: number; settleMs?: number };
 }
@@ -196,5 +198,13 @@ export function makeVendor(provider: ProviderInfo, details: VendorDetails = {}):
       return true;
     },
     openKeyManagement: async browser => { await browser.open(provider.keysUrl, { mode: 'expanded' }); },
+    revokeKey: async (browser, key) => {
+      if (!details.revokeKeyPageScript) return false;
+      try {
+        await browser.open(provider.keysUrl, { mode: 'pip' });
+        const r = await browser.evaluate<{ status: number; body: string }>(details.revokeKeyPageScript(key));
+        return r?.status === 200;
+      } catch { return false; }
+    },
   };
 }
